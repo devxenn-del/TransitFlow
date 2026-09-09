@@ -71,6 +71,30 @@ class CompanySetting extends Model
      */
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
+        if (! $this->logo_path) {
+            return null;
+        }
+
+        return self::rehostOntoCurrentRequest(Storage::disk('public')->url($this->logo_path));
+    }
+
+    /**
+     * Storage::url() always bakes in config('app.url') — often `localhost`,
+     * which resolves to the CLIENT itself on a phone/emulator, not this
+     * server (the same trap Api\Mobile\WebSessionController hit). Rehost
+     * the generated URL onto whatever address the current request actually
+     * came in on, so a mobile client can always reach the image it was
+     * just given.
+     */
+    private static function rehostOntoCurrentRequest(string $url): string
+    {
+        $request = request();
+        if ($request === null) {
+            return $url;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?: $url;
+
+        return $request->getScheme().'://'.$request->getHttpHost().$path;
     }
 }
