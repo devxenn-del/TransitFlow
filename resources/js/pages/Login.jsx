@@ -13,7 +13,7 @@ const FEATURES = [
 
 const DEMO = [
     ['superadmin@transitflow.test', 'Super Admin'],
-    ['admin@perjoda.test', 'Company Admin — Perjoda'],
+    ['admin@perjoda.test', 'Company Admin — Perjsoda'],
     ['staff@perjoda.test', 'Office staff — Perjoda'],
 ];
 
