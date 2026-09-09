@@ -44,7 +44,6 @@ use App\Http\Controllers\Api\Conductor\LookupController;
 use App\Http\Controllers\Api\Conductor\TicketController;
 use App\Http\Controllers\Api\Conductor\TripController;
 use App\Http\Controllers\Api\Meta\ServerConfigController;
-use App\Http\Controllers\Api\Mobile\WebSessionController;
 use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\Shared\NavController;
 use App\Http\Controllers\Api\Shared\RoleController;
@@ -122,11 +121,6 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
 
     // Permission-gated navigation for the unified mobile app's dynamic menu.
     Route::get('/nav', [NavController::class, 'index'])->name('nav.index');
-
-    // One-time WebView login hand-off — see Api\Mobile\WebSessionController.
-    Route::post('/mobile/webview-session', [WebSessionController::class, 'create'])
-        ->middleware('throttle:20,1')
-        ->name('mobile.webview-session');
 
     /*
     | Platform — Super Admin only.

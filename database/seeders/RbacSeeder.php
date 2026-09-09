@@ -89,7 +89,7 @@ class RbacSeeder extends Seeder
             ['farematrix.edit', 'Edit Fares (grid cells + discount overrides)', null, null, null],
         ],
         'Routes' => [
-            ['routes.view', 'View Routes', null, null, null],
+            ['routes.view', 'View Routes', 'Routes', '/company/routes', 'bi-signpost-split'],
             ['routes.create', 'Add Route', null, null, null],
             ['routes.edit', 'Edit Route', null, null, null],
             ['routes.delete', 'Delete Route', null, null, null],
