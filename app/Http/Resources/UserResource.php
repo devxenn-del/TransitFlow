@@ -61,6 +61,10 @@ class UserResource extends JsonResource
                 'code' => $this->company->code,
                 'status' => $this->company->status->value,
                 'can_create_accounts' => $this->company->can_create_accounts,
+                // Plain branding — visible to any member of the company,
+                // not gated behind company.settings.view/manage (which
+                // controls who may change it, not who may see it).
+                'logo_url' => $this->company->relationLoaded('settings') ? $this->company->settings?->logo_url : null,
             ] : null),
             'company_id' => $this->company_id,
             // The caller's own permission keys, or when explicitly asked for.

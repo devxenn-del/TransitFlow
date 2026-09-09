@@ -19,7 +19,7 @@ class CompanySettingResource extends JsonResource
     {
         return [
             'logo_path' => $this->logo_path,
-            'logo_url' => $this->publicUrl($this->logo_path),
+            'logo_url' => $this->logo_url,
             'qr_payment_path' => $this->qr_payment_path,
             'qr_payment_url' => $this->publicUrl($this->qr_payment_path),
             'color_accent' => $this->color_accent,

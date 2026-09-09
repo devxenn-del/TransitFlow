@@ -60,7 +60,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => UserResource::make($user->loadMissing('company', 'accessRole'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
         ]);
     }
 
@@ -98,7 +98,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => UserResource::make($user->loadMissing('company', 'accessRole'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
         ]);
     }
 
@@ -184,7 +184,7 @@ class AuthController extends Controller
     public function me(Request $request): UserResource
     {
         return UserResource::make(
-            $request->user()->loadMissing('company', 'accessRole')
+            $request->user()->loadMissing('company.settings', 'accessRole')
         )->includePermissions();
     }
 
@@ -201,7 +201,7 @@ class AuthController extends Controller
             'name', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex',
         ]));
 
-        return UserResource::make($user->fresh()->loadMissing('company', 'accessRole'))->includePermissions();
+        return UserResource::make($user->fresh()->loadMissing('company.settings', 'accessRole'))->includePermissions();
     }
 
     /**
@@ -226,7 +226,7 @@ class AuthController extends Controller
             ->delete();
 
         return response()->json([
-            'user' => UserResource::make($user->loadMissing('company', 'accessRole'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
         ]);
     }
 }

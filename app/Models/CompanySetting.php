@@ -7,6 +7,7 @@ use Database\Factories\CompanySettingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Per-company branding / receipt / organization-identity settings — the
@@ -60,5 +61,16 @@ class CompanySetting extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * The company's branding logo as a public URL — plain branding, so
+     * readable by any authenticated member of the company (not gated
+     * behind company.settings.view/manage, which controls who may
+     * change it, not who may see it).
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
     }
 }
