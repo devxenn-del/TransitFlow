@@ -7,6 +7,7 @@ use App\Http\Resources\PassengerTypeResource;
 use App\Models\Driver;
 use App\Models\PassengerType;
 use App\Models\Route;
+use App\Models\RouteStop;
 use App\Models\Terminal;
 use App\Models\Trip;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class LookupController extends Controller
             'data' => $request->user()->buses()
                 ->where('status', 'Active')
                 ->orderBy('bus_number')
-                ->get(['buses.id', 'bus_number', 'plate_number']),
+                ->get(['buses.id', 'bus_number', 'plate_number', 'capacity']),
         ];
     }
 
@@ -87,6 +88,65 @@ class LookupController extends Controller
             'data' => PassengerTypeResource::collection(
                 PassengerType::query()->where('status', 'Active')->with('articles')->ordered()->get()
             ),
+        ];
+    }
+
+    /**
+     * The trip's route stops in franchise order, clamped to the inclusive
+     * span between its coverage origin and destination, plus each stop's
+     * index — the conductor app's "STOP N OF M" / forward-only destination
+     * picker. Franchise is resolved from whichever priced Route matches the
+     * trip's declared coverage. If either endpoint can't be located in the
+     * franchise's stop list (stale data, no matching route), this fails
+     * open and returns the franchise's full stop list rather than blocking
+     * ticket sales over a missing sequence.
+     */
+    public function stops(Trip $trip): array
+    {
+        $this->authorize('view', $trip);
+
+        $origin = $trip->coverage_origin;
+        $destination = $trip->coverage_destination;
+
+        $route = Route::query()
+            ->where('origin', $origin)
+            ->where('destination', $destination)
+            ->first();
+
+        $stopNames = $route
+            ? RouteStop::query()->where('franchise_id', $route->franchise_id)
+                ->orderBy('sort_order')->pluck('name')->all()
+            : [];
+
+        $originIndex = array_search($origin, $stopNames, true);
+        $destinationIndex = array_search($destination, $stopNames, true);
+
+        if ($stopNames === [] || $originIndex === false || $destinationIndex === false) {
+            $stops = collect($stopNames)->values()
+                ->map(fn (string $name, int $i) => ['name' => $name, 'index' => $i])->all();
+
+            return [
+                'origin_index' => $originIndex !== false ? $originIndex : null,
+                'destination_index' => $destinationIndex !== false ? $destinationIndex : null,
+                'direction' => 'forward',
+                'stops' => $stops,
+            ];
+        }
+
+        $direction = $destinationIndex >= $originIndex ? 'forward' : 'backward';
+        $lo = min($originIndex, $destinationIndex);
+        $hi = max($originIndex, $destinationIndex);
+
+        $stops = [];
+        for ($i = $lo; $i <= $hi; $i++) {
+            $stops[] = ['name' => $stopNames[$i], 'index' => $i];
+        }
+
+        return [
+            'origin_index' => $originIndex,
+            'destination_index' => $destinationIndex,
+            'direction' => $direction,
+            'stops' => $stops,
         ];
     }
 }

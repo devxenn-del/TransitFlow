@@ -28,7 +28,7 @@ class TripController extends Controller
         $trip = $this->liveTripFor($request);
 
         return $trip
-            ? TripResource::make($trip->loadCount('tickets')->load('driver'))
+            ? TripResource::make($trip->loadCount('tickets')->load(['driver', 'bus']))
             : response()->json(['data' => null]);
     }
 
@@ -36,7 +36,7 @@ class TripController extends Controller
     {
         $trip = $action->handle($request->user(), $request->validated());
 
-        return TripResource::make($trip->loadCount('tickets')->load('driver'))
+        return TripResource::make($trip->loadCount('tickets')->load(['driver', 'bus']))
             ->response()
             ->setStatusCode(JsonResponse::HTTP_CREATED);
     }
@@ -51,7 +51,7 @@ class TripController extends Controller
 
         $trip->update(['status' => 'OnTrip', 'marked_on_trip_at' => now()]);
 
-        return TripResource::make($trip->fresh()->loadCount('tickets')->load('driver'));
+        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus']));
     }
 
     public function end(EndTripRequest $request): TripResource
@@ -70,7 +70,7 @@ class TripController extends Controller
             'remitted_amount' => $remitted,
         ]);
 
-        return TripResource::make($trip->fresh()->loadCount('tickets')->load('driver'));
+        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus']));
     }
 
     public function cancel(CancelTripRequest $request): TripResource
@@ -85,7 +85,7 @@ class TripController extends Controller
             'cancellation_reason' => $request->string('reason')->value(),
         ]);
 
-        return TripResource::make($trip->fresh()->loadCount('tickets')->load('driver'));
+        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus']));
     }
 
     public function history(Request $request): AnonymousResourceCollection
@@ -95,7 +95,7 @@ class TripController extends Controller
                 ->where('conductor_id', $request->user()->id)
                 ->whereIn('status', ['Arrived', 'Cancelled'])
                 ->withCount('tickets')
-                ->with('driver')
+                ->with(['driver', 'bus'])
                 ->orderByDesc('started_at')
                 ->paginate($request->integer('per_page', 20))
         );
@@ -105,7 +105,7 @@ class TripController extends Controller
     {
         $this->authorize('view', $trip);
 
-        return TripResource::make($trip->loadCount('tickets')->load(['driver', 'conductor']));
+        return TripResource::make($trip->loadCount('tickets')->load(['driver', 'conductor', 'bus']));
     }
 
     /** GET /api/conductor/trips/{trip}/remittance — the §4.3 breakdown. */

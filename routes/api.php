@@ -328,6 +328,7 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('lookup/coverage', [LookupController::class, 'coverageOptions'])->middleware('permission:trips.start');
         Route::get('lookup/passenger-types', [LookupController::class, 'passengerTypes'])->middleware('permission:tickets.issue');
         Route::get('trips/{trip}/fares', [LookupController::class, 'tripFares'])->middleware('permission:tickets.issue');
+        Route::get('trips/{trip}/stops', [LookupController::class, 'stops'])->middleware('permission:tickets.issue');
 
         Route::get('trips/active', [TripController::class, 'active'])->middleware('permission:trips.view');
         Route::get('trips/history', [TripController::class, 'history'])->middleware('permission:trips.view');

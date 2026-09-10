@@ -26,6 +26,7 @@ class TripResource extends JsonResource
             'coverage_destination' => $this->coverage_destination,
             'bus_id' => $this->bus_id,
             'bus_number' => $this->bus_number,
+            'bus_capacity' => $this->whenLoaded('bus', fn () => $this->bus?->capacity),
             'driver' => $this->whenLoaded('driver', fn () => $this->driver ? [
                 'id' => $this->driver->id, 'name' => $this->driver->name,
             ] : null),
