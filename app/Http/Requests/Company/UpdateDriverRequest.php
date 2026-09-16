@@ -13,6 +13,13 @@ class UpdateDriverRequest extends FormRequest
         return $this->user()?->can('update', $this->route('driver')) ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('driver_code')) {
+            $this->merge(['driver_code' => Driver::normalizeCode($this->input('driver_code'))]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -23,6 +30,12 @@ class UpdateDriverRequest extends FormRequest
             'license_number' => ['sometimes', 'nullable', 'string', 'max:50'],
             'contact_number' => ['sometimes', 'nullable', 'string', 'max:30'],
             'status' => ['sometimes', Rule::in(Driver::STATUSES)],
+            'driver_code' => [
+                'sometimes', 'nullable', 'string', 'max:20',
+                Rule::unique('drivers', 'driver_code')
+                    ->where('company_id', $this->user()?->company_id)
+                    ->ignore($this->route('driver')),
+            ],
         ];
     }
 }

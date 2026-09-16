@@ -21,7 +21,7 @@ export default function Login() {
     const { login, isAuthenticated, loading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const [form, setForm] = useState({ email: '', password: 'password', remember: true });
+    const [form, setForm] = useState({ email: '', password: 'password', driver_code: '', remember: true });
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
 
@@ -34,7 +34,7 @@ export default function Login() {
         setBusy(true);
         setError(null);
         try {
-            await login(form);
+            await login({ ...form, driver_code: form.driver_code.trim() });
             navigate(location.state?.from || '/', { replace: true });
         } catch (err) {
             setError(errorMessage(err, 'Unable to sign in.'));
@@ -144,6 +144,21 @@ export default function Login() {
                                             placeholder="Your password"
                                             value={form.password}
                                             onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="form-label">
+                                        Driver Code
+                                        <span className="text-muted fw-normal"> — conductor accounts only</span>
+                                    </label>
+                                    <div className="tf-input-group">
+                                        <span className="tf-input-icon"><i className="bi bi-person-badge-fill" /></span>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter driver code"
+                                            value={form.driver_code}
+                                            onChange={(e) => setForm({ ...form, driver_code: e.target.value })}
                                         />
                                     </div>
                                 </div>

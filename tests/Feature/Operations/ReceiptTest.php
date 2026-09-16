@@ -171,11 +171,12 @@ class ReceiptTest extends TestCase
 
     public function test_shift_summary_totals_todays_trips_for_the_conductors_active_buses(): void
     {
-        $bus = Bus::factory()->for($this->company)->create(['status' => 'Active']);
-        $this->conductor->buses()->attach($bus->id);
+        $bus = Bus::factory()->for($this->company)->create(['status' => 'Active', 'bus_number' => 'BUS-USED']);
+        $unusedBus = Bus::factory()->for($this->company)->create(['status' => 'Active', 'bus_number' => 'BUS-IDLE']);
+        $this->conductor->buses()->attach([$bus->id, $unusedBus->id]);
 
-        $t1 = $this->ownTrip(['bus_id' => $bus->id, 'started_at' => now()->setTime(6, 0)]);
-        $t2 = $this->ownTrip(['bus_id' => $bus->id, 'started_at' => now()->setTime(9, 0)]);
+        $t1 = $this->ownTrip(['bus_id' => $bus->id, 'bus_number' => $bus->bus_number, 'started_at' => now()->setTime(6, 0)]);
+        $t2 = $this->ownTrip(['bus_id' => $bus->id, 'bus_number' => $bus->bus_number, 'started_at' => now()->setTime(9, 0)]);
         Ticket::factory()->for($this->company)->count(2)->create(['trip_id' => $t1->id, 'fare' => 25, 'payment_method' => 'Cash']);
         Ticket::factory()->for($this->company)->create(['trip_id' => $t2->id, 'fare' => 50, 'payment_method' => 'QR']);
 
@@ -187,10 +188,13 @@ class ReceiptTest extends TestCase
             ->assertJsonPath('data.title', 'SHIFT SALES SUMMARY');
 
         $rows = collect($res->json('data.sections'))->flatMap(fn ($s) => $s['rows'])->keyBy('label');
-        $this->assertSame('100.00', $rows['Gross Sales']['value']); // 2×25 + 50
+        // Only the bus actually driven today shows here — not every bus this
+        // conductor happens to be assigned to (BUS-IDLE was never used).
+        $this->assertSame('BUS-USED', $rows['Bus #']['value']);
+        $this->assertSame('100.00', $rows['Gross Sales:']['value']); // 2×25 + 50
         $this->assertSame('50.00', $rows['Cash']['value']);
         $this->assertSame('50.00', $rows['QR']['value']);
-        $this->assertSame('100.00', $rows['Net Sales']['value']);
+        $this->assertSame('100.00', $rows['NET SALES:']['value']);
     }
 
     public function test_a_conductor_cannot_print_another_conductors_trip(): void

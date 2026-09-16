@@ -61,11 +61,13 @@ class AccountLockTest extends TestCase
     public function test_a_shift_end_lock_bites_immediately_on_a_fresh_login_but_grants_grace_to_an_established_session(): void
     {
         $company = Company::factory()->create();
-        $user = User::factory()->forCompany($company)->withRole('conductor')->create(['email' => 'c@acme.test']);
+        $driver = \App\Models\Driver::factory()->for($company)->create();
+        $user = User::factory()->forCompany($company)->withRole('conductor')
+            ->create(['email' => 'c@acme.test', 'driver_id' => $driver->id]);
         AccountLock::lockShiftEnd($user);
 
         // Fresh sign-in: no grace, locked immediately.
-        $this->postJson('/api/auth/login', ['email' => 'c@acme.test', 'password' => 'password'])
+        $this->postJson('/api/auth/login', ['email' => 'c@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code])
             ->assertStatus(423)
             ->assertJsonPath('lock_type', 'shift_end');
 

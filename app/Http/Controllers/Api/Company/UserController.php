@@ -31,7 +31,7 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
 
         $users = User::query()
-            ->with('accessRole')
+            ->with(['accessRole', 'driver'])
             ->when($request->string('role')->isNotEmpty(), fn ($q) => $q->whereRelation('accessRole', 'key', $request->string('role')))
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->orderBy('name')
@@ -54,7 +54,7 @@ class UserController extends Controller
             'role' => UserRole::forRole($role)->value,
             'role_id' => $role->id,
             'status' => $request->string('status')->value() ?: 'active',
-            ...$request->safe()->only(['first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex']),
+            ...$request->safe()->only(['first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex', 'driver_id']),
         ]);
 
         if ($request->filled('pin')) {
@@ -63,7 +63,7 @@ class UserController extends Controller
 
         $this->syncPermissions->handle($user, reset: true);
 
-        return UserResource::make($user->load('accessRole'))
+        return UserResource::make($user->load(['accessRole', 'driver']))
             ->response()
             ->setStatusCode(JsonResponse::HTTP_CREATED);
     }
@@ -72,7 +72,7 @@ class UserController extends Controller
     {
         $this->authorize('view', $user);
 
-        return UserResource::make($user->load('accessRole'));
+        return UserResource::make($user->load(['accessRole', 'driver']));
     }
 
     public function update(UpdateUserRequest $request, User $user): UserResource
@@ -95,7 +95,7 @@ class UserController extends Controller
             $this->syncPermissions->handle($user->refresh(), reset: false);
         }
 
-        return UserResource::make($user->fresh()->load('accessRole'));
+        return UserResource::make($user->fresh()->load(['accessRole', 'driver']));
     }
 
     public function destroy(User $user): JsonResponse

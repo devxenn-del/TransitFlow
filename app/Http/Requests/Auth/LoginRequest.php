@@ -22,6 +22,12 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            // Requiredness depends on the account's role, which isn't known
+            // until the credentials are checked — enforced in
+            // AuthController::login(), not here. See §7/§18 of the Driver
+            // Code spec: this must still fail closed server-side even if a
+            // client never sends the field at all.
+            'driver_code' => ['sometimes', 'nullable', 'string', 'max:20'],
             'device_name' => ['sometimes', 'string', 'max:120'],
             'remember' => ['sometimes', 'boolean'],
         ];

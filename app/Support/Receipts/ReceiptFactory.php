@@ -90,27 +90,42 @@ class ReceiptFactory
                 ]);
         }
 
-        return ReceiptDocument::make('arrival', 'ARRIVAL SUCCESSFULLY CLOSED', $this->brand($trip->company_id), $this->width($trip->company_id))
+        $counts = $this->countsByBoarding($trip);
+        $totalPassengers = $counts['Terminal'] + $counts['Pickup'];
+
+        return ReceiptDocument::make('arrival', 'TRIP ARRIVAL RECEIPT', $this->brand($trip->company_id), $this->width($trip->company_id))
             ->reference($trip->reference)
-            ->section('TRIP INFO', [
-                'Trip #' => $trip->reference,
-                'Origin' => $trip->coverage_origin,
-                'Destination' => $trip->coverage_destination,
-                'Arrival Date' => $this->date($trip->ended_at),
-                'Arrival Time' => $this->time($trip->ended_at),
-                'Driver' => $trip->driver?->name ?: '—',
-                'Conductor' => $trip->conductor?->name ?: '—',
-                'Bus Number' => $trip->bus_number ?: '—',
-                'Ticket(s)' => (string) $r['ticket_count'],
+            ->section('BUS INFO', [
+                'Bus #' => [$trip->bus_number ?: '—', 'form' => true],
+                'Route' => [trim(($trip->coverage_origin ?: '?').' - '.($trip->coverage_destination ?: '?')), 'form' => true],
+                'Terminal' => [$trip->origin ?: '—', 'form' => true],
+                'Driver' => [$trip->driver?->name ?: '—', 'form' => true],
+                'Conductor' => [$trip->conductor?->name ?: '—', 'form' => true],
             ])
-            ->section('PASSENGERS', [
-                'Total ticket(s)' => (string) $r['ticket_count'],
-                'Cancelled' => (string) $r['refunded_count'],
-                'Cash Total' => $this->money($r['by_payment_method']['Cash']),
-                'Total Value' => [$this->money($r['by_fare_mode']['passenger']), 'strong' => true, 'total' => true],
+            ->section('REMITTANCE INFO', [
+                'Total Passengers' => (string) $totalPassengers,
+                '  Terminal Passengers' => (string) $counts['Terminal'],
+                '  Pickup Passengers' => (string) $counts['Pickup'],
+                '---1' => true,
+                'Via Terminal' => $this->money($r['by_boarding_type']['Terminal']),
+                'Via Pickup' => $this->money($r['by_boarding_type']['Pickup']),
+                '---2' => true,
+                'Total Cash' => $this->money($r['by_payment_method']['Cash']),
+                'Total QR' => $this->money($r['by_payment_method']['QR']),
+                'Total E-Wallet' => $this->money($r['by_payment_method']['E-Wallet']),
+                'Total Dispatch' => $this->money($r['total_dispatch']),
+                '---3' => true,
+                'Remitted Amount' => $r['remitted_amount'] !== null ? $this->money($r['remitted_amount']) : 'Pending',
+                'Total Balance' => $r['balance'] !== null ? $this->money($r['balance']) : '—',
+                '---4' => true,
+                'Total Ticket' => (string) ($r['ticket_count'] + $r['refunded_count']),
+                'Total Articles' => (string) $r['article_count'],
+                '---5' => true,
+                'TOTAL VALUE' => [$this->money($r['collected']), 'strong' => true, 'total' => true],
             ])
-            ->section('ARTICLES', [
-                'Total Value' => [$this->money($r['by_fare_mode']['article']), 'strong' => true, 'total' => true],
+            ->section(null, [
+                'Date & Time' => [$this->dateTime(now()), 'form' => true],
+                'Printed by' => [$trip->conductor?->name ?: '—', 'form' => true],
             ]);
     }
 
@@ -222,8 +237,11 @@ class ReceiptFactory
      */
     public function shiftSummary(User $conductor, Carbon $date): ReceiptDocument
     {
+        // Scopes which trips to pull in — any of the conductor's assigned,
+        // Active buses. The DETAILS block below must NOT show this whole
+        // list though; only the bus(es)/driver(s)/conductor(s) actually
+        // used in today's trips, same as Driver and Conductor already were.
         $busIds = $conductor->buses()->where('status', 'Active')->pluck('buses.id');
-        $busNumbers = $conductor->buses()->where('status', 'Active')->orderBy('bus_number')->pluck('bus_number');
 
         $trips = Trip::query()
             ->whereIn('bus_id', $busIds)
@@ -235,6 +253,7 @@ class ReceiptFactory
             ->get();
 
         $grossSales = (float) $trips->sum('net');
+        $busNumbers = $trips->pluck('bus_number')->filter()->unique()->sort()->values();
         $conductorNames = $trips->map(fn ($t) => $t->conductor?->name)->filter()->unique()->values();
         $driverNames = $trips->map(fn ($t) => $t->driver?->name)->filter()->unique()->values();
         $latest = $trips->last();
@@ -242,24 +261,38 @@ class ReceiptFactory
         $doc = ReceiptDocument::make('shift-summary', 'SHIFT SALES SUMMARY', $this->brand($conductor->company_id), $this->width($conductor->company_id));
 
         $doc->section('DETAILS', [
-            'Coverage' => $latest && $latest->coverage_origin
-                ? strtoupper($latest->coverage_origin).' TO '.strtoupper((string) $latest->coverage_destination).' VICE VERSA'
+            'Route' => $latest && $latest->coverage_origin
+                ? [strtoupper($latest->coverage_origin).' TO '.strtoupper((string) $latest->coverage_destination).' VICE VERSA', 'form' => true]
                 : null,
-            'Bus #' => $busNumbers->isNotEmpty() ? $busNumbers->implode(', ') : '—',
-            'Driver' => $driverNames->isNotEmpty() ? $driverNames->implode(', ') : '—',
-            'Conductor' => $conductorNames->isNotEmpty() ? $conductorNames->implode(', ') : $conductor->name,
-            'Date' => $this->dateTime($date),
+            'Bus #' => [$busNumbers->isNotEmpty() ? $busNumbers->implode(', ') : '—', 'form' => true],
+            'Driver' => [$driverNames->isNotEmpty() ? $driverNames->implode(', ') : '—', 'form' => true],
+            'Conductor' => [$conductorNames->isNotEmpty() ? $conductorNames->implode(', ') : $conductor->name, 'form' => true],
+            'Date' => [$this->dateTime($date), 'form' => true],
         ]);
 
-        $tripRows = [];
-        foreach ($trips as $i => $t) {
-            $tripRows['#'.($i + 1).' '.$this->time($t->started_at)] = (int) $t->ticket_count.' tix, '.$this->money((float) $t->net);
+        // Fixed-width "T.ID / ARR / PAX / TCK / AMOUNT" table — a single
+        // pre-spaced string per row in the label slot (value left blank),
+        // since the two-column label/value renderer has no native table
+        // support. Every ticket row is exactly one passenger in this schema
+        // (a qty>1 sale is expanded into that many ticket rows at issue
+        // time — see IssueTicket), so PAX and TCK are always equal here.
+        $tripRows = [$this->tripTableRow('T.ID', 'ARR', 'PAX', 'TCK', 'AMOUNT') => ''];
+        foreach ($trips as $t) {
+            $tripRows[$this->tripTableRow(
+                (string) $t->reference,
+                $this->time($t->ended_at ?: $t->started_at),
+                (string) $t->ticket_count,
+                (string) $t->ticket_count,
+                $this->money((float) $t->net),
+            )] = '';
         }
-        if ($tripRows === []) {
-            $tripRows['—'] = 'No trips';
+        if ($trips->isEmpty()) {
+            $tripRows['No trips'] = '';
         }
-        $tripRows['Gross Sales'] = [$this->money($grossSales), 'strong' => true, 'total' => true];
-        $doc->section('TRIP DEPARTURE DETAILS', $tripRows);
+        $doc->section('TRIP DETAILS', $tripRows);
+        $doc->section(null, [
+            'Gross Sales:' => [$this->money($grossSales), 'strong' => true, 'total' => true],
+        ]);
 
         // Discount breakdown — same current-settings approximation BITS uses
         // (discount % read from the passenger type's *current* value).
@@ -287,20 +320,36 @@ class ReceiptFactory
                 $discountSection[$row->name] = $this->money($amount);
             }
         }
-        $discountSection['Total Discount'] = [$this->money($totalDiscount), 'strong' => true, 'total' => true];
+        $discountSection['TOTAL DISCOUNT:'] = [$this->money($totalDiscount), 'strong' => true, 'total' => true];
         $doc->section('DISCOUNT DETAILS', $discountSection);
 
         $byMethod = $this->byPaymentMethodForBuses($busIds, $date, $conductor->company_id);
-        $doc->section(null, [
+        $netSales = $byMethod['Cash'] + $byMethod['QR'] + $byMethod['E-Wallet'];
+        $doc->section('PAYMENT BREAKDOWN', [
             'Cash' => $this->money($byMethod['Cash']),
             'QR' => $this->money($byMethod['QR']),
-            'Net Sales' => [$this->money($byMethod['Cash'] + $byMethod['QR']), 'strong' => true, 'total' => true],
+            'E-Wallet' => $this->money($byMethod['E-Wallet']),
+            'NET SALES:' => [$this->money($netSales), 'strong' => true, 'total' => true],
         ]);
 
-        return $doc->section('DATE AND TIME OF PRINTING', [
-            'Prepared by' => $conductor->name ?: '—',
-            'Printed' => $this->dateTime(now()),
+        return $doc->section(null, [
+            'Prepared by' => [$conductor->name ?: '—', 'form' => true],
+            'Printed' => [$this->dateTimeSeconds(now()), 'form' => true],
         ]);
+    }
+
+    /**
+     * A single fixed-width "T.ID / ARR / PAX / TCK / AMOUNT" line for the
+     * shift summary's trip table — see shiftSummary(). Sized for the 32-char
+     * line width the Android ESC/POS formatter renders at.
+     */
+    private function tripTableRow(string $id, string $arr, string $pax, string $tck, string $amount): string
+    {
+        return str_pad(mb_substr($id, 0, 6), 6)
+            .str_pad(mb_substr($arr, 0, 6), 6)
+            .str_pad(mb_substr($pax, 0, 4), 4, ' ', STR_PAD_LEFT)
+            .str_pad(mb_substr($tck, 0, 4), 4, ' ', STR_PAD_LEFT)
+            .str_pad(mb_substr($amount, 0, 12), 12, ' ', STR_PAD_LEFT);
     }
 
     /* ----------------------------- helpers ----------------------------- */
@@ -354,7 +403,7 @@ class ReceiptFactory
 
     /**
      * @param  Collection<int, int>  $busIds
-     * @return array{Cash: float, QR: float}
+     * @return array{Cash: float, QR: float, 'E-Wallet': float}
      */
     private function byPaymentMethodForBuses($busIds, Carbon $date, int $companyId): array
     {
@@ -371,6 +420,7 @@ class ReceiptFactory
         return [
             'Cash' => (float) ($rows['Cash'] ?? 0),
             'QR' => (float) ($rows['QR'] ?? 0),
+            'E-Wallet' => (float) ($rows['E-Wallet'] ?? 0),
         ];
     }
 
@@ -417,5 +467,10 @@ class ReceiptFactory
     private function dateTime(?Carbon $c): string
     {
         return $c ? $c->format('m-d-Y h:iA') : '—';
+    }
+
+    private function dateTimeSeconds(?Carbon $c): string
+    {
+        return $c ? $c->format('m-d-Y h:i:sA') : '—';
     }
 }

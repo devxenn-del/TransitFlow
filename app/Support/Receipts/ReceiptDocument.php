@@ -16,10 +16,10 @@ use Illuminate\Contracts\Support\Arrayable;
  *   width_mm    paper width from company settings
  *   printed_at  ISO-8601 render timestamp
  *   reference   optional monospace reference line under the header
- *   sections    [{ heading, rows: [{ label, value, strong, total, divider }] }]
+ *   sections    [{ heading, rows: [{ label, value, strong, total, divider, form }] }]
  *   note        centred footer line (ticket footer / thank-you)
  *
- * @phpstan-type ReceiptRow array{label: string, value: string, strong?: bool, total?: bool, divider?: bool}
+ * @phpstan-type ReceiptRow array{label: string, value: string, strong?: bool, total?: bool, divider?: bool, form?: bool}
  * @phpstan-type ReceiptSection array{heading: ?string, rows: list<ReceiptRow>}
  */
 class ReceiptDocument implements Arrayable
@@ -75,8 +75,13 @@ class ReceiptDocument implements Arrayable
 
     /**
      * Add a titled block of label/value rows. `$rows` accepts:
-     *   'Label' => 'value'                        plain row
+     *   'Label' => 'value'                        plain row (label left, value right)
      *   'Label' => ['value', strong: bool, total: bool]
+     *   'Label' => ['value', 'form' => true]      "Label : value" form row — label
+     *                                              column width is the widest form
+     *                                              row in the same section, computed
+     *                                              at render time (see the Android
+     *                                              ESC/POS formatter)
      *   '---'   => true                           horizontal rule
      *
      * @param  array<string, mixed>  $rows
@@ -102,6 +107,7 @@ class ReceiptDocument implements Arrayable
                     'value' => (string) ($value[0] ?? ''),
                     'strong' => (bool) ($value['strong'] ?? false),
                     'total' => (bool) ($value['total'] ?? false),
+                    'form' => (bool) ($value['form'] ?? false),
                 ];
 
                 continue;

@@ -35,6 +35,9 @@ class UpdateUserRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
             'sex' => ['nullable', Rule::in(['Male', 'Female'])],
             'pin' => ['nullable', 'string', 'regex:/^\d{4}$/'],
+            'driver_id' => ['sometimes', 'nullable', Rule::exists('drivers', 'id')->where(
+                fn ($q) => $q->where('company_id', $this->user()?->company_id)
+            )],
         ];
     }
 }

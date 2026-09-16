@@ -10,7 +10,7 @@ import { drivers } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
-const BLANK = { name: '', license_number: '', contact_number: '', status: 'Active' };
+const BLANK = { name: '', license_number: '', contact_number: '', status: 'Active', driver_code: '' };
 
 export default function Drivers() {
     const { can } = useAuth();
@@ -21,7 +21,13 @@ export default function Drivers() {
 
     const openNew = () => { setForm(BLANK); setEditing({}); };
     const openEdit = (d) => {
-        setForm({ name: d.name, license_number: d.license_number ?? '', contact_number: d.contact_number ?? '', status: d.status });
+        setForm({
+            name: d.name,
+            license_number: d.license_number ?? '',
+            contact_number: d.contact_number ?? '',
+            status: d.status,
+            driver_code: d.driver_code ?? '',
+        });
         setEditing(d);
     };
 
@@ -29,11 +35,17 @@ export default function Drivers() {
         e.preventDefault();
         setSaving(true);
         try {
+            // Blank on create leaves it to auto-generate (DR-####); blank on
+            // edit is a real (validated, rejected) request, never silently
+            // dropped — a conductor may already be depending on that code.
+            const payload = { ...form };
+            if (!editing.id && !payload.driver_code) delete payload.driver_code;
+
             if (editing.id) {
-                await drivers.update(editing.id, form);
+                await drivers.update(editing.id, payload);
                 notifySuccess('Driver updated.');
             } else {
-                await drivers.create(form);
+                await drivers.create(payload);
                 notifySuccess('Driver added.');
             }
             setEditing(null);
@@ -59,6 +71,7 @@ export default function Drivers() {
     const columns = [
         { key: 'name', header: 'Driver', className: 'fw-semibold' },
         { key: 'employee_id', header: 'Employee ID', render: (d) => <code>{d.employee_id ?? '—'}</code> },
+        { key: 'driver_code', header: 'Driver Code', render: (d) => <code>{d.driver_code ?? '—'}</code> },
         { key: 'license_number', header: 'License #', render: (d) => d.license_number || <span className="text-muted">—</span> },
         { key: 'contact_number', header: 'Contact', render: (d) => d.contact_number || <span className="text-muted">—</span> },
         { key: 'status', header: 'Status', render: (d) => <StatusBadge value={d.status.toLowerCase()} /> },
@@ -133,6 +146,18 @@ export default function Drivers() {
                             <option value="Active">Active</option>
                             <option value="Inactive">Inactive</option>
                         </select>
+                    </div>
+                    <div>
+                        <label className="form-label">Driver Code</label>
+                        <input
+                            className="form-control"
+                            placeholder="Leave blank to auto-generate"
+                            value={form.driver_code}
+                            onChange={(e) => setForm({ ...form, driver_code: e.target.value.toUpperCase() })}
+                        />
+                        <div className="form-text">
+                            The conductor paired with this driver must enter this code to sign in. Unique per company.
+                        </div>
                     </div>
                     {!editing?.id && <p className="small text-muted mb-0">An employee ID is generated automatically.</p>}
                 </form>

@@ -980,6 +980,7 @@ a.tf-stat:hover {
 
 .tf-receipt__label {
     flex: 0 1 auto;
+    white-space: pre;
 }
 
 .tf-receipt__value {
@@ -998,9 +999,27 @@ a.tf-stat:hover {
     padding-top: 3px;
 }
 
+/* "Label : value" form row (see ReceiptDocument.php's `form` row shape) —
+   used for the DETAILS/BUS INFO blocks and footers, instead of the usual
+   label-left/value-right split. Label column width is the widest form row
+   in the section, same rule the Android ESC/POS formatter uses. */
+.tf-receipt__row--form {
+    display: block;
+    white-space: pre;
+}
+
 .tf-receipt__divider {
     border-top: 1px dashed #000;
     margin: 5px 0;
+}
+
+/* The heavy "====" rule that wraps the whole slip (top, after the org
+   block, and around the footer note) — see ReceiptEscPosFormatter's
+   hrHeavy(). A double border reads as visually heavier than the thin
+   dashed section dividers, same distinction the printed slip makes. */
+.tf-receipt__rule--heavy {
+    border-top: 3px double #000;
+    margin: 6px 0;
 }
 
 .tf-receipt__note {

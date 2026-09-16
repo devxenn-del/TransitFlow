@@ -55,6 +55,14 @@ class UserResource extends JsonResource
                 'key' => $this->accessRole->key,
                 'name' => $this->accessRole->name,
             ] : null),
+            'driver_id' => $this->driver_id,
+            // The driver this conductor must supply a Driver Code for at
+            // login — see AuthController::login().
+            'driver' => $this->whenLoaded('driver', fn () => $this->driver ? [
+                'id' => $this->driver->id,
+                'name' => $this->driver->name,
+                'driver_code' => $this->driver->driver_code,
+            ] : null),
             'company' => $this->whenLoaded('company', fn () => $this->company ? [
                 'id' => $this->company->id,
                 'name' => $this->company->name,

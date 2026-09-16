@@ -18,6 +18,7 @@ class PinLoginRequest extends LoginRequest
         return [
             'email' => ['required', 'string', 'email'],
             'pin' => ['required', 'string', 'regex:/^\d{4}$/'],
+            'driver_code' => ['sometimes', 'nullable', 'string', 'max:20'],
             'device_name' => ['sometimes', 'string', 'max:120'],
         ];
     }

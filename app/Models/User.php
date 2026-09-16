@@ -16,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'company_id', 'role', 'role_id', 'status', 'must_change_password', 'password_changed_at', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex'])]
+#[Fillable(['name', 'email', 'password', 'company_id', 'role', 'role_id', 'driver_id', 'status', 'must_change_password', 'password_changed_at', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex'])]
 #[Hidden(['password', 'remember_token', 'void_pin_hash', 'pin_hash'])]
 class User extends Authenticatable
 {
@@ -100,6 +100,17 @@ class User extends Authenticatable
     public function accessRole(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    /**
+     * The one driver this conductor account is paired with, for Driver Code
+     * login (see AuthController::login()). Not meaningful for other roles.
+     *
+     * @return BelongsTo<Driver, $this>
+     */
+    public function driver(): BelongsTo
+    {
+        return $this->belongsTo(Driver::class);
     }
 
     /**

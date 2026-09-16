@@ -10,6 +10,7 @@ use App\Http\Requests\Auth\SetPinRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Requests\Auth\VerifyPinRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Driver;
 use App\Models\User;
 use App\Support\AccountLock;
 use Illuminate\Http\JsonResponse;
@@ -44,6 +45,10 @@ class AuthController extends Controller
             ]);
         }
 
+        if (($blocked = $this->driverCodeFailure($user, $request)) !== null) {
+            throw $blocked;
+        }
+
         if (($blocked = $this->rejectIfNotSignable($user, $request)) !== null) {
             return $blocked;
         }
@@ -60,7 +65,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions(),
         ]);
     }
 
@@ -88,6 +93,10 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['pin' => 'This account does not have conductor portal access.']);
         }
 
+        if (($blocked = $this->driverCodeFailure($user, $request)) !== null) {
+            throw $blocked;
+        }
+
         if (($blocked = $this->rejectIfNotSignable($user, $request)) !== null) {
             return $blocked;
         }
@@ -98,7 +107,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions(),
         ]);
     }
 
@@ -124,6 +133,43 @@ class AuthController extends Controller
         $request->user()->forceFill(['pin_hash' => $request->string('pin')->value()])->save();
 
         return response()->json(['has_pin' => true]);
+    }
+
+    /**
+     * Conductor accounts must additionally supply the Driver Code of the
+     * one driver they're paired with (users.driver_id — see the Driver
+     * Code spec). Only checked once email+password already verified, so
+     * this never runs for a plain bad-credentials attempt. Returns the
+     * exception to throw, or null to proceed:
+     *  - empty field  -> a distinct, field-specific "required" message
+     *    (not an enumeration risk — it reveals nothing about correctness).
+     *  - wrong code, or no driver paired at all -> the SAME generic
+     *    auth.failed message as a bad password, so a wrong code can't be
+     *    told apart from a wrong password or a nonexistent account.
+     */
+    private function driverCodeFailure(User $user, LoginRequest $request): ?ValidationException
+    {
+        if ($user->accessRole?->key !== 'conductor') {
+            return null;
+        }
+
+        $submitted = trim((string) $request->input('driver_code', ''));
+        if ($submitted === '') {
+            return ValidationException::withMessages([
+                'driver_code' => 'Driver Code is required.',
+            ]);
+        }
+
+        $expected = $user->driver?->driver_code;
+        if ($expected === null || Driver::normalizeCode($submitted) !== $expected) {
+            $request->hitRateLimiter();
+
+            return ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
+
+        return null;
     }
 
     /**
@@ -184,7 +230,7 @@ class AuthController extends Controller
     public function me(Request $request): UserResource
     {
         return UserResource::make(
-            $request->user()->loadMissing('company.settings', 'accessRole')
+            $request->user()->loadMissing('company.settings', 'accessRole', 'driver')
         )->includePermissions();
     }
 
@@ -201,7 +247,7 @@ class AuthController extends Controller
             'name', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex',
         ]));
 
-        return UserResource::make($user->fresh()->loadMissing('company.settings', 'accessRole'))->includePermissions();
+        return UserResource::make($user->fresh()->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions();
     }
 
     /**
@@ -226,7 +272,7 @@ class AuthController extends Controller
             ->delete();
 
         return response()->json([
-            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions(),
         ]);
     }
 }

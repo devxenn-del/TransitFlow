@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Company;
+use App\Models\Driver;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,9 +27,12 @@ class PinLoginTest extends TestCase
     public function test_a_conductor_can_sign_in_with_their_pin(): void
     {
         $company = Company::factory()->create();
-        $this->conductorWithPin($company);
+        $driver = Driver::factory()->for($company)->create();
+        $this->conductorWithPin($company)->forceFill(['driver_id' => $driver->id])->save();
 
-        $response = $this->postJson('/api/auth/pin-login', ['email' => 'conductor@acme.test', 'pin' => '1234']);
+        $response = $this->postJson('/api/auth/pin-login', [
+            'email' => 'conductor@acme.test', 'pin' => '1234', 'driver_code' => $driver->driver_code,
+        ]);
 
         $response->assertOk()
             ->assertJsonStructure(['token', 'user'])

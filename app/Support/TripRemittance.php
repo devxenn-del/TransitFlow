@@ -75,6 +75,7 @@ class TripRemittance
             'count_variance' => $rcc && $rcc->status === 'Received' ? (int) $rcc->variance : null,
             'ticket_count' => (clone $live)->count(),
             'refunded_count' => $trip->tickets()->whereNotNull('refunded_at')->count(),
+            'article_count' => (clone $live)->whereNotNull('article_label')->count(),
 
             'collected' => round($collected, 2),
             'refunded' => round($refunded, 2),
