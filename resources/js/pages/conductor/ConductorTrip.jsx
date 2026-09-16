@@ -11,32 +11,111 @@ import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 const peso = (n) => `₱${Number(n ?? 0).toFixed(2)}`;
 
 /* ---------- Start-trip form ---------- */
+
+/** A terminal's fare-network stop — its own resolved_stop (server-matched,
+ *  canonically spelled against route_stops), falling back to its raw name.
+ *  Mirrors StartTripViewModel.resolvedStopName() on the Android app so both
+ *  clients submit the same coverage_origin/coverage_destination for the
+ *  same pick. */
+const resolvedStop = (terminal) => terminal?.resolved_stop || terminal?.default_route_origin || terminal?.name || '';
+
 function StartTripForm({ onStarted }) {
+    const { user } = useAuth();
     const [buses, setBuses] = useState([]);
     const [drivers, setDrivers] = useState([]);
-    const [terminals, setTerminals] = useState([]);
-    const [coverage, setCoverage] = useState({ origins: [], pairs: [] });
-    const [form, setForm] = useState({ bus_id: '', driver_id: '', origin: '', coverage_origin: '', coverage_destination: '' });
+    const [routes, setRoutes] = useState([]);
+    const [atTerminal, setAtTerminal] = useState(true);
+    const [routeId, setRouteId] = useState('');
+    const [routeCoverage, setRouteCoverage] = useState(null); // { default_origin, origins, pairs }
+    const [routeTerminals, setRouteTerminals] = useState([]);
+    const [tripType, setTripType] = useState('Regular');
+    const [form, setForm] = useState({
+        bus_id: '', driver_id: '',
+        origin: '', coverage_origin: '', coverage_destination: '', // At Terminal = No
+        terminal_origin_id: '', terminal_destination_id: '', // At Terminal = Yes (ids, resolved to origin/coverage on submit)
+    });
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
-        Promise.all([
-            conductor.lookupBuses(), conductor.lookupDrivers(), conductor.lookupTerminals(), conductor.lookupCoverage(),
-        ]).then(([b, d, t, c]) => {
-            setBuses(b); setDrivers(d); setTerminals(t); setCoverage(c);
-        }).catch((e) => notifyError(e, 'Could not load trip options.'));
+        Promise.all([conductor.lookupBuses(), conductor.lookupDrivers(), conductor.lookupRoutes()])
+            .then(([b, d, r]) => { setBuses(b); setDrivers(d); setRoutes(r); })
+            .catch((e) => notifyError(e, 'Could not load trip options.'));
     }, []);
 
+    const pickRoute = (id) => {
+        setRouteId(id);
+        setRouteCoverage(null);
+        setRouteTerminals([]);
+        setForm((f) => ({ ...f, origin: '', coverage_origin: '', coverage_destination: '', terminal_origin_id: '', terminal_destination_id: '' }));
+        if (!id) return;
+        conductor.lookupRouteCoverage(id).then((c) => {
+            setRouteCoverage(c);
+            if (atTerminal) return;
+            if (c.default_origin && c.origins.includes(c.default_origin)) {
+                setForm((f) => ({ ...f, origin: c.default_origin, coverage_origin: c.default_origin }));
+            }
+        }).catch((e) => notifyError(e, 'Could not load this route.'));
+        conductor.lookupRouteTerminals(id).then(setRouteTerminals).catch((e) => notifyError(e, 'Could not load this route.'));
+    };
+
+    // Preselect the route's default-origin terminal once both the coverage
+    // (for its default_origin) and the terminal list have arrived.
+    useEffect(() => {
+        if (!atTerminal || form.terminal_origin_id || !routeCoverage?.default_origin || routeTerminals.length === 0) return;
+        const match = routeTerminals.find((t) => resolvedStop(t) === routeCoverage.default_origin);
+        if (match) setForm((f) => ({ ...f, terminal_origin_id: String(match.id) }));
+    }, [atTerminal, routeCoverage, routeTerminals, form.terminal_origin_id]);
+
+    const setAtTerminalMode = (yes) => {
+        setAtTerminal(yes);
+        // Switching modes clears the other mode's stale picks.
+        setForm((f) => ({ ...f, origin: '', coverage_origin: '', coverage_destination: '', terminal_origin_id: '', terminal_destination_id: '' }));
+    };
+
     const destinations = useMemo(
-        () => coverage.pairs.filter((p) => p.origin === form.coverage_origin).map((p) => p.destination),
-        [coverage.pairs, form.coverage_origin],
+        () => (routeCoverage?.pairs ?? []).filter((p) => p.origin === form.coverage_origin).map((p) => p.destination),
+        [routeCoverage, form.coverage_origin],
     );
 
-    const submit = async (e) => {
-        e.preventDefault();
+    const terminalOrigin = useMemo(
+        () => routeTerminals.find((t) => String(t.id) === String(form.terminal_origin_id)) ?? null,
+        [routeTerminals, form.terminal_origin_id],
+    );
+    const reachableTerminalDestinations = useMemo(() => {
+        if (!terminalOrigin) return [];
+        const reachable = (routeCoverage?.pairs ?? [])
+            .filter((p) => p.origin === resolvedStop(terminalOrigin))
+            .map((p) => p.destination);
+        return routeTerminals.filter((t) => reachable.includes(resolvedStop(t)));
+    }, [terminalOrigin, routeCoverage, routeTerminals]);
+    const terminalDestination = useMemo(
+        () => reachableTerminalDestinations.find((t) => String(t.id) === String(form.terminal_destination_id)) ?? null,
+        [reachableTerminalDestinations, form.terminal_destination_id],
+    );
+
+    const route = routes.find((r) => String(r.id) === String(routeId)) ?? null;
+    const bus = buses.find((b) => String(b.id) === String(form.bus_id)) ?? null;
+    const driver = drivers.find((d) => String(d.id) === String(form.driver_id)) ?? null;
+
+    const ready = Boolean(
+        route && bus && driver
+        && (atTerminal ? (terminalOrigin && terminalDestination) : (form.origin && form.coverage_destination)),
+    );
+
+    const payload = () => ({
+        bus_id: form.bus_id,
+        driver_id: form.driver_id,
+        origin: atTerminal ? terminalOrigin.name : form.origin,
+        coverage_origin: atTerminal ? resolvedStop(terminalOrigin) : form.coverage_origin,
+        coverage_destination: atTerminal ? resolvedStop(terminalDestination) : form.coverage_destination,
+        trip_type: tripType,
+        at_terminal: atTerminal,
+    });
+
+    const start = async () => {
         setBusy(true);
         try {
-            await conductor.startTrip(form);
+            await conductor.startTrip(payload());
             notifySuccess('Trip started.');
             onStarted();
         } catch (err) {
@@ -46,6 +125,47 @@ function StartTripForm({ onStarted }) {
         }
     };
 
+    /* Trip Ready Details pop up as a dialog, with Start Trip inside it —
+     * not an inline summary — once every required field is picked. */
+    const openReadyDialog = async () => {
+        if (!ready) return;
+        const rows = [
+            ['Conductor', user?.name ?? '—'],
+            ['Route', route.route_description || `${route.route_origin} → ${route.route_destination}`],
+            ['At Terminal', atTerminal ? 'Yes' : 'No'],
+            [atTerminal ? 'Terminal Origin' : 'Origin', atTerminal ? terminalOrigin.name : form.origin],
+            [atTerminal ? 'Terminal Destination' : 'Destination', atTerminal ? terminalDestination.name : form.coverage_destination],
+            ['Trip Type', tripType],
+            ['Bus Number', bus.bus_number],
+            ['Driver', driver.name],
+        ];
+        const { isConfirmed } = await Swal.fire({
+            html: `
+                <div class="d-flex flex-column align-items-center text-center mb-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center mb-3"
+                         style="width:56px;height:56px;background:rgba(59,91,169,.12);">
+                        <i class="bi bi-bus-front" style="font-size:1.5rem;color:#3b5ba9;"></i>
+                    </div>
+                    <div class="fw-bold fs-5">Trip Ready</div>
+                    <div class="text-muted small">Review the details below before departure.</div>
+                </div>
+                <div class="text-start border rounded-3 p-2">
+                    ${rows.map(([label, value], i) =>
+                        `<div class="d-flex justify-content-between align-items-center py-2${i < rows.length - 1 ? ' border-bottom' : ''}">
+                            <span class="text-muted small">${label}</span><strong>${value}</strong>
+                        </div>`,
+                    ).join('')}
+                </div>`,
+            showCancelButton: true,
+            confirmButtonText: 'Start Trip',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#3b5ba9',
+            buttonsStyling: true,
+            reverseButtons: false,
+        });
+        if (isConfirmed) start();
+    };
+
     return (
         <div className="card" style={{ maxWidth: 640 }}>
             <div className="card-body">
@@ -53,10 +173,76 @@ function StartTripForm({ onStarted }) {
                 {buses.length === 0 && (
                     <div className="alert alert-warning small">No buses are assigned to your account yet — ask an admin.</div>
                 )}
-                <form onSubmit={submit} className="vstack gap-3">
+                <div className="vstack gap-3">
+                    <div>
+                        <label className="form-label">At Terminal? *</label>
+                        <div className="btn-group d-flex" role="group">
+                            <button type="button" className={`btn ${atTerminal ? 'btn-accent' : 'btn-outline-secondary'}`} onClick={() => setAtTerminalMode(true)}>Yes</button>
+                            <button type="button" className={`btn ${!atTerminal ? 'btn-accent' : 'btn-outline-secondary'}`} onClick={() => setAtTerminalMode(false)}>No</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="form-label">Select Route *</label>
+                        <select className="form-select" required value={routeId} onChange={(e) => pickRoute(e.target.value)}>
+                            <option value="">Select…</option>
+                            {routes.map((r) => <option key={r.id} value={r.id}>{r.route_description || `${r.route_origin} → ${r.route_destination}`}</option>)}
+                        </select>
+                    </div>
+
+                    {routeId && !atTerminal && (
+                        <div className="row g-2">
+                            <div className="col-md-6">
+                                <label className="form-label">Origin *</label>
+                                <select className="form-select" required value={form.coverage_origin}
+                                    onChange={(e) => setForm({ ...form, origin: e.target.value, coverage_origin: e.target.value, coverage_destination: '' })}>
+                                    <option value="">Select…</option>
+                                    {(routeCoverage?.origins ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-md-6">
+                                <label className="form-label">Destination *</label>
+                                <select className="form-select" required value={form.coverage_destination} disabled={!form.coverage_origin}
+                                    onChange={(e) => setForm({ ...form, coverage_destination: e.target.value })}>
+                                    <option value="">Select…</option>
+                                    {destinations.map((d) => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {routeId && atTerminal && (
+                        <div className="row g-2">
+                            <div className="col-md-6">
+                                <label className="form-label">Terminal Origin *</label>
+                                <select className="form-select" required value={form.terminal_origin_id}
+                                    onChange={(e) => setForm({ ...form, terminal_origin_id: e.target.value, terminal_destination_id: '' })}>
+                                    <option value="">Select…</option>
+                                    {routeTerminals.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-md-6">
+                                <label className="form-label">Terminal Destination *</label>
+                                <select className="form-select" required value={form.terminal_destination_id} disabled={!form.terminal_origin_id}
+                                    onChange={(e) => setForm({ ...form, terminal_destination_id: e.target.value })}>
+                                    <option value="">Select…</option>
+                                    {reachableTerminalDestinations.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="form-label">Trip Type *</label>
+                        <div className="btn-group d-flex" role="group">
+                            <button type="button" className={`btn ${tripType === 'Regular' ? 'btn-accent' : 'btn-outline-secondary'}`} onClick={() => setTripType('Regular')}>Regular</button>
+                            <button type="button" className={`btn ${tripType === 'Special' ? 'btn-accent' : 'btn-outline-secondary'}`} onClick={() => setTripType('Special')}>Special</button>
+                        </div>
+                    </div>
+
                     <div className="row g-2">
                         <div className="col-md-6">
-                            <label className="form-label">Bus *</label>
+                            <label className="form-label">Bus Number *</label>
                             <select className="form-select" required value={form.bus_id} onChange={(e) => setForm({ ...form, bus_id: e.target.value })}>
                                 <option value="">Select…</option>
                                 {buses.map((b) => <option key={b.id} value={b.id}>{b.bus_number} · {b.plate_number}</option>)}
@@ -70,36 +256,12 @@ function StartTripForm({ onStarted }) {
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label className="form-label">Starting terminal *</label>
-                        <select className="form-select" required value={form.origin} onChange={(e) => setForm({ ...form, origin: e.target.value })}>
-                            <option value="">Select…</option>
-                            {terminals.map((t) => (
-                                <option key={t.id} value={t.name}>{t.name}{t.boarding_mode === 'Pickup' ? ' (pickup only)' : ''}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="row g-2">
-                        <div className="col-md-6">
-                            <label className="form-label">Coverage from *</label>
-                            <select className="form-select" required value={form.coverage_origin} onChange={(e) => setForm({ ...form, coverage_origin: e.target.value, coverage_destination: '' })}>
-                                <option value="">Select…</option>
-                                {coverage.origins.map((o) => <option key={o} value={o}>{o}</option>)}
-                            </select>
-                        </div>
-                        <div className="col-md-6">
-                            <label className="form-label">Coverage to *</label>
-                            <select className="form-select" required value={form.coverage_destination} disabled={!form.coverage_origin} onChange={(e) => setForm({ ...form, coverage_destination: e.target.value })}>
-                                <option value="">Select…</option>
-                                {destinations.map((d) => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <button className="btn btn-accent" disabled={busy || buses.length === 0}>
-                        {busy ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="bi bi-play-fill me-1" />}
-                        Start trip
+
+                    <button type="button" className="btn btn-accent" disabled={busy || !ready} onClick={openReadyDialog}>
+                        {busy ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="bi bi-check2-circle me-1" />}
+                        Ready
                     </button>
-                </form>
+                </div>
             </div>
         </div>
     );

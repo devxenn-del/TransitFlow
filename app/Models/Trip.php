@@ -22,6 +22,8 @@ class Trip extends Model
 
     public const STATUSES = ['Departure', 'OnTrip', 'Arrived', 'Cancelled'];
 
+    public const TRIP_TYPES = ['Regular', 'Special'];
+
     protected $fillable = [
         'company_id',
         'conductor_id',
@@ -32,6 +34,8 @@ class Trip extends Model
         'origin',
         'coverage_origin',
         'coverage_destination',
+        'trip_type',
+        'at_terminal',
         'op_date',
         'shift',
         'status',
@@ -78,6 +82,7 @@ class Trip extends Model
             'remittance_excess_amount' => 'decimal:2',
             'remittance_short_amount' => 'decimal:2',
             'remittance_flagged' => 'boolean',
+            'at_terminal' => 'boolean',
         ];
     }
 

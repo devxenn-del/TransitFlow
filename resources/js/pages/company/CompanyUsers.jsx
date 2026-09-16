@@ -10,7 +10,7 @@ import { buses as busesApi, companyUsers, conductorBuses, roles as rolesApi } fr
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
-const BLANK = { name: '', email: '', password: '', role_id: '', status: 'active' };
+const BLANK = { name: '', email: '', password: '', role_id: '', status: 'active', pin: '' };
 
 export default function CompanyUsers() {
     const { can, user: me } = useAuth();
@@ -56,7 +56,7 @@ export default function CompanyUsers() {
 
     const openNew = () => { setForm(BLANK); setEditing({}); };
     const openEdit = (u) => {
-        setForm({ name: u.name, email: u.email, password: '', role_id: u.access_role?.id ?? '', status: u.status });
+        setForm({ name: u.name, email: u.email, password: '', role_id: u.access_role?.id ?? '', status: u.status, pin: '' });
         setEditing(u);
     };
 
@@ -66,6 +66,11 @@ export default function CompanyUsers() {
         try {
             const payload = { ...form };
             if (editing.id && !payload.password) delete payload.password;
+            // The conductor App PIN is always optional here — left blank on
+            // create, they set their own from the mobile app's Set PIN
+            // screen; left blank on edit, whatever PIN they already have
+            // (if any) is untouched.
+            if (!payload.pin) delete payload.pin;
             if (editing.id) {
                 await companyUsers.update(editing.id, payload);
                 notifySuccess('User updated.');
@@ -227,6 +232,30 @@ export default function CompanyUsers() {
                     <div>
                         <label className="form-label">{editing?.id ? 'New password (optional)' : 'Password *'}</label>
                         <input type="text" className="form-control" required={!editing?.id} minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                    </div>
+                    <div>
+                        <label className="form-label">
+                            App PIN {editing?.id && (
+                                <span className={`badge ms-1 ${editing.has_pin ? 'text-bg-success' : 'text-bg-secondary'}`}>
+                                    {editing.has_pin ? 'PIN set' : 'No PIN set'}
+                                </span>
+                            )}
+                        </label>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\d{4}"
+                            maxLength={4}
+                            className="form-control"
+                            placeholder="4 digits"
+                            value={form.pin}
+                            onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                        />
+                        <div className="form-text">
+                            {editing?.id
+                                ? 'Leave blank to keep the current PIN. Used to sign in to the conductor mobile app by PIN instead of password.'
+                                : "Optional — leave blank and the conductor can set their own from the mobile app's Set PIN screen."}
+                        </div>
                     </div>
                     <div className="row g-2">
                         <div className="col-md-6">

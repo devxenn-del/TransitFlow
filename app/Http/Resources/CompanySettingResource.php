@@ -24,6 +24,7 @@ class CompanySettingResource extends JsonResource
             'qr_payment_url' => $this->publicUrl($this->qr_payment_path),
             'color_accent' => $this->color_accent,
             'color_accent_dark' => $this->color_accent_dark,
+            'uses_terminals' => (bool) $this->uses_terminals,
             'receipt_width_mm' => $this->receipt_width_mm,
             'receipt_org_name' => $this->receipt_org_name,
             'ticket_footer' => $this->ticket_footer,

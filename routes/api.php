@@ -115,7 +115,7 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
     Route::post('/auth/password', [AuthController::class, 'changePassword'])->name('auth.password');
     Route::match(['put', 'patch'], '/auth/profile', [AuthController::class, 'updateProfile'])->name('auth.profile');
     Route::put('/auth/pin', [AuthController::class, 'setPin'])->name('auth.pin.set');
-    Route::post('/auth/verify-pin', [AuthController::class, 'verifyPin'])->name('auth.pin.verify');
+    Route::post('/auth/verify-pin', [AuthController::class, 'verifyPin'])->middleware('throttle:10,1')->name('auth.pin.verify');
 
     Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
 
@@ -190,6 +190,10 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::post('data-tools/clean', [DataToolsController::class, 'clean'])->middleware('permission:cleandata.run')->name('data-tools.clean');
 
         // Fleet — network
+        // Distinct stop names across every franchise (Terminal isn't
+        // franchise-scoped, so its "default route origin" picker needs a
+        // company-wide list rather than the per-franchise one below).
+        Route::get('route-stops', [RouteStopController::class, 'options'])->middleware('permission:terminals.view');
         $companyCrud('terminals', TerminalController::class, 'terminals', 'terminal');
         $companyCrud('buses', BusController::class, 'buses', 'bus');
         $companyCrud('drivers', DriverController::class, 'drivers', 'driver');
@@ -326,6 +330,9 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('lookup/drivers', [LookupController::class, 'drivers'])->middleware('permission:trips.start');
         Route::get('lookup/terminals', [LookupController::class, 'terminals'])->middleware('permission:trips.start');
         Route::get('lookup/coverage', [LookupController::class, 'coverageOptions'])->middleware('permission:trips.start');
+        Route::get('lookup/routes', [LookupController::class, 'routes'])->middleware('permission:trips.start');
+        Route::get('lookup/routes/{franchise}/coverage', [LookupController::class, 'routeCoverage'])->middleware('permission:trips.start');
+        Route::get('lookup/routes/{franchise}/terminals', [LookupController::class, 'routeTerminals'])->middleware('permission:trips.start');
         Route::get('lookup/passenger-types', [LookupController::class, 'passengerTypes'])->middleware('permission:tickets.issue');
         Route::get('trips/{trip}/fares', [LookupController::class, 'tripFares'])->middleware('permission:tickets.issue');
         Route::get('trips/{trip}/stops', [LookupController::class, 'stops'])->middleware('permission:tickets.issue');

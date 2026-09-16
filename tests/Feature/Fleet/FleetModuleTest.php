@@ -5,6 +5,7 @@ namespace Tests\Feature\Fleet;
 use App\Models\Company;
 use App\Models\FareMatrix;
 use App\Models\Route;
+use App\Models\RouteStop;
 use App\Models\Terminal;
 use App\Models\User;
 use App\Support\CompanyContext;
@@ -95,6 +96,26 @@ class FleetModuleTest extends TestCase
 
         $this->getJson("/api/company/terminals/{$foreign->id}")->assertNotFound();
         $this->patchJson("/api/company/terminals/{$foreign->id}", ['status' => 'Inactive'])->assertNotFound();
+    }
+
+    /**
+     * Terminal.default_route_origin must name a real stop
+     * (LookupController::terminals()' matching), and Terminal isn't
+     * franchise-scoped — so the picker on the Terminals form needs this
+     * distinct, company-wide, alphabetical list rather than a free-text box.
+     */
+    public function test_route_stop_options_are_distinct_active_and_company_scoped(): void
+    {
+        RouteStop::factory()->for($this->company)->create(['name' => 'ZAPOTE', 'status' => 'Active']);
+        RouteStop::factory()->for($this->company)->create(['name' => 'ALABANG', 'status' => 'Active']);
+        RouteStop::factory()->for($this->company)->create(['name' => 'ALABANG', 'status' => 'Active']); // same name, another franchise
+        RouteStop::factory()->for($this->company)->create(['name' => 'RETIRED STOP', 'status' => 'Inactive']);
+        RouteStop::factory()->for($this->other)->create(['name' => 'OTHER COMPANY STOP', 'status' => 'Active']);
+        $this->actAsAdmin();
+
+        $this->getJson('/api/company/route-stops')
+            ->assertOk()
+            ->assertJson(['data' => ['ALABANG', 'ZAPOTE']]);
     }
 
     /* ---------- Routes + fare matrix ---------- */

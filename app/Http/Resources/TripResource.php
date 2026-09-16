@@ -24,6 +24,8 @@ class TripResource extends JsonResource
             'origin' => $this->origin,
             'coverage_origin' => $this->coverage_origin,
             'coverage_destination' => $this->coverage_destination,
+            'trip_type' => $this->trip_type,
+            'at_terminal' => (bool) $this->at_terminal,
             'bus_id' => $this->bus_id,
             'bus_number' => $this->bus_number,
             'bus_capacity' => $this->whenLoaded('bus', fn () => $this->bus?->capacity),

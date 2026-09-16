@@ -58,11 +58,6 @@ class FareMatrixImportExportController extends Controller
 
             foreach ($stops as $c => $dest) {
                 $col = $c + 2;
-                if ($origin === $dest) {
-                    $sheet->setCellValue([$col, $row], self::DIAGONAL);
-
-                    continue;
-                }
                 $amount = $cells[$origin][$dest] ?? null;
                 if ($amount !== null) {
                     $sheet->setCellValue([$col, $row], $amount);
@@ -130,7 +125,10 @@ class FareMatrixImportExportController extends Controller
                 $raw = $row[$i + 1] ?? null;
                 $value = is_string($raw) ? trim($raw) : $raw;
 
-                if ($destination === '' || $origin === $destination || $value === self::DIAGONAL) {
+                // Same-stop (loop route) cells are valid fares now — only a
+                // literal "—" is skipped, for old templates exported before
+                // this changed that still carry the placeholder there.
+                if ($destination === '' || $value === self::DIAGONAL) {
                     continue;
                 }
                 if (! $stopSet->has($destination)) {

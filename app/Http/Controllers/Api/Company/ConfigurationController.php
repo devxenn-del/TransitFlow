@@ -53,6 +53,7 @@ class ConfigurationController extends Controller
                     'can_create_accounts' => (bool) $company->can_create_accounts,
                 ],
                 'features' => $settings === null ? null : [
+                    'uses_terminals' => (bool) $settings->uses_terminals,
                     'void_feature_enabled' => (bool) $settings->void_feature_enabled,
                     'void_pin_required' => (bool) $settings->void_pin_required,
                     'receipt_width_mm' => (float) $settings->receipt_width_mm,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useAuth } from '../../auth/AuthContext.jsx';
 import DataTable from '../../components/DataTable.jsx';
@@ -19,6 +19,11 @@ export default function Terminals() {
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);
+    const [routeStops, setRouteStops] = useState([]);
+
+    useEffect(() => {
+        terminals.routeStops().then(setRouteStops).catch(() => setRouteStops([]));
+    }, []);
 
     const openNew = () => { setForm(BLANK); setEditing({}); };
     const openEdit = (t) => {
@@ -140,7 +145,17 @@ export default function Terminals() {
                     </div>
                     <div>
                         <label className="form-label">Default route origin</label>
-                        <input className="form-control" value={form.default_route_origin} onChange={(e) => setForm({ ...form, default_route_origin: e.target.value.toUpperCase() })} />
+                        <select
+                            className="form-select"
+                            value={form.default_route_origin}
+                            onChange={(e) => setForm({ ...form, default_route_origin: e.target.value })}
+                        >
+                            <option value="">— None —</option>
+                            {(form.default_route_origin && !routeStops.includes(form.default_route_origin)) && (
+                                <option value={form.default_route_origin}>{form.default_route_origin} (not a current stop)</option>
+                            )}
+                            {routeStops.map((stop) => <option key={stop} value={stop}>{stop}</option>)}
+                        </select>
                         <div className="form-text">Optional — the stop name the "To" picker reverse-maps to.</div>
                     </div>
                 </form>

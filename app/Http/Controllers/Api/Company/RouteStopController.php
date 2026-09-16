@@ -8,6 +8,7 @@ use App\Http\Resources\RouteStopResource;
 use App\Models\Franchise;
 use App\Models\Route;
 use App\Models\RouteStop;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +25,26 @@ class RouteStopController extends Controller
         $this->authorize('view', $franchise);
 
         return RouteStopResource::collection($franchise->stops()->get());
+    }
+
+    /**
+     * GET /api/company/route-stops
+     *
+     * Distinct Active stop names across every franchise the company owns,
+     * alphabetical. Terminal.default_route_origin must name a real stop
+     * (see LookupController::terminals()'s stop-name matching) but a
+     * Terminal isn't franchise-scoped, so it needs this company-wide list
+     * rather than the per-franchise one `index()` returns.
+     */
+    public function options(): JsonResponse
+    {
+        $names = RouteStop::query()
+            ->where('status', 'Active')
+            ->distinct()
+            ->orderBy('name')
+            ->pluck('name');
+
+        return response()->json(['data' => $names]);
     }
 
     /**

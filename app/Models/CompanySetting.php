@@ -35,6 +35,7 @@ class CompanySetting extends Model
         'otc_accreditation_number',
         'org_email',
         'org_contact_number',
+        'uses_terminals',
         'void_feature_enabled',
         'void_pin_required',
         'pdf_paper_size',
@@ -49,6 +50,7 @@ class CompanySetting extends Model
     {
         return [
             'receipt_width_mm' => 'decimal:1',
+            'uses_terminals' => 'boolean',
             'void_feature_enabled' => 'boolean',
             'void_pin_required' => 'boolean',
             'pdf_margin_mm' => 'integer',

@@ -29,7 +29,7 @@ use Illuminate\Validation\ValidationException;
 class StartTrip
 {
     /**
-     * @param  array{bus_id:int, driver_id:int, origin:string, coverage_origin:string, coverage_destination:string}  $input
+     * @param  array{bus_id:int, driver_id:int, origin:string, coverage_origin:string, coverage_destination:string, trip_type?:string, at_terminal?:bool}  $input
      */
     public function handle(User $conductor, array $input): Trip
     {
@@ -55,9 +55,26 @@ class StartTrip
             throw ValidationException::withMessages(['driver_id' => 'Pick an active driver.']);
         }
 
-        $terminal = Terminal::query()->where('name', $input['origin'])->where('status', 'Active')->first();
-        if ($terminal === null) {
-            throw ValidationException::withMessages(['origin' => 'That terminal is not available.']);
+        // No settings row yet for this company (lazily created elsewhere) ->
+        // default to the column's own default (terminals in use), same as
+        // every company before this flag existed.
+        $usesTerminals = $conductor->company?->settings?->uses_terminals ?? true;
+
+        if ($usesTerminals) {
+            $terminal = Terminal::query()->where('name', $input['origin'])->where('status', 'Active')->first();
+            if ($terminal === null) {
+                throw ValidationException::withMessages(['origin' => 'That terminal is not available.']);
+            }
+        } else {
+            // This company has no physical terminals — the conductor picks a
+            // route origin directly (Android sends origin = coverage_origin).
+            // Auto-provision a Pickup-mode terminal per route origin so
+            // Trip.origin keeps pointing at a real, Active terminal without
+            // making these companies manage terminal records at all.
+            $terminal = Terminal::query()->firstOrCreate(
+                ['company_id' => $conductor->company_id, 'name' => $input['origin']],
+                ['default_route_origin' => $input['origin'], 'boarding_mode' => 'Pickup', 'status' => 'Active'],
+            );
         }
 
         $priced = Route::query()
@@ -81,6 +98,8 @@ class StartTrip
             'origin' => $input['origin'],
             'coverage_origin' => $input['coverage_origin'],
             'coverage_destination' => $input['coverage_destination'],
+            'trip_type' => $input['trip_type'] ?? 'Regular',
+            'at_terminal' => $input['at_terminal'] ?? true,
             'op_date' => $now->toDateString(),
             'shift' => CashCount::shiftForHour($now->hour),
             'status' => $terminal->skipsTerminalBoarding() ? 'OnTrip' : 'Departure',

@@ -31,6 +31,9 @@ class UpdateCompanySettingsRequest extends FormRequest
             'color_accent' => ['sometimes', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'color_accent_dark' => ['sometimes', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
 
+            // Operations
+            'uses_terminals' => ['sometimes', 'boolean'],
+
             // Receipt
             'receipt_width_mm' => ['sometimes', 'numeric', 'between:40,120'],
             'receipt_org_name' => ['sometimes', 'nullable', 'string', 'max:150'],

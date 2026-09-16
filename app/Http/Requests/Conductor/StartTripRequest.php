@@ -22,6 +22,8 @@ class StartTripRequest extends FormRequest
             'origin' => ['required', 'string', 'max:150'],
             'coverage_origin' => ['required', 'string', 'max:150'],
             'coverage_destination' => ['required', 'string', 'max:150', 'different:coverage_origin'],
+            'trip_type' => ['sometimes', 'string', 'in:Regular,Special'],
+            'at_terminal' => ['sometimes', 'boolean'],
         ];
     }
 }

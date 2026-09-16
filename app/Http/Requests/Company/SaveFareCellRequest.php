@@ -24,7 +24,9 @@ class SaveFareCellRequest extends FormRequest
     {
         return [
             'origin' => ['required', 'string', 'max:150'],
-            'destination' => ['required', 'string', 'max:150', 'different:origin'],
+            // Same-stop routes are valid (a loop route back to its own
+            // terminal, a flat local fare) — not forced different from origin.
+            'destination' => ['required', 'string', 'max:150'],
             'amount' => ['present', 'nullable', 'numeric', 'min:0', 'max:99999.99'],
             'discounted_amount' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
             'touch_discount' => ['sometimes', 'boolean'],

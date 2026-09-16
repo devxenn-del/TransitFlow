@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Meta;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\MobileAppSetting;
 use App\Support\ServerConfig;
 use Illuminate\Http\JsonResponse;
@@ -27,10 +28,21 @@ class ServerConfigController extends Controller
     public function serverConfig(Request $request): JsonResponse
     {
         [$company, $settings] = $this->resolve($request);
+        $companySettings = CompanySetting::query()->firstOrCreate(
+            ['company_id' => $company->id],
+            ['receipt_org_name' => $company->name],
+        );
 
         return response()->json([
             'data' => [
-                'company' => ['code' => $company->code, 'name' => $company->name],
+                'company' => [
+                    'code' => $company->code,
+                    'name' => $company->name,
+                    'uses_terminals' => (bool) $companySettings->uses_terminals,
+                    'color_accent' => $companySettings->color_accent,
+                    'color_accent_dark' => $companySettings->color_accent_dark,
+                    'logo_url' => $companySettings->logo_url,
+                ],
                 // Only advertise an explicitly configured URL. Falling back to
                 // config('app.url') would hand a mobile client a `localhost`
                 // address that resolves to the phone itself — the client keeps

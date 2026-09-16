@@ -110,6 +110,7 @@ export const terminals = {
     create: (payload) => api.post('/company/terminals', payload).then((r) => r.data.data),
     update: (id, payload) => api.put(`/company/terminals/${id}`, payload).then((r) => r.data.data),
     remove: (id) => api.delete(`/company/terminals/${id}`),
+    routeStops: () => api.get('/company/route-stops').then((r) => r.data.data),
 };
 
 export const conductor = {
@@ -119,6 +120,9 @@ export const conductor = {
     lookupDrivers: () => api.get('/conductor/lookup/drivers').then((r) => r.data.data),
     lookupTerminals: () => api.get('/conductor/lookup/terminals').then((r) => r.data.data),
     lookupCoverage: () => api.get('/conductor/lookup/coverage').then((r) => r.data),
+    lookupRoutes: () => api.get('/conductor/lookup/routes').then((r) => r.data.data),
+    lookupRouteCoverage: (franchiseId) => api.get(`/conductor/lookup/routes/${franchiseId}/coverage`).then((r) => r.data),
+    lookupRouteTerminals: (franchiseId) => api.get(`/conductor/lookup/routes/${franchiseId}/terminals`).then((r) => r.data.data),
     lookupPassengerTypes: () => api.get('/conductor/lookup/passenger-types').then((r) => r.data.data),
     tripFares: (tripId) => api.get(`/conductor/trips/${tripId}/fares`).then((r) => r.data),
     startTrip: (payload) => api.post('/conductor/trips', payload).then((r) => r.data.data),

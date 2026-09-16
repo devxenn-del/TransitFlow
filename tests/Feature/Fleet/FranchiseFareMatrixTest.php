@@ -97,13 +97,15 @@ class FranchiseFareMatrixTest extends TestCase
         $this->assertDatabaseMissing('fare_matrix', ['route_id' => $route->id]);
     }
 
-    public function test_origin_and_destination_must_differ(): void
+    public function test_same_stop_origin_and_destination_is_a_valid_fare(): void
     {
         $this->admin();
         $franchise = Franchise::factory()->for($this->company)->withStops(['A', 'B'])->create();
 
         $this->putJson("/api/company/franchises/{$franchise->id}/fare-matrix/cell", ['origin' => 'A', 'destination' => 'A', 'amount' => 10])
-            ->assertJsonValidationErrorFor('destination');
+            ->assertOk();
+
+        $this->assertDatabaseHas('routes', ['franchise_id' => $franchise->id, 'origin' => 'A', 'destination' => 'A']);
     }
 
     public function test_discount_override_is_set_and_cleared(): void
