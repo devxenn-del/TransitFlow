@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Auth\LegalAcceptanceController;
 use App\Http\Controllers\Api\Company\AdminBusAssignmentController;
 use App\Http\Controllers\Api\Company\AttendanceController as CompanyAttendanceController;
 use App\Http\Controllers\Api\Company\AuditLogController;
@@ -43,6 +44,7 @@ use App\Http\Controllers\Api\Conductor\LocationController;
 use App\Http\Controllers\Api\Conductor\LookupController;
 use App\Http\Controllers\Api\Conductor\TicketController;
 use App\Http\Controllers\Api\Conductor\TripController;
+use App\Http\Controllers\Api\Meta\LegalDocumentController;
 use App\Http\Controllers\Api\Meta\ServerConfigController;
 use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\Shared\NavController;
@@ -50,6 +52,7 @@ use App\Http\Controllers\Api\Shared\RoleController;
 use App\Http\Controllers\Api\SuperAdmin\AuditLogController as PlatformAuditLogController;
 use App\Http\Controllers\Api\SuperAdmin\CompanyController;
 use App\Http\Controllers\Api\SuperAdmin\CompanyPermissionController;
+use App\Http\Controllers\Api\SuperAdmin\LegalDocumentAdminController;
 use App\Http\Controllers\Api\SuperAdmin\SystemConfigurationController;
 use App\Http\Controllers\Api\SuperAdmin\UserController as PlatformUserController;
 use App\Http\Middleware\EnsureAccountNotLocked;
@@ -102,6 +105,9 @@ Route::post('/auth/login', [AuthController::class, 'login'])
 Route::prefix('meta')->middleware('throttle:60,1')->group(function () {
     Route::get('server-config', [ServerConfigController::class, 'serverConfig'])->name('meta.server-config');
     Route::get('check-update', [ServerConfigController::class, 'checkUpdate'])->name('meta.check-update');
+    // Public Privacy Policy / Terms of Use content — mobile Legal screen,
+    // consent gate (both platforms), and the public web pages.
+    Route::get('legal', [LegalDocumentController::class, 'active'])->name('meta.legal');
 });
 
 Route::post('/auth/pin-login', [AuthController::class, 'pinLogin'])
@@ -116,6 +122,10 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
     Route::match(['put', 'patch'], '/auth/profile', [AuthController::class, 'updateProfile'])->name('auth.profile');
     Route::put('/auth/pin', [AuthController::class, 'setPin'])->name('auth.pin.set');
     Route::post('/auth/verify-pin', [AuthController::class, 'verifyPin'])->middleware('throttle:10,1')->name('auth.pin.verify');
+
+    // Any authenticated user accepts the currently-active legal documents on
+    // their own behalf (mobile + web) — see LegalAcceptanceController.
+    Route::post('/legal/accept', [LegalAcceptanceController::class, 'store'])->middleware('throttle:30,1')->name('legal.accept');
 
     Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
 
@@ -151,6 +161,11 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('users/{user}', [PlatformUserController::class, 'show'])->middleware('permission:platform.users.view')->name('users.show');
         Route::match(['put', 'patch'], 'users/{user}', [PlatformUserController::class, 'update'])->middleware('permission:platform.users.edit')->name('users.update');
         Route::delete('users/{user}', [PlatformUserController::class, 'destroy'])->middleware('permission:platform.users.delete')->name('users.destroy');
+
+        // Privacy Policy / Terms of Use CMS — publish/version content (platform-wide, not company-scoped).
+        Route::get('legal-documents', [LegalDocumentAdminController::class, 'index'])->middleware('permission:legal.view')->name('legal-documents.index');
+        Route::get('legal-documents/{type}/active', [LegalDocumentAdminController::class, 'active'])->middleware('permission:legal.view')->name('legal-documents.active');
+        Route::post('legal-documents', [LegalDocumentAdminController::class, 'store'])->middleware('permission:legal.manage')->name('legal-documents.store');
     });
 
     /*

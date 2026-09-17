@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\PinLoginRequest;
 use App\Http\Requests\Auth\SetPinRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Requests\Auth\VerifyPinRequest;
+use App\Http\Resources\DriverResource;
 use App\Http\Resources\UserResource;
 use App\Models\Driver;
 use App\Models\User;
@@ -45,9 +46,7 @@ class AuthController extends Controller
             ]);
         }
 
-        if (($blocked = $this->driverCodeFailure($user, $request)) !== null) {
-            throw $blocked;
-        }
+        $driver = $this->verifyDriverCode($user, $request);
 
         if (($blocked = $this->rejectIfNotSignable($user, $request)) !== null) {
             return $blocked;
@@ -61,19 +60,20 @@ class AuthController extends Controller
             $request->session()->regenerate();
         }
 
-        $token = $user->createToken($request->deviceName())->plainTextToken;
+        $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($driver))->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
+            'driver' => $driver ? DriverResource::make($driver) : null,
         ]);
     }
 
     /**
      * Conductor sign-in by App PIN instead of password — BITS
-     * `api/auth/pinLogin.php`. Bus/driver selection happens at Start Trip,
-     * not here (see PinLoginRequest), so this only re-implements the
-     * credential + account checks, restricted to conductor accounts.
+     * `api/auth/pinLogin.php`. Which bus a conductor drives is still picked
+     * at Start Trip; which driver they're working with for this session is
+     * verified right here, same as login() — see verifyDriverCode().
      */
     public function pinLogin(PinLoginRequest $request): JsonResponse
     {
@@ -93,9 +93,7 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['pin' => 'This account does not have conductor portal access.']);
         }
 
-        if (($blocked = $this->driverCodeFailure($user, $request)) !== null) {
-            throw $blocked;
-        }
+        $driver = $this->verifyDriverCode($user, $request);
 
         if (($blocked = $this->rejectIfNotSignable($user, $request)) !== null) {
             return $blocked;
@@ -103,11 +101,12 @@ class AuthController extends Controller
 
         $request->clearRateLimiter();
 
-        $token = $user->createToken($request->deviceName())->plainTextToken;
+        $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($driver))->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
+            'driver' => $driver ? DriverResource::make($driver) : null,
         ]);
     }
 
@@ -136,18 +135,21 @@ class AuthController extends Controller
     }
 
     /**
-     * Conductor accounts must additionally supply the Driver Code of the
-     * one driver they're paired with (users.driver_id — see the Driver
-     * Code spec). Only checked once email+password already verified, so
-     * this never runs for a plain bad-credentials attempt. Returns the
-     * exception to throw, or null to proceed:
-     *  - empty field  -> a distinct, field-specific "required" message
-     *    (not an enumeration risk — it reveals nothing about correctness).
-     *  - wrong code, or no driver paired at all -> the SAME generic
-     *    auth.failed message as a bad password, so a wrong code can't be
-     *    told apart from a wrong password or a nonexistent account.
+     * A conductor is not permanently paired with one driver — they may be
+     * assigned a different bus/driver from one shift to the next, and any
+     * conductor holding a valid Driver Code may use it. So this just
+     * verifies the submitted code belongs to an Active driver in the
+     * SAME company as the signing-in account (checked once email+password
+     * already verified, so this never runs for a plain bad-credentials
+     * attempt) and returns that driver — the one Start Trip will require
+     * for the rest of this session (see tokenAbilitiesFor() and
+     * App\Actions\StartTrip). Returns null only for a non-conductor
+     * account, which doesn't need a driver at all. Throws on a missing or
+     * unrecognized code — a field-specific message, not folded into the
+     * generic auth.failed, since an invalid driver code no longer implies
+     * anything about which account it was typed against.
      */
-    private function driverCodeFailure(User $user, LoginRequest $request): ?ValidationException
+    private function verifyDriverCode(User $user, LoginRequest $request): ?Driver
     {
         if ($user->accessRole?->key !== 'conductor') {
             return null;
@@ -155,21 +157,45 @@ class AuthController extends Controller
 
         $submitted = trim((string) $request->input('driver_code', ''));
         if ($submitted === '') {
-            return ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'driver_code' => 'Driver Code is required.',
             ]);
         }
 
-        $expected = $user->driver?->driver_code;
-        if ($expected === null || Driver::normalizeCode($submitted) !== $expected) {
+        $driver = Driver::findActiveByCode($user->company_id, $submitted);
+        if ($driver === null) {
             $request->hitRateLimiter();
 
-            return ValidationException::withMessages([
-                'email' => __('auth.failed'),
+            throw ValidationException::withMessages([
+                'driver_code' => 'That driver code was not recognized.',
             ]);
         }
 
-        return null;
+        return $driver;
+    }
+
+    /**
+     * The Sanctum abilities to stamp onto a freshly-issued token. A
+     * conductor's token additionally carries which driver they verified at
+     * sign-in — the only place that's read back is StartTrip::handle(),
+     * which requires a new trip's driver_id to match it (switch drivers by
+     * signing in again with a different code). Nothing else in the app
+     * checks token abilities, so this rides along with the default '*'
+     * without restricting anything else the token can do.
+     *
+     * @return list<string>
+     */
+    private function tokenAbilitiesFor(?Driver $driver): array
+    {
+        return $driver ? ['*', "driver:{$driver->id}"] : ['*'];
+    }
+
+    /** The driver a token verified at sign-in, or null (non-conductor account, or a token issued before this feature existed). */
+    private function verifiedDriverFromToken(User $user): ?Driver
+    {
+        $id = Driver::verifiedIdForToken($user);
+
+        return $id !== null ? Driver::query()->find($id) : null;
     }
 
     /**
@@ -227,11 +253,21 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 
-    public function me(Request $request): UserResource
+    /**
+     * Restores the session on cold start. `driver` mirrors login()/pinLogin()'s
+     * response, resolved fresh from the current token's abilities each time
+     * (see verifiedDriverFromToken()) rather than cached anywhere, so a web
+     * page reload or an app relaunch always reflects the truth.
+     */
+    public function me(Request $request): JsonResponse
     {
-        return UserResource::make(
-            $request->user()->loadMissing('company.settings', 'accessRole', 'driver')
-        )->includePermissions();
+        $user = $request->user()->loadMissing('company.settings', 'accessRole');
+        $driver = $this->verifiedDriverFromToken($user);
+
+        return response()->json([
+            'data' => UserResource::make($user)->includePermissions(),
+            'driver' => $driver ? DriverResource::make($driver) : null,
+        ]);
     }
 
     /**
@@ -247,7 +283,7 @@ class AuthController extends Controller
             'name', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex',
         ]));
 
-        return UserResource::make($user->fresh()->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions();
+        return UserResource::make($user->fresh()->loadMissing('company.settings', 'accessRole'))->includePermissions();
     }
 
     /**
@@ -272,7 +308,7 @@ class AuthController extends Controller
             ->delete();
 
         return response()->json([
-            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole', 'driver'))->includePermissions(),
+            'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
         ]);
     }
 }

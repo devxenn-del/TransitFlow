@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext.jsx';
+import DriverVerificationModal from '../components/DriverVerificationModal.jsx';
 import { errorMessage } from '../lib/ui.js';
 
 const FEATURES = [
@@ -21,23 +22,54 @@ export default function Login() {
     const { login, isAuthenticated, loading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const [form, setForm] = useState({ email: '', password: 'password', driver_code: '', remember: true });
+    const [form, setForm] = useState({ email: '', password: 'password', remember: true });
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
+    // Set only once /auth/login says this account needs a driver_code (a
+    // conductor account) — the login form itself is just email/password for
+    // everyone; see AuthController::verifyDriverCode() on the backend.
+    const [driverPrompt, setDriverPrompt] = useState(null);
+    const [driverError, setDriverError] = useState(null);
 
     if (!loading && isAuthenticated) {
         return <Navigate to={location.state?.from || '/'} replace />;
     }
+
+    const attemptLogin = async (payload) => {
+        try {
+            await login(payload);
+            navigate(location.state?.from || '/', { replace: true });
+            return true;
+        } catch (err) {
+            if (err.response?.status === 422 && err.response?.data?.errors?.driver_code) {
+                setDriverPrompt(payload);
+                setDriverError(null);
+                return false;
+            }
+            throw err;
+        }
+    };
 
     const submit = async (e) => {
         e.preventDefault();
         setBusy(true);
         setError(null);
         try {
-            await login({ ...form, driver_code: form.driver_code.trim() });
-            navigate(location.state?.from || '/', { replace: true });
+            await attemptLogin(form);
         } catch (err) {
             setError(errorMessage(err, 'Unable to sign in.'));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const submitDriverCode = async (driverCode) => {
+        setBusy(true);
+        try {
+            const ok = await attemptLogin({ ...driverPrompt, driver_code: driverCode });
+            if (ok) setDriverPrompt(null);
+        } catch (err) {
+            setDriverError(errorMessage(err, 'Unable to verify that driver.'));
         } finally {
             setBusy(false);
         }
@@ -147,21 +179,6 @@ export default function Login() {
                                         />
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="form-label">
-                                        Driver Code
-                                        <span className="text-muted fw-normal"> — conductor accounts only</span>
-                                    </label>
-                                    <div className="tf-input-group">
-                                        <span className="tf-input-icon"><i className="bi bi-person-badge-fill" /></span>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter driver code"
-                                            value={form.driver_code}
-                                            onChange={(e) => setForm({ ...form, driver_code: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
                                 <div className="form-check">
                                     <input
                                         className="form-check-input"
@@ -203,11 +220,27 @@ export default function Login() {
                                 </div>
                             </div>
 
-                            <div className="tf-login-footer">© {new Date().getFullYear()} TransitFlow</div>
+                            <div className="tf-login-footer">
+                                <p className="small text-muted mb-1">
+                                    By continuing, you acknowledge the applicable Privacy Policy and Terms of Use.
+                                </p>
+                                <a href="/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="small">Privacy Policy</a>
+                                {' · '}
+                                <a href="/legal/terms-of-use" target="_blank" rel="noopener noreferrer" className="small">Terms of Use</a>
+                                <div className="mt-2">© {new Date().getFullYear()} TransitFlow</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <DriverVerificationModal
+                open={!!driverPrompt}
+                busy={busy}
+                error={driverError}
+                onCancel={() => { setDriverPrompt(null); setDriverError(null); setBusy(false); }}
+                onSubmit={submitDriverCode}
+            />
         </div>
     );
 }

@@ -11,12 +11,13 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'company_id', 'role', 'role_id', 'driver_id', 'status', 'must_change_password', 'password_changed_at', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex'])]
+#[Fillable(['name', 'email', 'password', 'company_id', 'role', 'role_id', 'status', 'must_change_password', 'password_changed_at', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex'])]
 #[Hidden(['password', 'remember_token', 'void_pin_hash', 'pin_hash'])]
 class User extends Authenticatable
 {
@@ -103,17 +104,6 @@ class User extends Authenticatable
     }
 
     /**
-     * The one driver this conductor account is paired with, for Driver Code
-     * login (see AuthController::login()). Not meaningful for other roles.
-     *
-     * @return BelongsTo<Driver, $this>
-     */
-    public function driver(): BelongsTo
-    {
-        return $this->belongsTo(Driver::class);
-    }
-
-    /**
      * Per-user permission grants — the live authorization source, exactly
      * as in BITS. A key is effective only when a row exists with
      * `allowed = 1`.
@@ -164,6 +154,45 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    /**
+     * @return HasMany<LegalDocumentAcceptance, $this>
+     */
+    public function legalAcceptances(): HasMany
+    {
+        return $this->hasMany(LegalDocumentAcceptance::class);
+    }
+
+    /**
+     * True when this user has never accepted, or last accepted an older
+     * version than, either currently-active legal document. A type with no
+     * active document at all (nothing published yet) never blocks.
+     */
+    public function needsLegalAcceptance(): bool
+    {
+        $privacy = LegalDocument::activeVersion(LegalDocument::TYPE_PRIVACY_POLICY);
+        $terms = LegalDocument::activeVersion(LegalDocument::TYPE_TERMS_OF_USE);
+
+        if ($privacy === null && $terms === null) {
+            return false;
+        }
+
+        $latest = $this->legalAcceptances()->latest('accepted_at')->first();
+
+        if ($latest === null) {
+            return true;
+        }
+
+        if ($privacy !== null && $latest->privacy_policy_version < $privacy->version) {
+            return true;
+        }
+
+        if ($terms !== null && $latest->terms_version < $terms->version) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

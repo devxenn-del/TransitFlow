@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\MobileAppSetting;
+use App\Support\LegalDocuments;
 use App\Support\ServerConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,10 @@ class ServerConfigController extends Controller
                 // Bumps whenever the platform-wide default changes — lets a
                 // client skip re-validating a URL it already has (§B/§K).
                 'config_version' => ServerConfig::version(),
+                // Lightweight — just the versions/effective dates a client
+                // needs to know whether to re-show the consent gate. Full
+                // content comes from GET /api/meta/legal.
+                'legal' => LegalDocuments::activeSummary(),
                 'app' => [
                     'latest_version' => $settings->latest_version,
                     'latest_version_code' => (int) $settings->latest_version_code,

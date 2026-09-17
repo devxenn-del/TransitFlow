@@ -1048,3 +1048,110 @@ a.tf-stat:hover {
         margin: 4mm;
     }
 }
+
+/* ==========================================================================
+   Driver QR card (company/Drivers.jsx) — a small branded card, screen and
+   print. `.driver-qr-print-area` is hidden by default in print (everything
+   is, below) except itself, so window.print() from inside that modal only
+   ever prints this card, never the admin page or modal chrome behind it.
+   ========================================================================== */
+.driver-qr-print-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    padding: 8px 4px 4px;
+}
+.driver-qr-print-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+.driver-qr-print-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 10px;
+}
+.driver-qr-print-company {
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--tf-navy);
+}
+.driver-qr-print-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tf-muted);
+}
+.driver-qr-print-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+.driver-qr-print-code {
+    font-family: 'Courier New', monospace;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.12em;
+    padding: 4px 14px;
+    border: 1.5px dashed var(--tf-accent-dark, #c98a1c);
+    border-radius: 10px;
+}
+.driver-qr-print-hint {
+    max-width: 320px;
+    font-size: 0.78rem;
+    color: var(--tf-muted);
+    margin: 4px 0 0;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .driver-qr-print-area,
+    .driver-qr-print-area * {
+        visibility: visible;
+    }
+    /* The page itself is the label — 6cm × 6cm, no margin — not a small
+       card centered on a full sheet. */
+    .driver-qr-print-area {
+        position: fixed;
+        inset: 0;
+        width: 6cm;
+        height: 6cm;
+        justify-content: center;
+        gap: 4px;
+        padding: 3mm;
+        box-sizing: border-box;
+    }
+    .driver-qr-print-header {
+        margin-bottom: 1mm;
+    }
+    .driver-qr-print-logo {
+        width: 9mm;
+        height: 9mm;
+    }
+    .driver-qr-print-company {
+        font-size: 0.65rem;
+    }
+    .driver-qr-print-area canvas {
+        width: 34mm !important;
+        height: 34mm !important;
+    }
+    .driver-qr-print-code {
+        font-size: 1rem;
+        padding: 1mm 3mm;
+        border-color: #000;
+        color: #000;
+    }
+    @page {
+        size: 6cm 6cm;
+        margin: 0;
+    }
+}

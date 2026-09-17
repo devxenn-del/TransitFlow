@@ -28,7 +28,7 @@ class PinLoginTest extends TestCase
     {
         $company = Company::factory()->create();
         $driver = Driver::factory()->for($company)->create();
-        $this->conductorWithPin($company)->forceFill(['driver_id' => $driver->id])->save();
+        $this->conductorWithPin($company);
 
         $response = $this->postJson('/api/auth/pin-login', [
             'email' => 'conductor@acme.test', 'pin' => '1234', 'driver_code' => $driver->driver_code,

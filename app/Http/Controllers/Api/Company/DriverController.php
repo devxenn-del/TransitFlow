@@ -52,7 +52,16 @@ class DriverController extends Controller
 
     public function update(UpdateDriverRequest $request, Driver $driver): DriverResource
     {
-        $driver->update($request->validated());
+        $data = $request->validated();
+
+        // Left blank on a driver that has never had one — generate it now,
+        // same as a new driver would get on create, rather than leaving
+        // this driver permanently unable to sign a conductor in.
+        if (array_key_exists('driver_code', $data) && $data['driver_code'] === null && $driver->driver_code === null) {
+            $data['driver_code'] = Driver::generateCode($driver->company_id, now());
+        }
+
+        $driver->update($data);
 
         return DriverResource::make($driver->fresh());
     }

@@ -209,4 +209,5 @@ class TripLifecycleTest extends TestCase
         $this->postJson('/api/conductor/trips', $this->startPayload())
             ->assertJsonValidationErrorFor('attendance');
     }
+
 }

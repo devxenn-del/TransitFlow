@@ -39,6 +39,10 @@ class RbacSeeder extends Seeder
             ['system.configuration.view', 'View Server Configuration', 'System Configuration', '/super-admin/system-configuration', 'bi-hdd-network'],
             ['system.configuration.manage', 'Update / Test / Roll Back Server Configuration', null, null, null],
         ],
+        'Legal Documents' => [
+            ['legal.view', 'View Legal Documents', 'Legal Documents', '/super-admin/legal-documents', 'bi-file-earmark-text'],
+            ['legal.manage', 'Publish / Edit Legal Documents', null, null, null],
+        ],
         'Company Profile' => [
             ['company.profile.view', 'View Company Profile', 'Company Profile', '/company/profile', 'bi-building'],
             ['company.profile.edit', 'Edit Company Profile', null, null, null],

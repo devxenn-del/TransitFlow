@@ -63,7 +63,7 @@ class AccountLockTest extends TestCase
         $company = Company::factory()->create();
         $driver = \App\Models\Driver::factory()->for($company)->create();
         $user = User::factory()->forCompany($company)->withRole('conductor')
-            ->create(['email' => 'c@acme.test', 'driver_id' => $driver->id]);
+            ->create(['email' => 'c@acme.test']);
         AccountLock::lockShiftEnd($user);
 
         // Fresh sign-in: no grace, locked immediately.

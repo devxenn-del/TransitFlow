@@ -7,11 +7,13 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [verifiedDriver, setVerifiedDriver] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const clear = useCallback(() => {
         setToken(null);
         setUser(null);
+        setVerifiedDriver(null);
     }, []);
 
     // Global 401 handler (fires from the axios interceptor).
@@ -19,7 +21,9 @@ export function AuthProvider({ children }) {
         setUnauthorizedHandler(() => setUser(null));
     }, []);
 
-    // Restore the session on first load.
+    // Restore the session on first load. `driver` (the one verified at
+    // sign-in, if any — see AuthController::me()) comes back fresh here
+    // too, so a page reload doesn't lose it.
     useEffect(() => {
         let active = true;
         if (!getToken()) {
@@ -28,7 +32,11 @@ export function AuthProvider({ children }) {
         }
         authApi
             .me()
-            .then((u) => active && setUser(u))
+            .then(({ data, driver }) => {
+                if (!active) return;
+                setUser(data);
+                setVerifiedDriver(driver ?? null);
+            })
             .catch(() => active && clear())
             .finally(() => active && setLoading(false));
         return () => {
@@ -37,16 +45,18 @@ export function AuthProvider({ children }) {
     }, [clear]);
 
     const login = useCallback(async (credentials) => {
-        const { token, user: u } = await authApi.login(credentials);
+        const { token, user: u, driver } = await authApi.login(credentials);
         setToken(token);
         setUser(u);
+        setVerifiedDriver(driver ?? null);
         return u;
     }, []);
 
     const refreshUser = useCallback(async () => {
-        const u = await authApi.me();
-        setUser(u);
-        return u;
+        const { data, driver } = await authApi.me();
+        setUser(data);
+        setVerifiedDriver(driver ?? null);
+        return data;
     }, []);
 
     const logout = useCallback(async () => {
@@ -62,6 +72,7 @@ export function AuthProvider({ children }) {
         const perms = new Set(user?.permissions ?? []);
         return {
             user,
+            verifiedDriver,
             loading,
             login,
             logout,
@@ -72,7 +83,7 @@ export function AuthProvider({ children }) {
             mustChangePassword: !!user?.must_change_password,
             can: (key) => !!user && (user.is_super_admin || perms.has(key)),
         };
-    }, [user, loading, login, logout, refreshUser]);
+    }, [user, verifiedDriver, loading, login, logout, refreshUser]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

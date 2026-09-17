@@ -30,7 +30,7 @@ class StoreDriverRequest extends FormRequest
             'license_number' => ['nullable', 'string', 'max:50'],
             'contact_number' => ['nullable', 'string', 'max:30'],
             'status' => ['sometimes', Rule::in(Driver::STATUSES)],
-            // Left blank, this auto-generates (DR-####) — see Driver::booted().
+            // Left blank, this auto-generates (DR-YYMM-XXXX-XXXX) — see Driver::booted().
             'driver_code' => [
                 'nullable', 'string', 'max:20',
                 Rule::unique('drivers', 'driver_code')->where('company_id', $this->user()?->company_id),

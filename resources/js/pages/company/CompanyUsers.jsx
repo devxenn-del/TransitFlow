@@ -6,18 +6,17 @@ import Modal from '../../components/Modal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
-import { buses as busesApi, companyUsers, conductorBuses, drivers as driversApi, roles as rolesApi } from '../../lib/api.js';
+import { buses as busesApi, companyUsers, conductorBuses, roles as rolesApi } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
-const BLANK = { name: '', email: '', password: '', role_id: '', status: 'active', pin: '', driver_id: '' };
+const BLANK = { name: '', email: '', password: '', role_id: '', status: 'active', pin: '' };
 
 export default function CompanyUsers() {
     const { can, user: me } = useAuth();
     const navigate = useNavigate();
     const { rows, meta, loading, page, setPage, reload } = useList(companyUsers.list);
     const [roles, setRoles] = useState([]);
-    const [allDrivers, setAllDrivers] = useState([]);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);
@@ -30,10 +29,7 @@ export default function CompanyUsers() {
 
     useEffect(() => {
         rolesApi.list().then(setRoles).catch(() => {});
-        driversApi.list({ per_page: 200 }).then((r) => setAllDrivers(r.data)).catch(() => {});
     }, []);
-
-    const isConductorRole = roles.find((r) => String(r.id) === String(form.role_id))?.key === 'conductor';
 
     const openBuses = async (u) => {
         setBusUser(u);
@@ -62,7 +58,7 @@ export default function CompanyUsers() {
     const openEdit = (u) => {
         setForm({
             name: u.name, email: u.email, password: '', role_id: u.access_role?.id ?? '',
-            status: u.status, pin: '', driver_id: u.driver_id ?? '',
+            status: u.status, pin: '',
         });
         setEditing(u);
     };
@@ -78,10 +74,6 @@ export default function CompanyUsers() {
             // screen; left blank on edit, whatever PIN they already have
             // (if any) is untouched.
             if (!payload.pin) delete payload.pin;
-            // The driver this conductor must supply a Driver Code for at
-            // login. '' means "no driver selected" — send null, not an
-            // empty string (which would fail the backend's exists check).
-            payload.driver_id = payload.driver_id || null;
             if (editing.id) {
                 await companyUsers.update(editing.id, payload);
                 notifySuccess('User updated.');
@@ -170,17 +162,6 @@ export default function CompanyUsers() {
                                         <span className="badge text-bg-light border text-capitalize">
                                             {u.access_role?.name ?? u.role?.replaceAll('_', ' ')}
                                         </span>
-                                        {u.access_role?.key === 'conductor' && (
-                                            u.driver ? (
-                                                <div className="small text-muted mt-1">
-                                                    <i className="bi bi-person-badge me-1" />{u.driver.name} · <code>{u.driver.driver_code}</code>
-                                                </div>
-                                            ) : (
-                                                <div className="small text-danger mt-1" title="This conductor cannot sign in until a driver is paired.">
-                                                    <i className="bi bi-exclamation-triangle me-1" />No driver paired
-                                                </div>
-                                            )
-                                        )}
                                     </td>
                                     <td>
                                         <StatusBadge value={u.status} />
@@ -295,21 +276,6 @@ export default function CompanyUsers() {
                             </select>
                         </div>
                     </div>
-                    {isConductorRole && (
-                        <div>
-                            <label className="form-label">Paired Driver</label>
-                            <select className="form-select" value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
-                                <option value="">None yet</option>
-                                {allDrivers.map((d) => (
-                                    <option key={d.id} value={d.id}>{d.name} — {d.driver_code ?? 'no code'}</option>
-                                ))}
-                            </select>
-                            <div className="form-text">
-                                This conductor must enter that driver's Driver Code to sign in. Without one paired,
-                                this account cannot log in.
-                            </div>
-                        </div>
-                    )}
                     <p className="small text-body-secondary mb-0">
                         The role's default permissions are applied on save. Fine-tune them from the
                         <i className="bi bi-shield-lock mx-1" />permissions screen.

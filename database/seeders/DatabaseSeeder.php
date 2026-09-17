@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             RbacSeeder::class,
             PlatformSeeder::class,
             DemoCompanySeeder::class,
+            LegalDocumentSeeder::class,
         ]);
     }
 }

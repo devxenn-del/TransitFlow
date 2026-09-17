@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AuthProvider } from './auth/AuthContext.jsx';
 import AppLayout from './components/AppLayout.jsx';
+import LegalConsentGate from './components/LegalConsentGate.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { useAuth } from './auth/AuthContext.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -10,6 +11,7 @@ import Login from './pages/Login.jsx';
 import MyProfile from './pages/MyProfile.jsx';
 import NotFound from './pages/NotFound.jsx';
 import ReceiptView from './pages/ReceiptView.jsx';
+import LegalDocumentPage from './pages/public/LegalDocumentPage.jsx';
 import Attendance from './pages/company/Attendance.jsx';
 import AdminAssignments from './pages/company/AdminAssignments.jsx';
 import Buses from './pages/company/Buses.jsx';
@@ -42,6 +44,7 @@ import TripMonitor from './pages/company/TripMonitor.jsx';
 import UserPermissions from './pages/company/UserPermissions.jsx';
 import VoidSecurity from './pages/company/VoidSecurity.jsx';
 import Companies from './pages/superadmin/Companies.jsx';
+import LegalDocuments from './pages/superadmin/LegalDocuments.jsx';
 import PlatformUsers from './pages/superadmin/PlatformUsers.jsx';
 import SystemConfiguration from './pages/superadmin/SystemConfiguration.jsx';
 
@@ -63,6 +66,8 @@ export default function Root() {
             <AuthProvider>
                 <Routes>
                     <Route path="/login" element={<Login />} />
+                    <Route path="/legal/privacy-policy" element={<LegalDocumentPage type="privacy_policy" />} />
+                    <Route path="/legal/terms-of-use" element={<LegalDocumentPage type="terms_of_use" />} />
 
                     {/* Thermal receipt print view — no app chrome, opens in its own tab */}
                     <Route
@@ -77,9 +82,11 @@ export default function Root() {
                     <Route
                         element={
                             <ProtectedRoute>
-                                <PasswordGate>
-                                    <AppLayout />
-                                </PasswordGate>
+                                <LegalConsentGate>
+                                    <PasswordGate>
+                                        <AppLayout />
+                                    </PasswordGate>
+                                </LegalConsentGate>
                             </ProtectedRoute>
                         }
                     >
@@ -106,6 +113,7 @@ export default function Root() {
                         <Route path="companies" element={<ProtectedRoute permission="companies.view"><Companies /></ProtectedRoute>} />
                         <Route path="platform-users" element={<ProtectedRoute permission="platform.users.view"><PlatformUsers /></ProtectedRoute>} />
                         <Route path="super-admin/system-configuration" element={<ProtectedRoute permission="system.configuration.view"><SystemConfiguration /></ProtectedRoute>} />
+                        <Route path="super-admin/legal-documents" element={<ProtectedRoute permission="legal.view"><LegalDocuments /></ProtectedRoute>} />
 
                         {/* Fleet */}
                         <Route path="company/terminals" element={<ProtectedRoute permission="terminals.view"><Terminals /></ProtectedRoute>} />

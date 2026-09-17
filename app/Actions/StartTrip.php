@@ -55,6 +55,16 @@ class StartTrip
             throw ValidationException::withMessages(['driver_id' => 'Pick an active driver.']);
         }
 
+        // A conductor isn't fixed to one driver, but they DO verify a
+        // specific driver's code at sign-in (AuthController::verifyDriverCode()) —
+        // every trip on that same session must use that same driver. Skipped
+        // for a token issued before this feature existed (no such ability
+        // recorded yet); it takes effect on that conductor's next sign-in.
+        $lockedDriverId = Driver::verifiedIdForToken($conductor);
+        if ($lockedDriverId !== null && $lockedDriverId !== $driver->id) {
+            throw ValidationException::withMessages(['driver_id' => 'This trip must use the driver you verified at sign-in.']);
+        }
+
         // No settings row yet for this company (lazily created elsewhere) ->
         // default to the column's own default (terminals in use), same as
         // every company before this flag existed.

@@ -5,12 +5,14 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Driver Code — a separate, driver-facing identifier used to authenticate a
- * conductor login (paired via users.driver_id, see
- * add_driver_id_to_users_table). Distinct from employee_id (an HR/admin
- * identifier, not meant to be shared as a credential). Auto-generated
- * `DR-####` on create (App\Models\Driver::booted()), unique per company —
- * same scoping convention as employee_id.
+ * Driver Code — a separate, driver-facing identifier a conductor verifies
+ * at sign-in (any Active driver in their own company — see
+ * AuthController::verifyDriverCode(); no fixed conductor↔driver pairing).
+ * Distinct from employee_id (an HR/admin identifier, not meant to be shared
+ * as a credential). Auto-generated `DR-YYMM-XXXX-XXXX` on create
+ * (App\Models\Driver::booted()) — random, not sequential, since it's a
+ * login credential — unique per company, same scoping convention as
+ * employee_id.
  */
 return new class extends Migration
 {

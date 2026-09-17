@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 
 import { useAuth } from '../../auth/AuthContext.jsx';
 import DataTable from '../../components/DataTable.jsx';
@@ -12,12 +13,53 @@ import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const BLANK = { name: '', license_number: '', contact_number: '', status: 'Active', driver_code: '' };
 
+/**
+ * The driver's QR just encodes their existing driver_code text — scanning
+ * it at login is equivalent to typing that code (see LoginFragment's / web
+ * Login's Verify Driver step). Printable card, company-branded, for the
+ * driver to carry — any conductor holding it may use it, not just one
+ * paired conductor. `.driver-qr-print-area` (resources/css/app.css) makes
+ * window.print() print only this card, not the surrounding admin page.
+ */
+function DriverQrModal({ driver, company, onClose }) {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+        if (!driver || !canvasRef.current) return;
+        QRCode.toCanvas(canvasRef.current, driver.driver_code, { width: 220, margin: 1 }).catch(() => {});
+    }, [driver]);
+
+    return (
+        <Modal
+            open={!!driver}
+            title={driver ? `${driver.name} — QR Code` : ''}
+            onClose={onClose}
+            footer={<button className="btn btn-primary" onClick={() => window.print()}><i className="bi bi-printer me-1" />Print</button>}
+        >
+            <div className="driver-qr-print-area">
+                <div className="driver-qr-print-header">
+                    {company?.logo_url && <img src={company.logo_url} alt="" className="driver-qr-print-logo" />}
+                    <div className="driver-qr-print-company">{company?.name ?? 'TransitFlow'}</div>
+                </div>
+                <div className="driver-qr-print-name d-print-none">{driver?.name}</div>
+                <canvas ref={canvasRef} />
+                <div className="driver-qr-print-code">{driver?.driver_code}</div>
+                <p className="driver-qr-print-hint d-print-none">
+                    Any conductor can scan this QR code — or type the code above — to verify this driver at sign-in.
+                    Printing produces a 6cm × 6cm label.
+                </p>
+            </div>
+        </Modal>
+    );
+}
+
 export default function Drivers() {
-    const { can } = useAuth();
+    const { can, user } = useAuth();
     const { rows, meta, loading, page, setPage, reload } = useList(drivers.list);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);
+    const [qrDriver, setQrDriver] = useState(null);
 
     const openNew = () => { setForm(BLANK); setEditing({}); };
     const openEdit = (d) => {
@@ -35,9 +77,10 @@ export default function Drivers() {
         e.preventDefault();
         setSaving(true);
         try {
-            // Blank on create leaves it to auto-generate (DR-####); blank on
-            // edit is a real (validated, rejected) request, never silently
-            // dropped — a conductor may already be depending on that code.
+            // Blank on create leaves it to auto-generate (DR-YYMM-XXXX-XXXX);
+            // blank on edit is a real (validated, rejected) request, never
+            // silently dropped — a conductor may already be depending on
+            // that code.
             const payload = { ...form };
             if (!editing.id && !payload.driver_code) delete payload.driver_code;
 
@@ -81,6 +124,11 @@ export default function Drivers() {
             className: 'text-end text-nowrap',
             render: (d) => (
                 <>
+                    {d.driver_code && (
+                        <button className="btn btn-sm btn-outline-secondary me-1" title="Show QR code" onClick={() => setQrDriver(d)}>
+                            <i className="bi bi-qr-code" />
+                        </button>
+                    )}
                     {can('drivers.edit') && (
                         <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => openEdit(d)}>
                             <i className="bi bi-pencil" />
@@ -156,12 +204,15 @@ export default function Drivers() {
                             onChange={(e) => setForm({ ...form, driver_code: e.target.value.toUpperCase() })}
                         />
                         <div className="form-text">
-                            The conductor paired with this driver must enter this code to sign in. Unique per company.
+                            Any conductor can scan or enter this code at sign-in to verify they're working with this
+                            driver. Unique per company.
                         </div>
                     </div>
                     {!editing?.id && <p className="small text-muted mb-0">An employee ID is generated automatically.</p>}
                 </form>
             </Modal>
+
+            <DriverQrModal driver={qrDriver} company={user?.company} onClose={() => setQrDriver(null)} />
         </>
     );
 }

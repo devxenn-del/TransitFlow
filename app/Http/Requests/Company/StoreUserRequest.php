@@ -35,12 +35,6 @@ class StoreUserRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
             'sex' => ['nullable', Rule::in(['Male', 'Female'])],
             'pin' => ['nullable', 'string', 'regex:/^\d{4}$/'],
-            // The driver this conductor must supply a Driver Code for at
-            // login (see AuthController::login()). Left blank here is
-            // allowed — the account just can't sign in until one is set.
-            'driver_id' => ['nullable', Rule::exists('drivers', 'id')->where(
-                fn ($q) => $q->where('company_id', $this->user()?->company_id)
-            )],
         ];
     }
 }

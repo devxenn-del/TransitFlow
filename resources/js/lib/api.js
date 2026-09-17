@@ -5,7 +5,10 @@ import api from './axios.js';
 export const auth = {
     login: (payload) => api.post('/auth/login', payload).then((r) => r.data),
     logout: () => api.post('/auth/logout').then((r) => r.data),
-    me: () => api.get('/auth/me').then((r) => r.data.data),
+    // { data: user, driver } — driver is whichever one was verified at
+    // sign-in (see AuthController::me()), resolved fresh from the current
+    // token every call, not just at login.
+    me: () => api.get('/auth/me').then((r) => r.data),
     changePassword: (payload) => api.post('/auth/password', payload).then((r) => r.data),
     updateProfile: (payload) => api.put('/auth/profile', payload).then((r) => r.data.data),
     setPin: (payload) => api.put('/auth/pin', payload).then((r) => r.data),
@@ -46,6 +49,16 @@ export const systemConfiguration = {
     test: (url) => api.post('/super-admin/system-configuration/test', { url }).then((r) => r.data.data),
     history: (params) => api.get('/super-admin/system-configuration/history', { params }).then((r) => r.data),
     rollback: (id) => api.post(`/super-admin/system-configuration/history/${id}/rollback`).then((r) => r.data.data),
+};
+
+export const legalDocuments = {
+    // Public — no auth required (mobile Legal screen, consent gate, public web pages).
+    activePublic: () => api.get('/meta/legal').then((r) => r.data.data),
+    accept: (payload) => api.post('/legal/accept', payload).then((r) => r.data),
+    // Super Admin CMS.
+    list: () => api.get('/super-admin/legal-documents').then((r) => r.data.data),
+    active: (type) => api.get(`/super-admin/legal-documents/${type}/active`).then((r) => r.data.data),
+    publish: (payload) => api.post('/super-admin/legal-documents', payload).then((r) => r.data.data),
 };
 
 export const companyProfile = {
@@ -117,7 +130,6 @@ export const conductor = {
     activeTrip: () => api.get('/conductor/trips/active').then((r) => r.data.data),
     history: (params) => api.get('/conductor/trips/history', { params }).then((r) => r.data),
     lookupBuses: () => api.get('/conductor/lookup/buses').then((r) => r.data.data),
-    lookupDrivers: () => api.get('/conductor/lookup/drivers').then((r) => r.data.data),
     lookupTerminals: () => api.get('/conductor/lookup/terminals').then((r) => r.data.data),
     lookupCoverage: () => api.get('/conductor/lookup/coverage').then((r) => r.data),
     lookupRoutes: () => api.get('/conductor/lookup/routes').then((r) => r.data.data),

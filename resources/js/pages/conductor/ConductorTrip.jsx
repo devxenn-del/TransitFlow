@@ -20,9 +20,8 @@ const peso = (n) => `₱${Number(n ?? 0).toFixed(2)}`;
 const resolvedStop = (terminal) => terminal?.resolved_stop || terminal?.default_route_origin || terminal?.name || '';
 
 function StartTripForm({ onStarted }) {
-    const { user } = useAuth();
+    const { user, verifiedDriver } = useAuth();
     const [buses, setBuses] = useState([]);
-    const [drivers, setDrivers] = useState([]);
     const [routes, setRoutes] = useState([]);
     const [atTerminal, setAtTerminal] = useState(true);
     const [routeId, setRouteId] = useState('');
@@ -30,15 +29,15 @@ function StartTripForm({ onStarted }) {
     const [routeTerminals, setRouteTerminals] = useState([]);
     const [tripType, setTripType] = useState('Regular');
     const [form, setForm] = useState({
-        bus_id: '', driver_id: '',
+        bus_id: '',
         origin: '', coverage_origin: '', coverage_destination: '', // At Terminal = No
         terminal_origin_id: '', terminal_destination_id: '', // At Terminal = Yes (ids, resolved to origin/coverage on submit)
     });
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
-        Promise.all([conductor.lookupBuses(), conductor.lookupDrivers(), conductor.lookupRoutes()])
-            .then(([b, d, r]) => { setBuses(b); setDrivers(d); setRoutes(r); })
+        Promise.all([conductor.lookupBuses(), conductor.lookupRoutes()])
+            .then(([b, r]) => { setBuses(b); setRoutes(r); })
             .catch((e) => notifyError(e, 'Could not load trip options.'));
     }, []);
 
@@ -95,16 +94,15 @@ function StartTripForm({ onStarted }) {
 
     const route = routes.find((r) => String(r.id) === String(routeId)) ?? null;
     const bus = buses.find((b) => String(b.id) === String(form.bus_id)) ?? null;
-    const driver = drivers.find((d) => String(d.id) === String(form.driver_id)) ?? null;
 
     const ready = Boolean(
-        route && bus && driver
+        route && bus && verifiedDriver
         && (atTerminal ? (terminalOrigin && terminalDestination) : (form.origin && form.coverage_destination)),
     );
 
     const payload = () => ({
         bus_id: form.bus_id,
-        driver_id: form.driver_id,
+        driver_id: verifiedDriver?.id,
         origin: atTerminal ? terminalOrigin.name : form.origin,
         coverage_origin: atTerminal ? resolvedStop(terminalOrigin) : form.coverage_origin,
         coverage_destination: atTerminal ? resolvedStop(terminalDestination) : form.coverage_destination,
@@ -137,7 +135,7 @@ function StartTripForm({ onStarted }) {
             [atTerminal ? 'Terminal Destination' : 'Destination', atTerminal ? terminalDestination.name : form.coverage_destination],
             ['Trip Type', tripType],
             ['Bus Number', bus.bus_number],
-            ['Driver', driver.name],
+            ['Driver', verifiedDriver.name],
         ];
         const { isConfirmed } = await Swal.fire({
             html: `
@@ -250,10 +248,19 @@ function StartTripForm({ onStarted }) {
                         </div>
                         <div className="col-md-6">
                             <label className="form-label">Driver *</label>
-                            <select className="form-select" required value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
-                                <option value="">Select…</option>
-                                {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                            </select>
+                            {verifiedDriver ? (
+                                <div className="form-control bg-body-secondary d-flex align-items-center gap-2">
+                                    <i className="bi bi-person-badge" />
+                                    {verifiedDriver.name}
+                                    <code className="ms-auto">{verifiedDriver.driver_code}</code>
+                                </div>
+                            ) : (
+                                <div className="small text-danger">
+                                    <i className="bi bi-exclamation-triangle me-1" />
+                                    No driver verified — sign out and back in.
+                                </div>
+                            )}
+                            <div className="form-text">Verified at sign-in — sign out and back in to switch drivers.</div>
                         </div>
                     </div>
 
