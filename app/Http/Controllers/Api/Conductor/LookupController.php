@@ -232,7 +232,10 @@ class LookupController extends Controller
     /**
      * The priced fares available on a given trip — every priced route whose
      * origin is the trip's coverage origin (Via Terminal), plus all priced
-     * routes for Via Pick-up.
+     * routes for Via Pick-up. Ordered by each route's own franchise stop
+     * sequence (route_stops.sort_order), not alphabetically — same ordering
+     * rule as coverageOptions()/stops() above, so the Ticketing screen's
+     * destination grid reads in actual travel order instead of A-Z.
      */
     public function tripFares(Trip $trip): array
     {
@@ -240,9 +243,26 @@ class LookupController extends Controller
 
         $origin = $trip->coverage_origin !== '' ? $trip->coverage_origin : $trip->origin;
 
-        $terminal = Route::query()->priced()->where('origin', $origin)
-            ->with('fareMatrix')->orderBy('destination')->get();
-        $pickup = Route::query()->priced()->with('fareMatrix')->orderBy('origin')->orderBy('destination')->get();
+        $terminal = Route::query()->priced()->where('origin', $origin)->with('fareMatrix')->get();
+        $pickup = Route::query()->priced()->with('fareMatrix')->get();
+
+        $franchiseIds = $terminal->pluck('franchise_id')->merge($pickup->pluck('franchise_id'))->unique();
+        $stopOrder = RouteStop::query()
+            ->whereIn('franchise_id', $franchiseIds)
+            ->orderBy('sort_order')
+            ->get(['franchise_id', 'name', 'sort_order'])
+            ->groupBy('franchise_id')
+            ->map(fn ($stops) => $stops->pluck('sort_order', 'name'));
+
+        $orderOf = fn ($route, string $stopName) => $stopOrder->get($route->franchise_id)?->get($stopName) ?? PHP_INT_MAX;
+        $byStopOrder = fn ($routes) => $routes->sort(function ($a, $b) use ($orderOf) {
+            $originCompare = $orderOf($a, $a->origin) <=> $orderOf($b, $b->origin);
+
+            return $originCompare !== 0 ? $originCompare : $orderOf($a, $a->destination) <=> $orderOf($b, $b->destination);
+        })->values();
+
+        $terminal = $byStopOrder($terminal);
+        $pickup = $byStopOrder($pickup);
 
         $map = fn ($routes) => $routes->map(fn ($r) => [
             'route_id' => $r->id,
