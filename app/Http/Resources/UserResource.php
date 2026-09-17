@@ -64,8 +64,13 @@ class UserResource extends JsonResource
                 'can_create_accounts' => $this->company->can_create_accounts,
                 // Plain branding — visible to any member of the company,
                 // not gated behind company.settings.view/manage (which
-                // controls who may change it, not who may see it).
+                // controls who may change it, not who may see it). Same
+                // fields the mobile app already gets from
+                // ServerConfigController::serverConfig() for its own
+                // accent-tinted buttons/logo.
                 'logo_url' => $this->company->relationLoaded('settings') ? $this->company->settings?->logo_url : null,
+                'color_accent' => $this->company->relationLoaded('settings') ? $this->company->settings?->color_accent : null,
+                'color_accent_dark' => $this->company->relationLoaded('settings') ? $this->company->settings?->color_accent_dark : null,
             ] : null),
             'company_id' => $this->company_id,
             // The caller's own permission keys, or when explicitly asked for.

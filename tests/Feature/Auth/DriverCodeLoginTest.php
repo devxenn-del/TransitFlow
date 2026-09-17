@@ -126,6 +126,31 @@ class DriverCodeLoginTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrorFor('driver_code');
     }
 
+    /**
+     * Regression: ResolveCompanyContext runs on every API request,
+     * including /auth/login — a browser/app that was previously signed in
+     * as someone else (or just still has an old token attached) must not
+     * have THAT company silently scope the credential/driver-code lookups
+     * inside login(), rejecting a completely correct email+password+driver
+     * code for the account actually signing in.
+     */
+    public function test_a_stale_bearer_token_from_another_company_does_not_break_a_fresh_login(): void
+    {
+        $staleCompany = Company::factory()->create();
+        $staleToken = User::factory()->companyAdmin($staleCompany)->create()->createToken('stale')->plainTextToken;
+
+        $company = Company::factory()->create();
+        $this->conductor($company);
+        $driver = Driver::factory()->for($company)->create();
+
+        $this->withToken($staleToken)->postJson('/api/auth/login', [
+            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
+        ])
+            ->assertOk()
+            ->assertJsonPath('user.email', 'conductor@acme.test')
+            ->assertJsonPath('driver.id', $driver->id);
+    }
+
     public function test_non_conductor_accounts_do_not_need_a_driver_code(): void
     {
         $company = Company::factory()->create();

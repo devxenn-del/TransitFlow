@@ -26,10 +26,28 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ResolveCompanyContext
 {
+    /**
+     * Routes that establish a NEW identity rather than use an existing one.
+     * A browser/app that was previously signed in as someone else (or still
+     * has an old, unrelated token attached — the web/mobile HTTP clients
+     * send whatever token is stored on every request, this one included)
+     * must never have that stale identity's company silently scope the
+     * credential/driver-code lookups inside AuthController::login()/
+     * pinLogin() — otherwise a completely correct email+password+driver
+     * code for a DIFFERENT company than the stale token's gets rejected as
+     * if it were wrong (or, via EnsureCompanyIsActive, blocked outright if
+     * that unrelated company happens to be suspended).
+     */
+    private const IDENTITY_ESTABLISHING_ROUTES = ['auth.login', 'auth.pin-login'];
+
     public function __construct(private CompanyContext $context) {}
 
     public function handle(Request $request, Closure $next): Response
     {
+        if (in_array($request->route()?->getName(), self::IDENTITY_ESTABLISHING_ROUTES, true)) {
+            return $next($request);
+        }
+
         // Resolve via the Sanctum guard explicitly: this middleware runs
         // before the route's `auth:sanctum`, so the default guard has not
         // been pointed at Sanctum yet. A missing/invalid token yields null

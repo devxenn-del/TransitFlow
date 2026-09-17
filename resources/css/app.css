@@ -1050,108 +1050,129 @@ a.tf-stat:hover {
 }
 
 /* ==========================================================================
-   Driver QR card (company/Drivers.jsx) — a small branded card, screen and
-   print. `.driver-qr-print-area` is hidden by default in print (everything
-   is, below) except itself, so window.print() from inside that modal only
-   ever prints this card, never the admin page or modal chrome behind it.
+   Driver ID card (company/Drivers.jsx) — a standard CR80 card (85.6mm ×
+   54mm, the size of a credit card / employee badge), company-branded,
+   screen and print. `.driver-id-card` is hidden by default in print
+   (everything is, below) except itself, so window.print() from inside that
+   modal only ever prints this card, never the admin page or modal chrome
+   behind it.
    ========================================================================== */
-.driver-qr-print-area {
+.driver-id-card {
+    /* Overridable per-company via inline style (Drivers.jsx) — falls back
+       to the platform's own accent when a company hasn't set one. */
+    --driver-id-accent: var(--tf-accent);
+    --driver-id-accent-dark: var(--tf-accent-dark);
+    width: 85.6mm;
+    height: 54mm;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, #fff 0%, #fff 68%, color-mix(in srgb, var(--driver-id-accent) 16%, #fff) 100%);
+    border: 1px solid var(--tf-line);
+    border-radius: 4mm;
+    box-shadow: var(--tf-shadow);
+    padding: 4mm 5mm;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 10px;
-    padding: 8px 4px 4px;
+    gap: 3mm;
+    overflow: hidden;
 }
-.driver-qr-print-header {
+.driver-id-card-header {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
-    margin-bottom: 4px;
+    gap: 2.5mm;
+    border-bottom: 0.4mm solid var(--tf-line);
+    padding-bottom: 2mm;
+    min-width: 0;
 }
-.driver-qr-print-logo {
-    width: 48px;
-    height: 48px;
+.driver-id-card-logo {
+    width: 7mm;
+    height: 7mm;
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: 1.5mm;
+    flex: none;
 }
-.driver-qr-print-company {
+.driver-id-card-company {
     font-weight: 800;
-    font-size: 1.05rem;
     letter-spacing: 0.02em;
     text-transform: uppercase;
     color: var(--tf-navy);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
-.driver-qr-print-eyebrow {
-    font-size: 0.7rem;
+.driver-id-card-eyebrow {
+    font-size: 0.55rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--tf-muted);
+    color: var(--driver-id-accent-dark);
+    flex: none;
 }
-.driver-qr-print-name {
+.driver-id-card-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 4mm;
+    min-height: 0;
+}
+.driver-id-card-qr {
+    width: 28mm !important;
+    height: 28mm !important;
+    flex: none;
+    border-radius: 1.5mm;
+    border: 0.4mm solid color-mix(in srgb, var(--driver-id-accent) 40%, #fff);
+}
+.driver-id-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5mm;
+    min-width: 0;
+}
+.driver-id-card-name {
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 0.85rem;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
-.driver-qr-print-code {
+.driver-id-card-code {
     font-family: 'Courier New', monospace;
     font-weight: 800;
-    font-size: 1.5rem;
-    letter-spacing: 0.12em;
-    padding: 4px 14px;
-    border: 1.5px dashed var(--tf-accent-dark, #c98a1c);
-    border-radius: 10px;
-}
-.driver-qr-print-hint {
-    max-width: 320px;
     font-size: 0.78rem;
-    color: var(--tf-muted);
-    margin: 4px 0 0;
+    letter-spacing: 0.03em;
+    color: var(--driver-id-accent-dark);
 }
 
 @media print {
     body * {
         visibility: hidden;
     }
-    .driver-qr-print-area,
-    .driver-qr-print-area * {
+    .driver-id-card,
+    .driver-id-card * {
         visibility: visible;
     }
-    /* The page itself is the label — 6cm × 6cm, no margin — not a small
-       card centered on a full sheet. */
-    .driver-qr-print-area {
+    /* The page itself is the card — 85.6mm × 54mm, no margin — not a small
+       card centered on a full sheet. Branding colors (gradient wash, code,
+       eyebrow) print as-is via -webkit-print-color-adjust below, rather
+       than being flattened to black/white. */
+    .driver-id-card {
         position: fixed;
         inset: 0;
-        width: 6cm;
-        height: 6cm;
-        justify-content: center;
-        gap: 4px;
-        padding: 3mm;
-        box-sizing: border-box;
-    }
-    .driver-qr-print-header {
-        margin-bottom: 1mm;
-    }
-    .driver-qr-print-logo {
-        width: 9mm;
-        height: 9mm;
-    }
-    .driver-qr-print-company {
-        font-size: 0.65rem;
-    }
-    .driver-qr-print-area canvas {
-        width: 34mm !important;
-        height: 34mm !important;
-    }
-    .driver-qr-print-code {
-        font-size: 1rem;
-        padding: 1mm 3mm;
-        border-color: #000;
-        color: #000;
+        width: 85.6mm;
+        height: 54mm;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
     @page {
-        size: 6cm 6cm;
+        size: 85.6mm 54mm;
         margin: 0;
     }
 }
