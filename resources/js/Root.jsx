@@ -45,6 +45,7 @@ import UserPermissions from './pages/company/UserPermissions.jsx';
 import VoidSecurity from './pages/company/VoidSecurity.jsx';
 import Companies from './pages/superadmin/Companies.jsx';
 import LegalDocuments from './pages/superadmin/LegalDocuments.jsx';
+import SuperAdminMobileApp from './pages/superadmin/MobileApp.jsx';
 import PlatformUsers from './pages/superadmin/PlatformUsers.jsx';
 import SystemConfiguration from './pages/superadmin/SystemConfiguration.jsx';
 
@@ -114,6 +115,7 @@ export default function Root() {
                         <Route path="platform-users" element={<ProtectedRoute permission="platform.users.view"><PlatformUsers /></ProtectedRoute>} />
                         <Route path="super-admin/system-configuration" element={<ProtectedRoute permission="system.configuration.view"><SystemConfiguration /></ProtectedRoute>} />
                         <Route path="super-admin/legal-documents" element={<ProtectedRoute permission="legal.view"><LegalDocuments /></ProtectedRoute>} />
+                        <Route path="super-admin/mobile-app" element={<ProtectedRoute permission="mobileapp.manage"><SuperAdminMobileApp /></ProtectedRoute>} />
 
                         {/* Fleet */}
                         <Route path="company/terminals" element={<ProtectedRoute permission="terminals.view"><Terminals /></ProtectedRoute>} />

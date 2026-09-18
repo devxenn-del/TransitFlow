@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext.jsx';
 import DriverVerificationModal from '../components/DriverVerificationModal.jsx';
+import { publicMobileApp } from '../lib/api.js';
 import { errorMessage } from '../lib/ui.js';
 
 const FEATURES = [
@@ -30,6 +31,14 @@ export default function Login() {
     // everyone; see AuthController::verifyDriverCode() on the backend.
     const [driverPrompt, setDriverPrompt] = useState(null);
     const [driverError, setDriverError] = useState(null);
+
+    // One app, platform-wide — no company selection needed, just whether it's
+    // been published yet (Api\Meta\ServerConfigController::mobileApp).
+    const [appInfo, setAppInfo] = useState(null);
+
+    useEffect(() => {
+        publicMobileApp.get().then(setAppInfo).catch(() => {});
+    }, []);
 
     if (!loading && isAuthenticated) {
         return <Navigate to={location.state?.from || '/'} replace />;
@@ -110,11 +119,29 @@ export default function Login() {
                                     <i className="bi bi-phone" />
                                 </span>
                                 <div className="flex-grow-1">
-                                    <span className="badge">Coming soon</span>
-                                    <h5>TransitFlow Mobile — conductor app</h5>
-                                    <p>Conductors will run trips and issue tickets from their phone, on the same API.</p>
+                                    {appInfo?.download_url ? (
+                                        <>
+                                            <h5>TransitFlow Mobile</h5>
+                                            <p>A mobile solution that provides convenient access to TransitFlow features and services.
+</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="badge">Coming soon</span>
+                                            <h5>TransitFlow Mobile</h5>
+                                            <p>A mobile solution that provides convenient access to TransitFlow features and services.
+</p>
+                                        </>
+                                    )}
                                 </div>
-                                <i className="bi bi-arrow-up-right d-none d-xl-block" style={{ color: 'rgba(255,255,255,.55)' }} />
+                                {appInfo?.download_url ? (
+                                    <a href={appInfo.download_url} className="btn btn-sm btn-light fw-semibold text-nowrap">
+                                        <i className="bi bi-download me-1" />
+                                        Download{appInfo.latest_version ? ` v${appInfo.latest_version}` : ''}
+                                    </a>
+                                ) : (
+                                    <i className="bi bi-arrow-up-right d-none d-xl-block" style={{ color: 'rgba(255,255,255,.55)' }} />
+                                )}
                             </div>
 
                             <div className="tf-login-features">

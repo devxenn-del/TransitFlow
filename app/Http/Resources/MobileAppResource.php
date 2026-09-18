@@ -5,7 +5,6 @@ namespace App\Http\Resources;
 use App\Models\MobileAppSetting;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * @mixin MobileAppSetting
@@ -25,7 +24,11 @@ class MobileAppResource extends JsonResource
             'force_update' => (bool) $this->force_update,
             'download_url' => $this->download_url,
             'apk_path' => $this->apk_path,
-            'apk_url' => $this->apk_path ? Storage::disk('public')->url($this->apk_path) : null,
+            'apk_original_name' => $this->apk_original_name,
+            // The stable download URL — same across re-uploads, served under
+            // apk_original_name via Content-Disposition (see
+            // Api\Meta\ServerConfigController::downloadApk).
+            'apk_url' => $this->apk_path ? route('meta.mobile-app.download') : null,
             'release_notes' => $this->release_notes,
             'published_at' => $this->published_at,
         ];

@@ -36,6 +36,20 @@ export const companies = {
     setPermissions: (id, disabled) => api.put(`/super-admin/companies/${id}/permissions`, { disabled }).then((r) => r.data.data),
 };
 
+// One mobile app, platform-wide — every company's conductors run the same
+// build, so only the Super Admin publishes it (version, force-update,
+// notes, APK). A company only ever reads this (see `mobileApp` below).
+export const platformMobileApp = {
+    get: () => api.get('/super-admin/mobile-app').then((r) => r.data.data),
+    update: (payload) => api.put('/super-admin/mobile-app', payload).then((r) => r.data.data),
+    uploadApk: (file) => {
+        const fd = new FormData();
+        fd.append('apk', file);
+        return api.post('/super-admin/mobile-app/apk', fd).then((r) => r.data.data);
+    },
+    deleteApk: () => api.delete('/super-admin/mobile-app/apk').then((r) => r.data.data),
+};
+
 export const platformUsers = {
     list: (params) => api.get('/super-admin/users', { params }).then((r) => r.data),
     create: (payload) => api.post('/super-admin/users', payload).then((r) => r.data.data),
@@ -49,6 +63,17 @@ export const systemConfiguration = {
     test: (url) => api.post('/super-admin/system-configuration/test', { url }).then((r) => r.data.data),
     history: (params) => api.get('/super-admin/system-configuration/history', { params }).then((r) => r.data),
     rollback: (id) => api.post(`/super-admin/system-configuration/history/${id}/rollback`).then((r) => r.data.data),
+};
+
+export const serverConfig = {
+    // Public — no auth required (mobile app bootstrap; keyed by company code).
+    get: (companyCode) => api.get('/meta/server-config', { params: { company: companyCode } }).then((r) => r.data.data),
+};
+
+// Public — no auth, no company code. One app, platform-wide; powers the
+// login page's direct "Download" button.
+export const publicMobileApp = {
+    get: () => api.get('/meta/mobile-app').then((r) => r.data.data),
 };
 
 export const legalDocuments = {
@@ -324,15 +349,10 @@ export const dataTools = {
     ),
 };
 
+// Read-only for a Company Admin / Chairman — the app itself is published
+// platform-wide by the Super Admin (see `platformMobileApp` above).
 export const mobileApp = {
     get: () => api.get('/company/mobile-app').then((r) => r.data.data),
-    update: (payload) => api.put('/company/mobile-app', payload).then((r) => r.data.data),
-    uploadApk: (file) => {
-        const fd = new FormData();
-        fd.append('apk', file);
-        return api.post('/company/mobile-app/apk', fd).then((r) => r.data.data);
-    },
-    deleteApk: () => api.delete('/company/mobile-app/apk').then((r) => r.data.data),
 };
 
 /**

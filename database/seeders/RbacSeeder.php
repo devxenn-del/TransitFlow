@@ -176,7 +176,7 @@ class RbacSeeder extends Seeder
         ],
         'Mobile App' => [
             ['mobileapp.view', 'View Mobile App Distribution', 'Mobile App', '/company/mobile-app', 'bi-google-play'],
-            ['mobileapp.manage', 'Publish App Version / Upload APK / Force Update', null, null, null],
+            ['mobileapp.manage', 'Publish App Version / Force Update / Release Notes / APK (Super Admin only — one app, platform-wide)', null, null, null],
         ],
         'Data Tools' => [
             ['backup.view', 'View Data Tools & History', 'Data Tools', '/company/data-tools', 'bi-database-gear'],
@@ -207,7 +207,7 @@ class RbacSeeder extends Seeder
             'dashboard.view',
             'reports.view', 'dailyops.view', 'expensereport.view', 'cashcountreport.view', 'fuelenergyreport.view',
             'company.profile.view', 'company.profile.edit', 'company.settings.view', 'company.settings.manage',
-            'mobileapp.view', 'mobileapp.manage',
+            'mobileapp.view',
             'backup.view', 'backup.download', 'cleandata.run',
             'audit.view',
             'accounts.view', 'accounts.create', 'accounts.edit', 'accounts.delete', 'accounts.lock',

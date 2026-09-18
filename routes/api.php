@@ -53,6 +53,7 @@ use App\Http\Controllers\Api\SuperAdmin\AuditLogController as PlatformAuditLogCo
 use App\Http\Controllers\Api\SuperAdmin\CompanyController;
 use App\Http\Controllers\Api\SuperAdmin\CompanyPermissionController;
 use App\Http\Controllers\Api\SuperAdmin\LegalDocumentAdminController;
+use App\Http\Controllers\Api\SuperAdmin\MobileAppController as SuperAdminMobileAppController;
 use App\Http\Controllers\Api\SuperAdmin\SystemConfigurationController;
 use App\Http\Controllers\Api\SuperAdmin\UserController as PlatformUserController;
 use App\Http\Middleware\EnsureAccountNotLocked;
@@ -105,6 +106,12 @@ Route::post('/auth/login', [AuthController::class, 'login'])
 Route::prefix('meta')->middleware('throttle:60,1')->group(function () {
     Route::get('server-config', [ServerConfigController::class, 'serverConfig'])->name('meta.server-config');
     Route::get('check-update', [ServerConfigController::class, 'checkUpdate'])->name('meta.check-update');
+    // The one mobile app's published state — no company code needed, it's the
+    // same build for everyone. Powers the login page's direct download link.
+    Route::get('mobile-app', [ServerConfigController::class, 'mobileApp'])->name('meta.mobile-app');
+    // The actual APK, under its real filename, from a URL that stays stable
+    // across version updates (BITS download-app.php convention).
+    Route::get('mobile-app/download', [ServerConfigController::class, 'downloadApk'])->name('meta.mobile-app.download');
     // Public Privacy Policy / Terms of Use content — mobile Legal screen,
     // consent gate (both platforms), and the public web pages.
     Route::get('legal', [LegalDocumentController::class, 'active'])->name('meta.legal');
@@ -166,6 +173,14 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('legal-documents', [LegalDocumentAdminController::class, 'index'])->middleware('permission:legal.view')->name('legal-documents.index');
         Route::get('legal-documents/{type}/active', [LegalDocumentAdminController::class, 'active'])->middleware('permission:legal.view')->name('legal-documents.active');
         Route::post('legal-documents', [LegalDocumentAdminController::class, 'store'])->middleware('permission:legal.manage')->name('legal-documents.store');
+
+        // One mobile app, platform-wide — every company's conductors run the same build.
+        // A company code only identifies the caller (Api\Meta\ServerConfigController); it
+        // never selects a different APK (BITS admin/mobileapp.php → §K).
+        Route::get('mobile-app', [SuperAdminMobileAppController::class, 'show'])->middleware('permission:mobileapp.view,mobileapp.manage')->name('mobile-app.show');
+        Route::match(['put', 'patch'], 'mobile-app', [SuperAdminMobileAppController::class, 'update'])->middleware('permission:mobileapp.manage')->name('mobile-app.update');
+        Route::post('mobile-app/apk', [SuperAdminMobileAppController::class, 'uploadApk'])->middleware('permission:mobileapp.manage')->name('mobile-app.apk.upload');
+        Route::delete('mobile-app/apk', [SuperAdminMobileAppController::class, 'deleteApk'])->middleware('permission:mobileapp.manage')->name('mobile-app.apk.delete');
     });
 
     /*
@@ -189,11 +204,9 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('devices', [DeviceController::class, 'index'])->middleware('permission:devices.view')->name('devices.index');
         Route::delete('devices/{device}', [DeviceController::class, 'destroy'])->middleware('permission:devices.delete')->name('devices.destroy');
 
-        // Mobile-app distribution — publish version, force-update, APK (BITS admin/mobileapp → §K)
+        // Read-only view of the platform's one mobile-app distribution settings
+        // (BITS admin/mobileapp → §K). Publishing lives at `super-admin/mobile-app`.
         Route::get('mobile-app', [MobileAppController::class, 'show'])->middleware('permission:mobileapp.view,mobileapp.manage')->name('mobile-app.show');
-        Route::match(['put', 'patch'], 'mobile-app', [MobileAppController::class, 'update'])->middleware('permission:mobileapp.manage')->name('mobile-app.update');
-        Route::post('mobile-app/apk', [MobileAppController::class, 'uploadApk'])->middleware('permission:mobileapp.manage')->name('mobile-app.apk.upload');
-        Route::delete('mobile-app/apk', [MobileAppController::class, 'deleteApk'])->middleware('permission:mobileapp.manage')->name('mobile-app.apk.delete');
 
         // Activity / audit trail (docs/PARITY_CHECKLIST.md §L)
         Route::get('audit-log', [AuditLogController::class, 'index'])->middleware('permission:audit.view')->name('audit-log.index');

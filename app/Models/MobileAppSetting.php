@@ -6,15 +6,12 @@ use App\Models\Concerns\LogsActivity;
 use Database\Factories\MobileAppSettingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Per-company mobile-app distribution + auto-update settings — BITS
- * `admin/mobileapp.php` (docs/MIGRATION_MAP.md §K).
- *
- * Not using BelongsToCompany: it is always loaded by explicit `company_id`
- * (admin endpoints) or resolved from a public `?company={code}` lookup that
- * has no authenticated user to scope by.
+ * Platform-wide mobile-app distribution + auto-update settings — BITS
+ * `admin/mobileapp.php` (docs/MIGRATION_MAP.md §K). One app, one build:
+ * every company's conductors run the same APK, so this is a Super-Admin-only
+ * singleton, not per company — see `current()`.
  */
 class MobileAppSetting extends Model
 {
@@ -22,9 +19,9 @@ class MobileAppSetting extends Model
     use HasFactory, LogsActivity;
 
     protected $fillable = [
-        'company_id', 'api_base_url', 'latest_version', 'latest_version_code',
+        'api_base_url', 'latest_version', 'latest_version_code',
         'minimum_version', 'force_update', 'download_url', 'apk_path',
-        'release_notes', 'published_at',
+        'apk_original_name', 'release_notes', 'published_at',
     ];
 
     /**
@@ -71,10 +68,10 @@ class MobileAppSetting extends Model
     }
 
     /**
-     * @return BelongsTo<Company, $this>
+     * The one settings row, created on first use.
      */
-    public function company(): BelongsTo
+    public static function current(): self
     {
-        return $this->belongsTo(Company::class);
+        return static::query()->orderBy('id')->first() ?? static::query()->create([]);
     }
 }

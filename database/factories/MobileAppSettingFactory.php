@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Company;
 use App\Models\MobileAppSetting;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -17,7 +16,6 @@ class MobileAppSettingFactory extends Factory
     public function definition(): array
     {
         return [
-            'company_id' => Company::factory(),
             'api_base_url' => null,
             'latest_version' => '1.0.0',
             'latest_version_code' => 1,

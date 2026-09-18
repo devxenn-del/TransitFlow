@@ -98,6 +98,7 @@ const NAV = [
             { to: '/platform-users', label: 'Platform Users', icon: 'bi-person-gear', visible: (a) => a.can('platform.users.view') },
             { to: '/super-admin/system-configuration', label: 'System Configuration', icon: 'bi-hdd-network', visible: (a) => a.can('system.configuration.view') },
             { to: '/super-admin/legal-documents', label: 'Legal Documents', icon: 'bi-file-earmark-text', visible: (a) => a.can('legal.view') },
+            { to: '/super-admin/mobile-app', label: 'Mobile App', icon: 'bi-google-play', visible: (a) => a.can('mobileapp.manage') },
         ],
     },
     {

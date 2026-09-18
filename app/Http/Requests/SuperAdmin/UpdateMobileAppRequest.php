@@ -1,22 +1,18 @@
 <?php
 
-namespace App\Http\Requests\Company;
+namespace App\Http\Requests\SuperAdmin;
 
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * A Company Admin editing their own company's mobile-app distribution
+ * The Super Admin publishing the platform's one mobile-app distribution
  * settings — BITS `admin/mobileapp.php` (docs/MIGRATION_MAP.md §K).
  */
 class UpdateMobileAppRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $user = $this->user();
-
-        return $user !== null
-            && $user->company !== null
-            && $user->hasPermissionTo('mobileapp.manage');
+        return $this->user()?->hasPermissionTo('mobileapp.manage') ?? false;
     }
 
     /**

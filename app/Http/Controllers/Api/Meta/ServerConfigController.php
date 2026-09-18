@@ -11,6 +11,7 @@ use App\Support\ServerConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Public, unauthenticated meta endpoints the mobile app hits on launch —
@@ -19,7 +20,10 @@ use Illuminate\Support\Facades\Storage;
  * contract stable.
  *
  * A company is identified by its public `code` (`?company=PERJODA`); only
- * an Active company resolves.
+ * an Active company resolves — this is what proves the caller belongs to a
+ * real company before the APK is handed over. The `app` block itself
+ * (version, force-update, download URL) is the same for every company: one
+ * mobile app, platform-wide (App\Models\MobileAppSetting::current()).
  */
 class ServerConfigController extends Controller
 {
@@ -28,7 +32,8 @@ class ServerConfigController extends Controller
      */
     public function serverConfig(Request $request): JsonResponse
     {
-        [$company, $settings] = $this->resolve($request);
+        $company = $this->resolveCompany($request);
+        $settings = MobileAppSetting::current();
         $companySettings = CompanySetting::query()->firstOrCreate(
             ['company_id' => $company->id],
             ['receipt_org_name' => $company->name],
@@ -56,14 +61,20 @@ class ServerConfigController extends Controller
                 // needs to know whether to re-show the consent gate. Full
                 // content comes from GET /api/meta/legal.
                 'legal' => LegalDocuments::activeSummary(),
-                'app' => [
-                    'latest_version' => $settings->latest_version,
-                    'latest_version_code' => (int) $settings->latest_version_code,
-                    'minimum_version' => $settings->minimum_version,
-                    'force_update' => (bool) $settings->force_update,
-                    'download_url' => $this->downloadUrl($settings),
-                ],
+                'app' => $this->appBlock($settings),
             ],
+        ]);
+    }
+
+    /**
+     * GET /api/meta/mobile-app — the one app's published state, no company
+     * code required (there's nothing to scope by; every company gets the
+     * same build). Powers the login page's direct download link.
+     */
+    public function mobileApp(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->appBlock(MobileAppSetting::current()),
         ]);
     }
 
@@ -72,7 +83,8 @@ class ServerConfigController extends Controller
      */
     public function checkUpdate(Request $request): JsonResponse
     {
-        [$company, $settings] = $this->resolve($request);
+        $this->resolveCompany($request);
+        $settings = MobileAppSetting::current();
 
         $status = $settings->updateStatusFor(
             $request->query('version'),
@@ -90,9 +102,31 @@ class ServerConfigController extends Controller
     }
 
     /**
-     * @return array{0: Company, 1: MobileAppSetting}
+     * GET /api/meta/mobile-app/download — the actual APK bytes, under the
+     * real uploaded filename (`Content-Disposition`), from a URL that never
+     * changes across version updates (the file itself is stored under a
+     * fixed name — see `Api\SuperAdmin\MobileAppController::uploadApk`).
+     * Public: a phone downloading this has no session with the site at all.
      */
-    private function resolve(Request $request): array
+    public function downloadApk(): StreamedResponse
+    {
+        $settings = MobileAppSetting::current();
+
+        abort_if($settings->apk_path === null, 404, 'No app has been uploaded yet.');
+        abort_if(! Storage::disk('public')->exists($settings->apk_path), 404, 'The app file is missing.');
+
+        return Storage::disk('public')->download(
+            $settings->apk_path,
+            $settings->apk_original_name ?: basename($settings->apk_path),
+            ['Content-Type' => 'application/vnd.android.package-archive'],
+        );
+    }
+
+    /**
+     * The company code proves the caller belongs to a real, active company —
+     * it never selects which app build they get (there is only one).
+     */
+    private function resolveCompany(Request $request): Company
     {
         $code = trim((string) $request->query('company', ''));
         abort_if($code === '', 422, 'A company code is required.');
@@ -100,15 +134,13 @@ class ServerConfigController extends Controller
         $company = Company::query()->where('code', $code)->active()->first();
         abort_if($company === null, 404, 'Unknown or inactive company.');
 
-        $settings = MobileAppSetting::query()->firstOrCreate(['company_id' => $company->id]);
-
-        return [$company, $settings];
+        return $company;
     }
 
     /**
      * The API base URL to advertise to mobile clients, in priority order:
-     *  1. This company's own explicit `mobile_app_settings.api_base_url`
-     *     override (a company self-hosting or fronting its own domain).
+     *  1. The Super Admin's explicit `mobile_app_settings.api_base_url`
+     *     override (moving the app to another host entirely).
      *  2. The platform-wide default a Super Admin set in System
      *     Configuration (App\Support\ServerConfig) — every company shares
      *     one TransitFlow server, so this is the common case.
@@ -135,6 +167,20 @@ class ServerConfigController extends Controller
         return rtrim((string) config('app.url'), '/').'/api';
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function appBlock(MobileAppSetting $settings): array
+    {
+        return [
+            'latest_version' => $settings->latest_version,
+            'latest_version_code' => (int) $settings->latest_version_code,
+            'minimum_version' => $settings->minimum_version,
+            'force_update' => (bool) $settings->force_update,
+            'download_url' => $this->downloadUrl($settings),
+        ];
+    }
+
     private function downloadUrl(MobileAppSetting $settings): ?string
     {
         if ($settings->download_url) {
@@ -142,7 +188,7 @@ class ServerConfigController extends Controller
         }
 
         return $settings->apk_path
-            ? Storage::disk('public')->url($settings->apk_path)
+            ? route('meta.mobile-app.download')
             : null;
     }
 }

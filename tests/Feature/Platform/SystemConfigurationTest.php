@@ -178,8 +178,8 @@ class SystemConfigurationTest extends TestCase
 
     public function test_meta_server_config_falls_back_to_the_platform_wide_default(): void
     {
-        $company = Company::factory()->create(['code' => 'PERJODA']);
-        MobileAppSetting::factory()->for($company)->create(['api_base_url' => null]);
+        Company::factory()->create(['code' => 'PERJODA']);
+        MobileAppSetting::factory()->create(['api_base_url' => null]);
 
         Sanctum::actingAs(User::factory()->superAdmin()->create());
         $this->fakeHealthy('https://global.example.test/api');
