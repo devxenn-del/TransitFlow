@@ -897,6 +897,39 @@ a.tf-stat:hover {
     box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.35);
 }
 
+/* Compact, single-row variant used only on mobile (no description, just the
+   app name and the action) — see Login.jsx's mobileAppCalloutCompact. */
+.tf-login-callout-compact {
+    padding: 0.7rem 0.85rem;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    row-gap: 0.4rem;
+}
+.tf-login-callout-compact h5 {
+    margin: 0;
+    min-width: 0;
+    font-family: var(--tf-font-display);
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+.tf-login-callout-compact .btn-light {
+    margin-left: auto;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+.tf-login-callout-compact .badge {
+    margin-left: auto;
+    flex: none;
+}
+
 .tf-login-features {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

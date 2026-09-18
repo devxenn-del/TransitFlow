@@ -110,6 +110,21 @@ export default function Login() {
         </div>
     );
 
+    // Mobile card gets a compact single-row version — no description, just
+    // the app name and the action, so it doesn't crowd the sign-in form.
+    const mobileAppCalloutCompact = (
+        <div className="tf-login-callout tf-login-callout-compact">
+            <h5 className="flex-grow-1 mb-0">TransitFlow Mobile App</h5>
+            {appInfo?.download_url ? (
+                <a href={appInfo.download_url} className="btn btn-sm btn-light fw-semibold text-nowrap">
+                    <i className="bi bi-download" />
+                </a>
+            ) : (
+                <span className="badge">Coming soon</span>
+            )}
+        </div>
+    );
+
     return (
         <div className="tf-login">
             <div className="container-fluid">
@@ -164,9 +179,10 @@ export default function Login() {
                                 <p className="text-muted mb-0">Sign in to continue.</p>
                             </div>
 
-                            {/* Same callout as the desktop branding panel — that panel is
-                                hidden below lg, so mobile visitors would otherwise never see it. */}
-                            <div className="d-lg-none">{mobileAppCallout}</div>
+                            {/* Compact version of the desktop branding panel's callout — that
+                                panel is hidden below lg, so mobile visitors would otherwise
+                                never see it at all. */}
+                            <div className="d-lg-none">{mobileAppCalloutCompact}</div>
 
                             {error && (
                                 <div className="alert alert-danger d-flex align-items-center py-2 small mb-3" role="alert">
