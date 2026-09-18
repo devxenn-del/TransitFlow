@@ -3,29 +3,25 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext.jsx';
 import DriverVerificationModal from '../components/DriverVerificationModal.jsx';
+import transitFlowLogo from '../../images/transitflow-logo.png';
 import { publicMobileApp } from '../lib/api.js';
 import { errorMessage } from '../lib/ui.js';
 
 const FEATURES = [
-    ['bi-diagram-3-fill', 'text-bg-primary', 'Multi-Company', 'Each company sees only its own fleet, routes, users and reports.'],
-    ['bi-shield-lock-fill', 'text-bg-success', 'Roles & Permissions', 'Fine-grained, per-user access carried over from the BITS model.'],
-    ['bi-bus-front-fill', 'text-bg-warning', 'Fleet & Fares', 'Terminals, routes and a fare matrix that drives every ticket.'],
-    ['bi-graph-up-arrow', 'text-bg-info', 'Reports & Revenue', 'Trip income, remittance and operational reporting in one place.'],
-];
-
-const DEMO = [
-    ['superadmin@transitflow.test', 'Super Admin'],
-    ['admin@perjoda.test', 'Company Admin — Perjsoda'],
-    ['staff@perjoda.test', 'Office staff — Perjoda'],
+    ['bi-diagram-3-fill', 'tf-chip-navy', 'Multi-Company', 'Each company sees only its own fleet, routes, users and reports.'],
+    ['bi-shield-lock-fill', 'tf-chip-green', 'Roles & Permissions', 'Fine-grained, per-user access carried over from the BITS model.'],
+    ['bi-bus-front-fill', 'tf-chip-amber', 'Fleet & Fares', 'Terminals, routes and a fare matrix that drives every ticket.'],
+    ['bi-graph-up-arrow', 'tf-chip-blue', 'Reports & Revenue', 'Trip income, remittance and operational reporting in one place.'],
 ];
 
 export default function Login() {
     const { login, isAuthenticated, loading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const [form, setForm] = useState({ email: '', password: 'password', remember: true });
+    const [form, setForm] = useState({ email: '', password: '', remember: true });
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     // Set only once /auth/login says this account needs a driver_code (a
     // conductor account) — the login form itself is just email/password for
     // everyone; see AuthController::verifyDriverCode() on the backend.
@@ -84,20 +80,47 @@ export default function Login() {
         }
     };
 
+    const mobileAppCallout = (
+        <div className="tf-login-callout">
+            <span className="tf-login-callout-icon">
+                <i className="bi bi-phone" />
+            </span>
+            <div className="flex-grow-1">
+                {appInfo?.download_url ? (
+                    <>
+                        <h5>TransitFlow Mobile</h5>
+                        <p>A mobile solution that provides convenient access to TransitFlow features and services.</p>
+                    </>
+                ) : (
+                    <>
+                        <span className="badge">Coming soon</span>
+                        <h5>TransitFlow Mobile</h5>
+                        <p>A mobile solution that provides convenient access to TransitFlow features and services.</p>
+                    </>
+                )}
+            </div>
+            {appInfo?.download_url ? (
+                <a href={appInfo.download_url} className="btn btn-sm btn-light fw-semibold text-nowrap">
+                    <i className="bi bi-download me-1" />
+                    Download{appInfo.latest_version ? ` v${appInfo.latest_version}` : ''}
+                </a>
+            ) : (
+                <i className="bi bi-arrow-up-right d-none d-xl-block" style={{ color: 'rgba(255,255,255,.55)' }} />
+            )}
+        </div>
+    );
+
     return (
         <div className="tf-login">
             <div className="container-fluid">
-                <div className="row min-vh-100">
+                <div className="row h-100">
                     {/* ---- Branding (hidden on small screens) ---- */}
                     <div className="col-lg-7 d-none d-lg-flex tf-login-branding">
                         <div className="tf-login-branding-inner">
                             <div className="tf-login-logo">
-                                <div className="tf-login-logo-mark">
-                                    <i className="bi bi-bus-front-fill" />
-                                </div>
+                                <img src={transitFlowLogo} alt="TransitFlow" className="tf-login-logo-mark" />
                                 <div>
-                                    <h1>TransitFlow</h1>
-                                    <p>Smart Transport Management Platform</p>
+                                    <p className="tf-eyebrow mb-0">Smart Transport Management Platform</p>
                                 </div>
                             </div>
 
@@ -114,35 +137,7 @@ export default function Login() {
                                 </p>
                             </div>
 
-                            <div className="tf-login-callout">
-                                <span className="tf-login-callout-icon">
-                                    <i className="bi bi-phone" />
-                                </span>
-                                <div className="flex-grow-1">
-                                    {appInfo?.download_url ? (
-                                        <>
-                                            <h5>TransitFlow Mobile</h5>
-                                            <p>A mobile solution that provides convenient access to TransitFlow features and services.
-</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="badge">Coming soon</span>
-                                            <h5>TransitFlow Mobile</h5>
-                                            <p>A mobile solution that provides convenient access to TransitFlow features and services.
-</p>
-                                        </>
-                                    )}
-                                </div>
-                                {appInfo?.download_url ? (
-                                    <a href={appInfo.download_url} className="btn btn-sm btn-light fw-semibold text-nowrap">
-                                        <i className="bi bi-download me-1" />
-                                        Download{appInfo.latest_version ? ` v${appInfo.latest_version}` : ''}
-                                    </a>
-                                ) : (
-                                    <i className="bi bi-arrow-up-right d-none d-xl-block" style={{ color: 'rgba(255,255,255,.55)' }} />
-                                )}
-                            </div>
+                            {mobileAppCallout}
 
                             <div className="tf-login-features">
                                 {FEATURES.map(([icon, bg, title, desc]) => (
@@ -164,12 +159,14 @@ export default function Login() {
                     <div className="col-lg-5 tf-login-form-side">
                         <div className="tf-login-card">
                             <div className="text-center mb-3">
-                                <div className="tf-login-mobile-mark d-lg-none">
-                                    <i className="bi bi-bus-front-fill" />
-                                </div>
+                                <img src={transitFlowLogo} alt="TransitFlow" className="tf-login-mobile-mark d-lg-none" />
                                 <h1 className="h4 fw-bold mb-1">Welcome back</h1>
                                 <p className="text-muted mb-0">Sign in to continue.</p>
                             </div>
+
+                            {/* Same callout as the desktop branding panel — that panel is
+                                hidden below lg, so mobile visitors would otherwise never see it. */}
+                            <div className="d-lg-none">{mobileAppCallout}</div>
 
                             {error && (
                                 <div className="alert alert-danger d-flex align-items-center py-2 small mb-3" role="alert">
@@ -198,12 +195,21 @@ export default function Login() {
                                     <div className="tf-input-group">
                                         <span className="tf-input-icon"><i className="bi bi-lock-fill" /></span>
                                         <input
-                                            type="password"
+                                            type={showPassword ? 'text' : 'password'}
                                             required
                                             placeholder="Your password"
                                             value={form.password}
                                             onChange={(e) => setForm({ ...form, password: e.target.value })}
                                         />
+                                        <button
+                                            type="button"
+                                            className="tf-input-toggle"
+                                            tabIndex={-1}
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                            onClick={() => setShowPassword((v) => !v)}
+                                        >
+                                            <i className={`bi ${showPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`} />
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="form-check">
@@ -227,25 +233,6 @@ export default function Login() {
                                     Sign in
                                 </button>
                             </form>
-
-                            <div className="mt-3 pt-3 border-top">
-                                <p className="small text-muted mb-2">
-                                    Demo accounts — password <code>password</code>
-                                </p>
-                                <div className="d-flex flex-column gap-1">
-                                    {DEMO.map(([email, label]) => (
-                                        <button
-                                            key={email}
-                                            type="button"
-                                            className="btn btn-sm btn-outline-secondary text-start"
-                                            onClick={() => setForm((f) => ({ ...f, email, password: 'password' }))}
-                                        >
-                                            <span className="fw-semibold">{label}</span>
-                                            <span className="text-muted"> · {email}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
 
                             <div className="tf-login-footer">
                                 <p className="small text-muted mb-1">

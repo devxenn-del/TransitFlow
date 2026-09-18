@@ -5,10 +5,10 @@
    display type for headings, mono for money. Bootstrap 5 is the base; this
    sheet re-skins it.
    ========================================================================== */
+
 @import 'bootstrap/dist/css/bootstrap.min.css';
 @import 'bootstrap-icons/font/bootstrap-icons.css';
 @import 'react-toastify/dist/ReactToastify.css';
-
 :root {
     /* Sidebar / signage */
     --tf-nav-bg: #10151d;
@@ -16,7 +16,6 @@
     --tf-nav-border: #232c39;
     --tf-nav-text: #e7ebf1;
     --tf-nav-muted: #7c8aa0;
-
     /* Accent + status */
     --tf-accent: #f5a623;
     --tf-accent-dark: #c9840f;
@@ -25,7 +24,6 @@
     --tf-route-blue: #3b5ba9;
     --tf-green: #2f9e6e;
     --tf-coral: #e2574c;
-
     /* Content */
     --tf-paper: #f4f6f9;
     --tf-surface: #ffffff;
@@ -33,20 +31,19 @@
     --tf-ink: #1c2330;
     --tf-ink-soft: #4b4e56;
     --tf-muted: #6c7686;
-
     --tf-radius: 12px;
     --tf-radius-sm: 8px;
     --tf-shadow: 0 1px 2px rgba(20, 33, 59, 0.06), 0 12px 28px -14px rgba(20, 33, 59, 0.18);
-
     --tf-font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
     --tf-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --tf-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
-
     --bs-body-font-family: var(--tf-font-body);
     --bs-primary: var(--tf-route-blue);
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
 body {
     min-height: 100vh;
@@ -57,22 +54,36 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, .tf-display {
+h1,
+h2,
+h3,
+h4,
+.tf-display {
     font-family: var(--tf-font-display);
     font-weight: 600;
     letter-spacing: 0.01em;
     color: var(--tf-navy);
 }
 
-code, .tf-mono, .fare-amount {
+code,
+.tf-mono,
+.fare-amount {
     font-family: var(--tf-font-mono);
     font-variant-numeric: tabular-nums;
 }
 
-a { color: var(--tf-route-blue); text-decoration: none; }
-a:hover { color: #2e4680; }
+a {
+    color: var(--tf-route-blue);
+    text-decoration: none;
+}
+
+a:hover {
+    color: #2e4680;
+}
+
 
 /* ---- Buttons: primary is route-blue, accent is amber -------------------- */
+
 .btn-primary {
     --bs-btn-bg: var(--tf-route-blue);
     --bs-btn-border-color: var(--tf-route-blue);
@@ -82,6 +93,7 @@ a:hover { color: #2e4680; }
     --bs-btn-disabled-bg: var(--tf-route-blue);
     --bs-btn-disabled-border-color: var(--tf-route-blue);
 }
+
 .btn-accent {
     --bs-btn-color: #23180a;
     --bs-btn-bg: var(--tf-accent);
@@ -93,12 +105,18 @@ a:hover { color: #2e4680; }
     font-weight: 600;
 }
 
+
 /* ==========================================================================
    App shell
    ========================================================================== */
-.tf-app { min-height: 100vh; }
+
+.tf-app {
+    min-height: 100vh;
+}
+
 
 /* Topbar */
+
 .tf-topbar {
     background: var(--tf-nav-bg);
     color: #edeff5;
@@ -112,6 +130,7 @@ a:hover { color: #2e4680; }
     z-index: 1030;
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05);
 }
+
 .tf-topbar .tf-brand {
     display: flex;
     align-items: center;
@@ -122,7 +141,12 @@ a:hover { color: #2e4680; }
     color: #fff;
     letter-spacing: 0.02em;
 }
-.tf-topbar .tf-brand .bi { color: var(--tf-accent); font-size: 1.25rem; }
+
+.tf-topbar .tf-brand .bi {
+    color: var(--tf-accent);
+    font-size: 1.25rem;
+}
+
 .tf-topbar .tf-brand small {
     display: block;
     font-family: var(--tf-font-body);
@@ -133,6 +157,7 @@ a:hover { color: #2e4680; }
     color: #8b93ac;
     margin-top: -3px;
 }
+
 .tf-role-pill {
     font-family: var(--tf-font-display);
     font-size: 0.72rem;
@@ -146,6 +171,7 @@ a:hover { color: #2e4680; }
     border: 1px solid rgba(245, 166, 35, 0.35);
     white-space: nowrap;
 }
+
 .tf-topbar .dropdown-toggle {
     color: #d6dae6;
     background: transparent;
@@ -155,13 +181,27 @@ a:hover { color: #2e4680; }
     gap: 0.5rem;
     font-size: 0.9rem;
 }
-.tf-topbar .dropdown-toggle:hover { color: #fff; }
-.tf-topbar .dropdown-toggle .bi-person-circle { font-size: 1.3rem; color: #8b93ac; }
+
+.tf-topbar .dropdown-toggle:hover {
+    color: #fff;
+}
+
+.tf-topbar .dropdown-toggle .bi-person-circle {
+    font-size: 1.3rem;
+    color: #8b93ac;
+}
+
 
 /* Layout body */
-.tf-body { display: flex; align-items: stretch; }
+
+.tf-body {
+    display: flex;
+    align-items: stretch;
+}
+
 
 /* Sidebar */
+
 .tf-sidebar {
     width: 250px;
     flex: none;
@@ -176,6 +216,7 @@ a:hover { color: #2e4680; }
     align-self: flex-start;
     max-height: calc(100vh - 60px);
 }
+
 .tf-signage {
     margin: 1rem 0.9rem 0.75rem;
     padding: 0.9rem 1rem;
@@ -185,23 +226,27 @@ a:hover { color: #2e4680; }
     position: relative;
     overflow: hidden;
 }
+
 .tf-signage::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: repeating-linear-gradient(
-        to bottom,
-        rgba(245, 166, 35, 0.035) 0 1px,
-        transparent 1px 3px
-    );
+    background: repeating-linear-gradient( to bottom, rgba(245, 166, 35, 0.035) 0 1px, transparent 1px 3px);
     pointer-events: none;
 }
-.tf-signage-row { display: flex; align-items: center; gap: 0.7rem; }
+
+.tf-signage-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
 .tf-signage-icon {
     font-size: 1.5rem;
     color: var(--tf-accent);
     text-shadow: 0 0 12px rgba(245, 166, 35, 0.45);
 }
+
 .tf-signage-title {
     font-family: var(--tf-font-mono);
     font-weight: 700;
@@ -211,6 +256,7 @@ a:hover { color: #2e4680; }
     text-shadow: 0 0 10px rgba(245, 166, 35, 0.35);
     margin: 0;
 }
+
 .tf-signage-sub {
     font-size: 0.62rem;
     letter-spacing: 0.08em;
@@ -227,8 +273,15 @@ a:hover { color: #2e4680; }
     scrollbar-width: thin;
     scrollbar-color: var(--tf-nav-border) transparent;
 }
-.tf-nav-wrap::-webkit-scrollbar { width: 6px; }
-.tf-nav-wrap::-webkit-scrollbar-thumb { background: var(--tf-nav-border); border-radius: 999px; }
+
+.tf-nav-wrap::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tf-nav-wrap::-webkit-scrollbar-thumb {
+    background: var(--tf-nav-border);
+    border-radius: 999px;
+}
 
 .tf-nav-section-label {
     font-size: 0.64rem;
@@ -239,6 +292,7 @@ a:hover { color: #2e4680; }
     padding: 0 0.55rem;
     margin: 1rem 0 0.5rem;
 }
+
 .tf-nav-link {
     display: flex;
     align-items: center;
@@ -252,25 +306,37 @@ a:hover { color: #2e4680; }
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     margin-bottom: 0.15rem;
 }
-.tf-nav-link i { font-size: 1.02rem; width: 1.2rem; text-align: center; opacity: 0.85; }
+
+.tf-nav-link i {
+    font-size: 1.02rem;
+    width: 1.2rem;
+    text-align: center;
+    opacity: 0.85;
+}
+
 .tf-nav-link:hover {
     background: var(--tf-nav-surface);
     color: var(--tf-nav-text);
     border-left-color: var(--tf-green);
 }
+
 .tf-nav-link.active {
     background: var(--tf-accent-dim);
     color: var(--tf-accent);
     border-left-color: var(--tf-accent);
     font-weight: 600;
 }
-.tf-nav-link.active i { opacity: 1; }
+
+.tf-nav-link.active i {
+    opacity: 1;
+}
 
 .tf-sidebar-footer {
     flex: none;
     border-top: 1px solid var(--tf-nav-border);
     padding: 0.75rem;
 }
+
 .tf-logout-btn {
     display: flex;
     align-items: center;
@@ -286,13 +352,16 @@ a:hover { color: #2e4680; }
     font-weight: 500;
     transition: all 0.15s ease;
 }
+
 .tf-logout-btn:hover {
     background: rgba(226, 87, 76, 0.12);
     border-color: rgba(226, 87, 76, 0.4);
     color: #ff6b7a;
 }
 
+
 /* Content */
+
 .tf-content {
     flex: 1 1 auto;
     min-width: 0;
@@ -302,10 +371,17 @@ a:hover { color: #2e4680; }
     width: 100%;
 }
 
+
 /* Mobile drawer */
-.tf-sidebar-backdrop { display: none; }
+
+.tf-sidebar-backdrop {
+    display: none;
+}
+
 @media (max-width: 991.98px) {
-    body { overflow-x: hidden; }
+    body {
+        overflow-x: hidden;
+    }
     .tf-sidebar {
         position: fixed;
         top: 60px;
@@ -316,7 +392,10 @@ a:hover { color: #2e4680; }
         transform: translateX(-100%);
         transition: transform 0.25s ease;
     }
-    .tf-sidebar.open { transform: translateX(0); box-shadow: 0.5rem 0 2rem rgba(0, 0, 0, 0.35); }
+    .tf-sidebar.open {
+        transform: translateX(0);
+        box-shadow: 0.5rem 0 2rem rgba(0, 0, 0, 0.35);
+    }
     .tf-sidebar-backdrop.show {
         display: block;
         position: fixed;
@@ -324,12 +403,16 @@ a:hover { color: #2e4680; }
         background: rgba(0, 0, 0, 0.45);
         z-index: 1039;
     }
-    .tf-content { padding: 1.25rem 1rem 2.5rem; }
+    .tf-content {
+        padding: 1.25rem 1rem 2.5rem;
+    }
 }
+
 
 /* ==========================================================================
    Page header
    ========================================================================== */
+
 .tf-page-head {
     display: flex;
     align-items: flex-end;
@@ -340,6 +423,7 @@ a:hover { color: #2e4680; }
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--tf-line);
 }
+
 .tf-eyebrow {
     font-family: var(--tf-font-display);
     font-size: 0.72rem;
@@ -350,16 +434,38 @@ a:hover { color: #2e4680; }
     display: block;
     margin-bottom: 0.1rem;
 }
-.tf-page-head h1 { font-size: 1.9rem; margin: 0; line-height: 1.15; }
-.tf-page-head .tf-subtitle { color: var(--tf-muted); font-size: 0.92rem; }
+
+.tf-page-head h1 {
+    font-size: 1.9rem;
+    margin: 0;
+    line-height: 1.15;
+}
+
+.tf-page-head .tf-subtitle {
+    color: var(--tf-muted);
+    font-size: 0.92rem;
+}
+
 
 /* ==========================================================================
    Cards, tables, forms
    ========================================================================== */
-.card { border: 1px solid var(--tf-line); border-radius: var(--tf-radius); box-shadow: var(--tf-shadow); }
-.card-header, .card-footer { background: var(--tf-surface); border-color: var(--tf-line); }
+
+.card {
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius);
+    box-shadow: var(--tf-shadow);
+}
+
+.card-header,
+.card-footer {
+    background: var(--tf-surface);
+    border-color: var(--tf-line);
+}
+
 
 /* Ticket-stub stat card */
+
 .tf-stat {
     --stub: 14px;
     position: relative;
@@ -374,21 +480,26 @@ a:hover { color: #2e4680; }
     transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
     height: 100%;
 }
+
 .tf-stat::before {
     content: '';
     position: absolute;
-    left: 0; top: 0; bottom: 0;
+    left: 0;
+    top: 0;
+    bottom: 0;
     width: var(--stub);
     background-image: radial-gradient(circle at 3px 3px, var(--tf-paper) 2.1px, transparent 2.2px);
     background-size: 100% 12px;
     background-position: 0 4px;
     border-right: 1px dashed var(--tf-line);
 }
+
 a.tf-stat:hover {
     transform: translateY(-2px);
     border-color: var(--tf-route-blue);
     color: var(--tf-ink);
 }
+
 .tf-stat .tf-stat-icon {
     flex: none;
     width: 44px;
@@ -401,11 +512,29 @@ a.tf-stat:hover {
     color: var(--tf-accent);
     font-size: 1.2rem;
 }
-.tf-stat .tf-stat-value { font-family: var(--tf-font-display); font-size: 1.5rem; line-height: 1; color: var(--tf-navy); }
-.tf-stat .tf-stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tf-muted); }
+
+.tf-stat .tf-stat-value {
+    font-family: var(--tf-font-display);
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--tf-navy);
+}
+
+.tf-stat .tf-stat-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--tf-muted);
+}
+
 
 /* Tables */
-.table { --bs-table-bg: transparent; margin-bottom: 0; }
+
+.table {
+    --bs-table-bg: transparent;
+    margin-bottom: 0;
+}
+
 .table thead th {
     font-size: 0.7rem;
     text-transform: uppercase;
@@ -416,41 +545,96 @@ a.tf-stat:hover {
     background: var(--tf-paper);
     border-bottom: 1px solid var(--tf-line);
 }
-.table td { vertical-align: middle; }
-.table-responsive { border-radius: var(--tf-radius); overflow: hidden; }
+
+.table td {
+    vertical-align: middle;
+}
+
+.table-responsive {
+    border-radius: var(--tf-radius);
+    overflow: hidden;
+}
+
 
 /* Forms */
-.form-label { font-size: 0.82rem; font-weight: 600; color: var(--tf-ink-soft); margin-bottom: 0.3rem; }
-.form-control, .form-select { border-color: var(--tf-line); }
-.form-control:focus, .form-select:focus {
+
+.form-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--tf-ink-soft);
+    margin-bottom: 0.3rem;
+}
+
+.form-control,
+.form-select {
+    border-color: var(--tf-line);
+}
+
+.form-control:focus,
+.form-select:focus {
     border-color: var(--tf-route-blue);
     box-shadow: 0 0 0 0.2rem rgba(59, 91, 169, 0.15);
 }
-.form-check-input:checked { background-color: var(--tf-route-blue); border-color: var(--tf-route-blue); }
+
+.form-check-input:checked {
+    background-color: var(--tf-route-blue);
+    border-color: var(--tf-route-blue);
+}
+
 
 /* Badges */
-.badge { font-weight: 600; letter-spacing: 0.02em; }
-.tf-badge-active { background: rgba(47, 158, 110, 0.14); color: #1c7a51; }
-.tf-badge-inactive { background: #eceef1; color: var(--tf-muted); }
-.tf-badge-suspended { background: rgba(226, 87, 76, 0.14); color: #b6392f; }
-.tf-badge-maintenance { background: rgba(245, 166, 35, 0.16); color: #9a6812; }
+
+.badge {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.tf-badge-active {
+    background: rgba(47, 158, 110, 0.14);
+    color: #1c7a51;
+}
+
+.tf-badge-inactive {
+    background: #eceef1;
+    color: var(--tf-muted);
+}
+
+.tf-badge-suspended {
+    background: rgba(226, 87, 76, 0.14);
+    color: #b6392f;
+}
+
+.tf-badge-maintenance {
+    background: rgba(245, 166, 35, 0.16);
+    color: #9a6812;
+}
+
 
 /* Empty / loading rows */
-.tf-empty { padding: 2.5rem 1rem; text-align: center; color: var(--tf-muted); }
+
+.tf-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--tf-muted);
+}
+
 
 /* ==========================================================================
    Fare-matrix grid (Excel-style, sticky axes, instant-save cells)
    ========================================================================== */
+
 .tf-fare-grid-scroll {
     max-height: 72vh;
     overflow: auto;
 }
+
 .tf-fare-grid {
     border-collapse: separate;
     border-spacing: 0;
     table-layout: fixed;
     margin: 0;
 }
+
 .tf-fare-grid th,
 .tf-fare-grid td {
     white-space: nowrap;
@@ -458,6 +642,7 @@ a.tf-stat:hover {
     text-overflow: ellipsis;
     border-color: var(--tf-line);
 }
+
 .tf-fare-grid thead th {
     position: sticky;
     top: 0;
@@ -469,6 +654,7 @@ a.tf-stat:hover {
     width: 96px;
     padding: 0.4rem 0.3rem;
 }
+
 .tf-fare-grid tbody th {
     position: sticky;
     left: 0;
@@ -480,25 +666,30 @@ a.tf-stat:hover {
     width: 190px;
     padding: 0.4rem 0.6rem;
 }
+
 .tf-fare-grid thead th.tf-fare-corner {
     width: 190px;
     z-index: 3;
     left: 0;
 }
+
 .tf-fare-grid .tf-fare-cell {
     text-align: center;
     padding: 0.25rem;
     vertical-align: middle;
 }
+
 .tf-fare-grid .tf-fare-diag {
     background: repeating-linear-gradient(-45deg, #f0f2f5 0 6px, #f7f8fa 6px 12px);
 }
+
 .tf-fare-cell-inner {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
 }
+
 .tf-fare-grid .tf-fare-input {
     width: 74px;
     text-align: center;
@@ -506,9 +697,17 @@ a.tf-stat:hover {
     font-family: var(--tf-font-mono);
     font-size: 0.8rem;
 }
+
 .tf-fare-grid .tf-fare-input::-webkit-outer-spin-button,
-.tf-fare-grid .tf-fare-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.tf-fare-grid .tf-fare-input[type='number'] { -moz-appearance: textfield; }
+.tf-fare-grid .tf-fare-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.tf-fare-grid .tf-fare-input[type='number'] {
+    -moz-appearance: textfield;
+}
+
 .tf-fare-disc {
     border: 0;
     background: transparent;
@@ -520,170 +719,298 @@ a.tf-stat:hover {
     align-items: center;
     gap: 3px;
 }
-.tf-fare-disc:hover { color: var(--tf-route-blue); }
-.tf-fare-disc.on { color: var(--tf-green); font-weight: 700; }
-.tf-fare-disc.static { pointer-events: none; }
+
+.tf-fare-disc:hover {
+    color: var(--tf-route-blue);
+}
+
+.tf-fare-disc.on {
+    color: var(--tf-green);
+    font-weight: 700;
+}
+
+.tf-fare-disc.static {
+    pointer-events: none;
+}
+
 
 /* ==========================================================================
    Login — split-screen (branding left, form right), ported from the legacy
-   BITS login page.
+   BITS login page. Fluid-scaled (clamp()) rather than breakpoint-jumped, so
+   it reads as deliberately tuned at every width from a 13" laptop (1024px)
+   through "laptop L" (1440px) up to a large desktop monitor (1920px+),
+   instead of just snapping at arbitrary Bootstrap steps.
    ========================================================================== */
+
 .tf-login {
     --primary: var(--tf-navy);
     --primary-hover: #0c1526;
-    min-height: 100vh;
+    height: 100vh;
     position: relative;
     overflow: hidden;
-    background: #f5f6f8;
+    background: radial-gradient(1100px 760px at 12% -8%, rgba(59, 91, 169, 0.07), transparent 60%), radial-gradient(900px 680px at 104% 108%, rgba(245, 166, 35, 0.08), transparent 55%), #f6f7f9;
     color: var(--tf-ink);
 }
-.tf-login::before,
-.tf-login::after {
-    content: '';
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(14px);
-    pointer-events: none;
+
+
+/* Caps the composition on very wide monitors so the two sides stay in a
+   deliberate, centered proportion instead of stretching edge-to-edge with an
+   ever-growing gap between them. Fluid below that, so laptop-width screens
+   still use the space they actually have. */
+
+.tf-login>.container-fluid {
+    max-width: 1720px;
+    height: 100%;
+    margin-inline: auto;
 }
-.tf-login::before {
-    width: 520px; height: 520px;
-    top: -190px; left: -130px;
-    background: rgba(20, 33, 59, 0.06);
-}
-.tf-login::after {
-    width: 460px; height: 460px;
-    bottom: -180px; right: -120px;
-    background: rgba(245, 166, 35, 0.09);
-}
+
+
+/* Each side scrolls independently if its own content ever outgrows a short
+   viewport — the page itself never does (no outer scrollbar, no visual
+   "overlap" between the two columns). `margin-block: auto` on the inner
+   content (not `align-items: center` on the flex container) is what makes
+   that overflow scroll cleanly from the top instead of clipping it. The
+   scrollbar itself is hidden (scroll still works via wheel/trackpad/drag) —
+   on a short window it should never visually intrude between the columns. */
 
 .tf-login-branding {
     display: flex;
-    align-items: center;
     justify-content: center;
-    padding: 2rem;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: clamp(1.1rem, 0.6rem + 1.3vw, 2.25rem) clamp(2rem, 1.4rem + 2vw, 3.5rem);
     position: relative;
     z-index: 5;
 }
-.tf-login-branding-inner { width: 100%; max-width: 620px; }
 
-.tf-login-logo { display: flex; align-items: center; gap: 1.1rem; margin-bottom: 1.6rem; }
-.tf-login-logo .tf-login-logo-mark {
-    flex: none;
-    width: 76px; height: 76px;
-    border-radius: 18px;
-    background: var(--tf-navy);
-    color: var(--tf-accent);
+.tf-login-branding::-webkit-scrollbar {
+    display: none;
+}
+
+.tf-login-branding-inner {
+    width: 100%;
+    max-width: clamp(560px, 38vw, 660px);
+    margin-block: auto;
+}
+
+.tf-login-logo {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 2.1rem;
-    box-shadow: 0 12px 30px -14px rgba(20, 33, 59, 0.55);
+    gap: 1rem;
+    margin: 0;
 }
-.tf-login-logo h1 { margin: 0; font-size: 1.7rem; font-weight: 700; }
-.tf-login-logo p { margin: 0.15rem 0 0; color: var(--tf-muted); font-size: 0.9rem; }
+
+.tf-login-logo .tf-login-logo-mark {
+    flex: none;
+    width: clamp(130px, 9vw, 170px);
+    height: auto;
+    object-fit: contain;
+}
+
+.tf-login-logo .tf-eyebrow {
+    margin: 0;
+    font-size: clamp(0.95rem, 0.8rem + 0.5vw, 1.15rem);
+    font-weight: bolder;
+    font-size: 1.45rem;
+    letter-spacing: 0.06em;
+    color: var(--tf-navy);
+}
+
+.tf-login-hero {
+    margin-top: clamp(0.5rem, 0.35rem + 0.3vw, 0.85rem);
+}
 
 .tf-login-hero h2 {
     font-family: var(--tf-font-display);
-    font-size: 2.4rem;
+    font-size: clamp(1.85rem, 1.4rem + 1.5vw, 2.65rem);
     font-weight: 600;
-    line-height: 1.15;
-    margin-bottom: 0.6rem;
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
     color: var(--tf-navy);
+    letter-spacing: -0.01em;
 }
-.tf-login-hero h2 .accent { color: var(--tf-accent-dark); }
-.tf-login-hero p { color: var(--tf-ink-soft); font-size: 1rem; line-height: 1.6; max-width: 540px; }
+
+.tf-login-hero h2 .accent {
+    color: var(--tf-accent-dark);
+}
+
+.tf-login-hero p {
+    color: var(--tf-ink-soft);
+    font-size: clamp(0.88rem, 0.82rem + 0.2vw, 0.98rem);
+    line-height: 1.55;
+    max-width: 560px;
+    margin: 0;
+}
 
 .tf-login-callout {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
+    gap: 0.9rem;
+    padding: 0.85rem 1.1rem;
     border-radius: 16px;
-    margin: 1.4rem 0 1.3rem;
-    background: linear-gradient(120deg, var(--tf-navy) 0%, var(--tf-route-blue) 100%);
-    box-shadow: 0 16px 34px -16px rgba(20, 33, 59, 0.5);
+    margin: clamp(0.65rem, 0.45rem + 0.6vw, 1rem) 0;
+    background: linear-gradient(125deg, var(--tf-navy) 0%, var(--tf-route-blue) 100%);
+    box-shadow: 0 18px 36px -18px rgba(20, 33, 59, 0.55);
     color: #fff;
 }
+
 .tf-login-callout .tf-login-callout-icon {
     flex: none;
-    width: 48px; height: 48px;
-    border-radius: 14px;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
     background: rgba(255, 255, 255, 0.14);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     color: var(--tf-accent);
 }
+
 .tf-login-callout .badge {
     background: var(--tf-accent);
     color: #1c1a00;
     font-size: 0.62rem;
     letter-spacing: 0.08em;
 }
-.tf-login-callout h5 { margin: 0.25rem 0 0.1rem; font-weight: 700; font-size: 1rem; }
-.tf-login-callout p { margin: 0; font-size: 0.83rem; color: rgba(255, 255, 255, 0.85); }
+
+.tf-login-callout h5 {
+    margin: 0.25rem 0 0.1rem;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.tf-login-callout p {
+    margin: 0;
+    font-size: 0.83rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.tf-login-callout .btn-light {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tf-login-callout .btn-light:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.35);
+}
 
 .tf-login-features {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.85rem;
+    gap: clamp(0.5rem, 0.4rem + 0.3vw, 0.75rem);
 }
+
 .tf-login-feature {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
-    padding: 1rem;
+    gap: 0.4rem;
+    padding: clamp(0.65rem, 0.55rem + 0.25vw, 0.85rem);
     background: #fff;
     border: 1px solid var(--tf-line);
-    border-radius: 16px;
+    border-radius: 14px;
     box-shadow: 0 4px 16px rgba(20, 33, 59, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
+
+.tf-login-feature:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 30px -18px rgba(20, 33, 59, 0.28);
+    border-color: rgba(59, 91, 169, 0.25);
+}
+
 .tf-login-feature .tf-login-feature-icon {
-    width: 40px; height: 40px;
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 0.92rem;
 }
-.tf-login-feature h5 { margin: 0; font-size: 0.86rem; font-weight: 700; }
-.tf-login-feature span { color: var(--tf-muted); font-size: 0.76rem; line-height: 1.4; }
+
+.tf-login-feature .tf-chip-navy {
+    background: var(--tf-navy);
+    color: #fff;
+}
+
+.tf-login-feature .tf-chip-blue {
+    background: var(--tf-route-blue);
+    color: #fff;
+}
+
+.tf-login-feature .tf-chip-amber {
+    background: var(--tf-accent-dim);
+    color: var(--tf-accent-dark);
+}
+
+.tf-login-feature .tf-chip-green {
+    background: rgba(47, 158, 110, 0.14);
+    color: var(--tf-green);
+}
+
+.tf-login-feature h5 {
+    margin: 0;
+    font-size: 0.83rem;
+    font-weight: 700;
+    color: var(--tf-navy);
+}
+
+.tf-login-feature span {
+    color: var(--tf-muted);
+    font-size: 0.74rem;
+    line-height: 1.4;
+}
 
 .tf-login-form-side {
     display: flex;
-    align-items: center;
     justify-content: center;
-    padding: 1.75rem;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: clamp(1.25rem, 0.9rem + 1vw, 2.5rem);
     position: relative;
     z-index: 5;
 }
+
+.tf-login-form-side::-webkit-scrollbar {
+    display: none;
+}
+
 .tf-login-card {
     width: 100%;
-    max-width: 440px;
-    background: rgba(255, 255, 255, 0.96);
+    max-width: clamp(420px, 27vw, 480px);
+    margin-block: auto;
+    background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: 22px;
-    padding: 1.75rem 1.9rem;
-    box-shadow: 0 25px 70px rgba(20, 33, 59, 0.12);
+    padding: clamp(1.6rem, 1.4rem + 0.7vw, 2.25rem) clamp(1.9rem, 1.6rem + 0.9vw, 2.4rem);
+    box-shadow: 0 30px 80px -20px rgba(20, 33, 59, 0.16), 0 2px 8px rgba(20, 33, 59, 0.04);
     animation: tf-login-fade 0.6s ease;
 }
+
 @keyframes tf-login-fade {
-    from { opacity: 0; transform: translateY(36px); }
-    to { opacity: 1; transform: none; }
+    from {
+        opacity: 0;
+        transform: translateY(36px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
+
 .tf-login-mobile-mark {
-    width: 64px; height: 64px;
+    display: block;
+    width: 120px;
+    height: auto;
     margin: 0 auto 0.75rem;
-    border-radius: 16px;
-    background: var(--tf-navy);
-    color: var(--tf-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.9rem;
+    object-fit: contain;
 }
 
 .tf-input-group {
@@ -696,12 +1023,14 @@ a.tf-stat:hover {
     background: #fff;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
+
 .tf-input-group:focus-within {
     border-color: var(--tf-route-blue);
     box-shadow: 0 0 0 0.2rem rgba(59, 91, 169, 0.14);
 }
+
 .tf-input-icon {
-    width: 44px;
+    width: 46px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -709,18 +1038,38 @@ a.tf-stat:hover {
     border-right: 1px solid var(--tf-line);
     color: var(--tf-muted);
 }
+
 .tf-input-group input {
     flex: 1;
     border: 0;
     outline: 0;
-    height: 44px;
+    height: 46px;
     padding: 0 0.9rem;
     font-size: 0.9rem;
     background: transparent;
     color: var(--tf-ink);
 }
+
+.tf-input-toggle {
+    flex: none;
+    width: 46px;
+    border: 0;
+    border-left: 1px solid var(--tf-line);
+    background: #fafafa;
+    color: var(--tf-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.tf-input-toggle:hover {
+    color: var(--tf-route-blue);
+    background: #f2f4f8;
+}
+
 .tf-login-btn {
-    height: 46px;
+    height: 48px;
     border: 0;
     border-radius: 12px;
     background: linear-gradient(135deg, var(--primary), var(--primary-hover));
@@ -729,27 +1078,59 @@ a.tf-stat:hover {
     letter-spacing: 0.3px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
 .tf-login-btn:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 18px 34px -14px rgba(20, 33, 59, 0.45);
 }
-.tf-login-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-.tf-login-footer { margin-top: 1rem; text-align: center; color: var(--tf-muted); font-size: 0.78rem; }
 
-@media (max-width: 1200px) {
-    .tf-login-features { grid-template-columns: 1fr; }
+.tf-login-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
+
+.tf-login-footer {
+    margin-top: 1rem;
+    text-align: center;
+    color: var(--tf-muted);
+    font-size: 0.78rem;
+}
+
+
+/* Below tablet landscape (< lg): branding drops out, form takes the full
+   viewport (see the d-lg-none mobile-only copies in Login.jsx). */
+
 @media (max-width: 991.98px) {
-    .tf-login-branding { display: none !important; }
+    .tf-login-branding {
+        display: none !important;
+    }
 }
+
+
+/* Small laptop (~992–1279px): still two columns, but the feature grid is
+   tight enough here that a single column reads better than a cramped 2x2. */
+
+@media (min-width: 992px) and (max-width: 1279.98px) {
+    .tf-login-features {
+        grid-template-columns: 1fr;
+    }
+}
+
 
 /* Hand-rolled modal above the toast layer — matched to the .tf-swal theme */
+
 .modal-backdrop {
     background-color: var(--tf-navy, #14213b);
     backdrop-filter: blur(2px);
 }
-.modal-backdrop.show { opacity: 0.32; }
-.Toastify__toast-container { z-index: 1080; }
+
+.modal-backdrop.show {
+    opacity: 0.32;
+}
+
+.Toastify__toast-container {
+    z-index: 1080;
+}
 
 .modal-content {
     border: 1px solid rgba(20, 33, 59, 0.08);
@@ -757,10 +1138,12 @@ a.tf-stat:hover {
     box-shadow: 0 24px 64px rgba(20, 33, 59, 0.22);
     overflow: hidden;
 }
+
 .modal-header {
     padding: 1.15rem 1.5rem 0.85rem;
     border-bottom: 1px solid rgba(20, 33, 59, 0.07);
 }
+
 .modal-header .modal-title {
     font-family: 'Barlow Condensed', 'Inter', system-ui, sans-serif;
     font-size: 1.3rem;
@@ -768,22 +1151,43 @@ a.tf-stat:hover {
     letter-spacing: 0.01em;
     color: var(--tf-navy, #14213b);
 }
-.modal-body { padding: 1.35rem 1.5rem; }
+
+.modal-body {
+    padding: 1.35rem 1.5rem;
+}
+
 .modal-footer {
     padding: 0.9rem 1.5rem 1.1rem;
     border-top: 1px solid rgba(20, 33, 59, 0.07);
     justify-content: flex-end;
     gap: 0.5rem;
 }
-.modal-footer > * { margin: 0; }
-.modal-footer .btn { padding-left: 1.25rem; padding-right: 1.25rem; }
-.modal.show .modal-dialog { animation: tf-swal-in 0.2s ease-out; }
+
+.modal-footer>* {
+    margin: 0;
+}
+
+.modal-footer .btn {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+.modal.show .modal-dialog {
+    animation: tf-swal-in 0.2s ease-out;
+}
+
 
 /* ============================================================
    TransitFlow-themed SweetAlert2  (see resources/js/lib/ui.js)
    ============================================================ */
-.swal2-container { backdrop-filter: blur(2px); }
-.swal2-container.swal2-backdrop-show { background: rgba(20, 33, 59, 0.32); }
+
+.swal2-container {
+    backdrop-filter: blur(2px);
+}
+
+.swal2-container.swal2-backdrop-show {
+    background: rgba(20, 33, 59, 0.32);
+}
 
 .swal2-popup.tf-swal {
     width: 30rem;
@@ -833,6 +1237,7 @@ a.tf-stat:hover {
     border-radius: 8px;
     box-shadow: none;
 }
+
 .tf-swal .swal2-input:focus,
 .tf-swal .swal2-select:focus,
 .tf-swal .swal2-textarea:focus {
@@ -840,7 +1245,10 @@ a.tf-stat:hover {
     box-shadow: 0 0 0 0.2rem rgba(59, 91, 169, 0.2);
     outline: none;
 }
-.tf-swal .swal2-input::placeholder { color: #9aa4b2; }
+
+.tf-swal .swal2-input::placeholder {
+    color: #9aa4b2;
+}
 
 .tf-swal .swal2-validation-message,
 .tf-swal .tf-swal-validation {
@@ -852,7 +1260,10 @@ a.tf-stat:hover {
     color: #b02a37;
     border-radius: 8px;
 }
-.tf-swal .swal2-validation-message::before { display: none; }
+
+.tf-swal .swal2-validation-message::before {
+    display: none;
+}
 
 .tf-swal .tf-swal-actions {
     margin: 1.35rem 0 0;
@@ -860,7 +1271,10 @@ a.tf-stat:hover {
     justify-content: flex-end;
     gap: 0.5rem;
 }
-.tf-swal .tf-swal-actions .btn { font-size: 0.88rem; }
+
+.tf-swal .tf-swal-actions .btn {
+    font-size: 0.88rem;
+}
 
 .tf-swal .tf-swal-icon {
     width: 3.2rem;
@@ -869,7 +1283,10 @@ a.tf-stat:hover {
     border-width: 0.2rem;
     transform: scale(1);
 }
-.tf-swal .tf-swal-icon .swal2-icon-content { font-size: 1.8rem; }
+
+.tf-swal .tf-swal-icon .swal2-icon-content {
+    font-size: 1.8rem;
+}
 
 .tf-swal .swal2-footer {
     margin-top: 1.1rem;
@@ -884,22 +1301,43 @@ a.tf-stat:hover {
     color: #9aa4b2;
     font-size: 1.6rem;
 }
-.tf-swal .swal2-close:hover { color: var(--tf-navy, #14213b); }
+
+.tf-swal .swal2-close:hover {
+    color: var(--tf-navy, #14213b);
+}
 
 @keyframes tf-swal-in {
-    from { opacity: 0; transform: translateY(14px) scale(0.97); }
-    to { opacity: 1; transform: none; }
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
+
 @keyframes tf-swal-out {
-    to { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
 }
-.swal2-popup.tf-swal.swal2-show { animation: tf-swal-in 0.2s ease-out; }
-.swal2-popup.tf-swal.swal2-hide { animation: tf-swal-out 0.12s ease-in; }
+
+.swal2-popup.tf-swal.swal2-show {
+    animation: tf-swal-in 0.2s ease-out;
+}
+
+.swal2-popup.tf-swal.swal2-hide {
+    animation: tf-swal-out 0.12s ease-in;
+}
+
 
 /* ------------------------------------------------------------------
    Thermal receipts  (resources/js/pages/ReceiptView.jsx)
    BITS receipt/conductor/*.php — monospace slip at receipt_width_mm.
    ------------------------------------------------------------------ */
+
 .tf-receipt-page {
     min-height: 100vh;
     background: #eceff3;
@@ -999,10 +1437,12 @@ a.tf-stat:hover {
     padding-top: 3px;
 }
 
+
 /* "Label : value" form row (see ReceiptDocument.php's `form` row shape) —
    used for the DETAILS/BUS INFO blocks and footers, instead of the usual
    label-left/value-right split. Label column width is the widest form row
    in the section, same rule the Android ESC/POS formatter uses. */
+
 .tf-receipt__row--form {
     display: block;
     white-space: pre;
@@ -1013,10 +1453,12 @@ a.tf-stat:hover {
     margin: 5px 0;
 }
 
+
 /* The heavy "====" rule that wraps the whole slip (top, after the org
    block, and around the footer note) — see ReceiptEscPosFormatter's
    hrHeavy(). A double border reads as visually heavier than the thin
    dashed section dividers, same distinction the printed slip makes. */
+
 .tf-receipt__rule--heavy {
     border-top: 3px double #000;
     margin: 6px 0;
@@ -1033,21 +1475,19 @@ a.tf-stat:hover {
         padding: 0;
         display: block;
     }
-
     .tf-no-print {
         display: none !important;
     }
-
     .tf-receipt {
         width: auto;
         box-shadow: none;
         padding: 0;
     }
-
     @page {
         margin: 4mm;
     }
 }
+
 
 /* ==========================================================================
    Driver ID card (company/Drivers.jsx) — a standard CR80 card (85.6mm ×
@@ -1057,6 +1497,7 @@ a.tf-stat:hover {
    modal only ever prints this card, never the admin page or modal chrome
    behind it.
    ========================================================================== */
+
 .driver-id-card {
     /* Overridable per-company via inline style (Drivers.jsx) — falls back
        to the platform's own accent when a company hasn't set one. */
@@ -1075,6 +1516,7 @@ a.tf-stat:hover {
     gap: 3mm;
     overflow: hidden;
 }
+
 .driver-id-card-header {
     display: flex;
     align-items: center;
@@ -1083,6 +1525,7 @@ a.tf-stat:hover {
     padding-bottom: 2mm;
     min-width: 0;
 }
+
 .driver-id-card-logo {
     width: 7mm;
     height: 7mm;
@@ -1090,6 +1533,7 @@ a.tf-stat:hover {
     border-radius: 1.5mm;
     flex: none;
 }
+
 .driver-id-card-company {
     font-weight: 800;
     letter-spacing: 0.02em;
@@ -1101,6 +1545,7 @@ a.tf-stat:hover {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
 .driver-id-card-eyebrow {
     font-size: 0.55rem;
     font-weight: 700;
@@ -1109,6 +1554,7 @@ a.tf-stat:hover {
     color: var(--driver-id-accent-dark);
     flex: none;
 }
+
 .driver-id-card-body {
     flex: 1;
     display: flex;
@@ -1116,6 +1562,7 @@ a.tf-stat:hover {
     gap: 4mm;
     min-height: 0;
 }
+
 .driver-id-card-qr {
     width: 28mm !important;
     height: 28mm !important;
@@ -1123,12 +1570,14 @@ a.tf-stat:hover {
     border-radius: 1.5mm;
     border: 0.4mm solid color-mix(in srgb, var(--driver-id-accent) 40%, #fff);
 }
+
 .driver-id-card-info {
     display: flex;
     flex-direction: column;
     gap: 1.5mm;
     min-width: 0;
 }
+
 .driver-id-card-name {
     font-weight: 700;
     font-size: 0.85rem;
@@ -1139,6 +1588,7 @@ a.tf-stat:hover {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
+
 .driver-id-card-code {
     font-family: 'Courier New', monospace;
     font-weight: 800;
