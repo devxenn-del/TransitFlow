@@ -41,6 +41,22 @@ class DriverAndPassengerTypeTest extends TestCase
         $this->assertDatabaseHas('drivers', ['id' => $id, 'company_id' => $this->company->id]);
     }
 
+    public function test_driver_can_be_created_with_gender_email_and_address(): void
+    {
+        $this->admin();
+
+        $res = $this->postJson('/api/company/drivers', [
+            'name' => 'JUAN DELA CRUZ',
+            'sex' => 'Male',
+            'email' => 'juan@example.test',
+            'address' => '123 Rizal St, Manila',
+        ])->assertCreated();
+
+        $res->assertJsonPath('data.sex', 'Male')
+            ->assertJsonPath('data.email', 'juan@example.test')
+            ->assertJsonPath('data.address', '123 Rizal St, Manila');
+    }
+
     public function test_another_companys_driver_is_not_reachable(): void
     {
         $foreign = Driver::factory()->for(Company::factory())->create();

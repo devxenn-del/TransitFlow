@@ -29,6 +29,9 @@ class StoreDriverRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'license_number' => ['nullable', 'string', 'max:50'],
             'contact_number' => ['nullable', 'string', 'max:30'],
+            'sex' => ['nullable', Rule::in(['Male', 'Female'])],
+            'email' => ['nullable', 'email', 'max:150'],
+            'address' => ['nullable', 'string', 'max:255'],
             'status' => ['sometimes', Rule::in(Driver::STATUSES)],
             // Left blank, this auto-generates (DR-YYMM-XXXX-XXXX) — see Driver::booted().
             'driver_code' => [

@@ -9,10 +9,12 @@ use App\Http\Requests\SuperAdmin\UpdateCompanyRequest;
 use App\Http\Requests\SuperAdmin\UpdateCompanyStatusRequest;
 use App\Http\Resources\CompanyResource;
 use App\Models\Company;
+use App\Models\User;
 use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Platform-level company management. Every action here is Super-Admin-only,
@@ -84,7 +86,14 @@ class CompanyController extends Controller
     {
         $this->authorize('delete', $company);
 
-        $company->delete();
+        DB::transaction(function () use ($company): void {
+            $company->users()->each(function (User $user): void {
+                $user->tokens()->delete();
+                $user->delete();
+            });
+
+            $company->delete();
+        });
 
         return response()->json(status: JsonResponse::HTTP_NO_CONTENT);
     }

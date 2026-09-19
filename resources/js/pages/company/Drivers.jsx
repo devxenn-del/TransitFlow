@@ -11,7 +11,7 @@ import { drivers } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
-const BLANK = { name: '', license_number: '', contact_number: '', status: 'Active', driver_code: '' };
+const BLANK = { name: '', license_number: '', contact_number: '', sex: '', email: '', address: '', status: 'Active', driver_code: '' };
 
 /** Shrinks in steps as the company name grows, so it always reads as one
  *  line in the card's narrow header band instead of ellipsizing. */
@@ -123,6 +123,9 @@ export default function Drivers() {
             name: d.name,
             license_number: d.license_number ?? '',
             contact_number: d.contact_number ?? '',
+            sex: d.sex ?? '',
+            email: d.email ?? '',
+            address: d.address ?? '',
             status: d.status,
             driver_code: d.driver_code ?? '',
         });
@@ -243,6 +246,24 @@ export default function Drivers() {
                             <label className="form-label">Contact number</label>
                             <input className="form-control" value={form.contact_number} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} />
                         </div>
+                    </div>
+                    <div className="row g-2">
+                        <div className="col-md-6">
+                            <label className="form-label">Gender</label>
+                            <select className="form-select" value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value })}>
+                                <option value="">—</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+                        <div className="col-md-6">
+                            <label className="form-label">Active Email</label>
+                            <input type="email" className="form-control" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="form-label">Address</label>
+                        <input className="form-control" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
                     </div>
                     <div>
                         <label className="form-label">Status</label>

@@ -250,8 +250,8 @@ export const tripMonitor = {
 };
 
 export const conductorBuses = {
-    get: (userId) => api.get(`/company/users/${userId}/buses`).then((r) => r.data.data),
-    sync: (userId, busIds) => api.put(`/company/users/${userId}/buses`, { bus_ids: busIds }).then((r) => r.data.data),
+    get: (userId) => api.get(`/company/conductors/${userId}/buses`).then((r) => r.data.data),
+    sync: (userId, busIds) => api.put(`/company/conductors/${userId}/buses`, { bus_ids: busIds }).then((r) => r.data.data),
 };
 
 export const drivers = {
@@ -259,6 +259,13 @@ export const drivers = {
     create: (payload) => api.post('/company/drivers', payload).then((r) => r.data.data),
     update: (id, payload) => api.put(`/company/drivers/${id}`, payload).then((r) => r.data.data),
     remove: (id) => api.delete(`/company/drivers/${id}`),
+};
+
+export const conductors = {
+    list: (params) => api.get('/company/conductors', { params }).then((r) => r.data),
+    create: (payload) => api.post('/company/conductors', payload).then((r) => r.data.data),
+    update: (id, payload) => api.put(`/company/conductors/${id}`, payload).then((r) => r.data.data),
+    remove: (id) => api.delete(`/company/conductors/${id}`),
 };
 
 export const passengerTypes = {

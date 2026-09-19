@@ -127,6 +127,21 @@ class CompanyManagementTest extends TestCase
         $this->assertSame('Stable', $company->fresh()->name);
     }
 
+    public function test_deleting_a_company_also_deletes_its_users(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->companyAdmin($company)->create();
+        $staff = User::factory()->forCompany($company)->create();
+
+        Sanctum::actingAs(User::factory()->superAdmin()->create());
+
+        $this->deleteJson("/api/super-admin/companies/{$company->id}")->assertNoContent();
+
+        $this->assertSoftDeleted('companies', ['id' => $company->id]);
+        $this->assertDatabaseMissing('users', ['id' => $admin->id]);
+        $this->assertDatabaseMissing('users', ['id' => $staff->id]);
+    }
+
     public function test_only_super_admin_can_change_company_status(): void
     {
         $company = Company::factory()->create();

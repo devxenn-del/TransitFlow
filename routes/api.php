@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Company\CashCountController;
 use App\Http\Controllers\Api\Company\CompanyProfileController;
 use App\Http\Controllers\Api\Company\CompanySettingController;
 use App\Http\Controllers\Api\Company\ConductorBusController;
+use App\Http\Controllers\Api\Company\ConductorController;
 use App\Http\Controllers\Api\Company\ConfigurationController;
 use App\Http\Controllers\Api\Company\DashboardController;
 use App\Http\Controllers\Api\Company\DataToolsController;
@@ -226,6 +227,13 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         $companyCrud('buses', BusController::class, 'buses', 'bus');
         $companyCrud('drivers', DriverController::class, 'drivers', 'driver');
         $companyCrud('routes', CompanyRouteController::class, 'routes', 'route');
+
+        // Conductor accounts — a Fleet-scoped view over the same User
+        // records `users` below manages, gated by its own conductors.*
+        // permissions instead of accounts.*.
+        $companyCrud('conductors', ConductorController::class, 'conductors', 'conductor');
+        Route::get('conductors/{user}/buses', [ConductorBusController::class, 'show'])->middleware('permission:conductors.view');
+        Route::put('conductors/{user}/buses', [ConductorBusController::class, 'sync'])->middleware('permission:conductors.edit');
 
         // Thermal printer inventory, assigned to a conductor (BITS admin/thermalprinters)
         $companyCrud('thermal-printers', ThermalPrinterController::class, 'thermalprinters', 'printer');

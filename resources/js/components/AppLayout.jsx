@@ -108,6 +108,7 @@ const NAV = [
             { to: '/company/terminals', label: 'Terminals', icon: 'bi-signpost-split', visible: (a) => a.can('terminals.view') },
             { to: '/company/franchises', label: 'Fare Matrix', icon: 'bi-cash-coin', visible: (a) => a.can('franchises.view') },
             { to: '/company/drivers', label: 'Drivers', icon: 'bi-person-badge', visible: (a) => a.can('drivers.view') },
+            { to: '/company/conductors', label: 'Conductors', icon: 'bi-person-vcard', visible: (a) => a.can('conductors.view') },
             { to: '/company/passenger-types', label: 'Passenger Types', icon: 'bi-people-fill', visible: (a) => a.can('passengertypes.view') },
             { to: '/company/buses', label: 'Buses', icon: 'bi-bus-front', visible: (a) => a.can('buses.view') },
             { to: '/company/thermal-printers', label: 'Thermal Printers', icon: 'bi-printer-fill', visible: (a) => a.can('thermalprinters.view') },

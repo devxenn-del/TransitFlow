@@ -6,7 +6,7 @@ import Modal from '../../components/Modal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
-import { buses as busesApi, companyUsers, conductorBuses, roles as rolesApi } from '../../lib/api.js';
+import { companyUsers, roles as rolesApi } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
@@ -21,38 +21,10 @@ export default function CompanyUsers() {
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);
 
-    // Conductor bus assignment
-    const [busUser, setBusUser] = useState(null);
-    const [allBuses, setAllBuses] = useState([]);
-    const [assigned, setAssigned] = useState([]);
-    const [busSaving, setBusSaving] = useState(false);
-
     useEffect(() => {
-        rolesApi.list().then(setRoles).catch(() => {});
+        // Conductors get their own accounts screen (Fleet > Conductors).
+        rolesApi.list().then((list) => setRoles(list.filter((r) => r.key !== 'conductor'))).catch(() => {});
     }, []);
-
-    const openBuses = async (u) => {
-        setBusUser(u);
-        const [all, mine] = await Promise.all([
-            busesApi.list({ per_page: 200 }).then((r) => r.data),
-            conductorBuses.get(u.id),
-        ]);
-        setAllBuses(all);
-        setAssigned(mine.map((b) => b.id));
-    };
-    const toggleBus = (id) => setAssigned((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
-    const saveBuses = async () => {
-        setBusSaving(true);
-        try {
-            await conductorBuses.sync(busUser.id, assigned);
-            notifySuccess('Buses assigned.');
-            setBusUser(null);
-        } catch (err) {
-            notifyError(err);
-        } finally {
-            setBusSaving(false);
-        }
-    };
 
     const openNew = () => { setForm(BLANK); setEditing({}); };
     const openEdit = (u) => {
@@ -181,11 +153,6 @@ export default function CompanyUsers() {
                                                 <i className={`bi ${u.is_locked ? 'bi-unlock' : 'bi-lock'}`} />
                                             </button>
                                         )}
-                                        {u.access_role?.key === 'conductor' && can('accounts.edit') && (
-                                            <button className="btn btn-sm btn-outline-secondary me-1" title="Assigned buses" onClick={() => openBuses(u)}>
-                                                <i className="bi bi-bus-front" />
-                                            </button>
-                                        )}
                                         {can('permissions.view') && (
                                             <button className="btn btn-sm btn-outline-secondary me-1" title="Permissions" onClick={() => navigate(`/company/users/${u.id}/permissions`)}>
                                                 <i className="bi bi-shield-lock" />
@@ -281,37 +248,6 @@ export default function CompanyUsers() {
                         <i className="bi bi-shield-lock mx-1" />permissions screen.
                     </p>
                 </form>
-            </Modal>
-
-            {/* Conductor bus assignment */}
-            <Modal
-                open={!!busUser}
-                title={busUser ? `Assigned buses — ${busUser.name}` : ''}
-                onClose={() => setBusUser(null)}
-                footer={
-                    <>
-                        <button className="btn btn-light" onClick={() => setBusUser(null)}>Cancel</button>
-                        <button className="btn btn-primary" onClick={saveBuses} disabled={busSaving}>
-                            {busSaving && <span className="spinner-border spinner-border-sm me-2" />}Save
-                        </button>
-                    </>
-                }
-            >
-                <p className="small text-muted">The conductor can run trips on any bus ticked here.</p>
-                <div className="vstack gap-1">
-                    {allBuses.map((b) => (
-                        <label key={b.id} className="form-check">
-                            <input
-                                type="checkbox"
-                                className="form-check-input"
-                                checked={assigned.includes(b.id)}
-                                onChange={() => toggleBus(b.id)}
-                            />
-                            <span className="form-check-label">{b.bus_number} · {b.plate_number}</span>
-                        </label>
-                    ))}
-                    {allBuses.length === 0 && <span className="small text-muted">No buses yet — add some on the Buses page.</span>}
-                </div>
             </Modal>
         </>
     );

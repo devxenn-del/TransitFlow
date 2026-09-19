@@ -29,6 +29,9 @@ class UpdateDriverRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:150'],
             'license_number' => ['sometimes', 'nullable', 'string', 'max:50'],
             'contact_number' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'sex' => ['sometimes', 'nullable', Rule::in(['Male', 'Female'])],
+            'email' => ['sometimes', 'nullable', 'email', 'max:150'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', Rule::in(Driver::STATUSES)],
             'driver_code' => [
                 'sometimes', 'nullable', 'string', 'max:20',

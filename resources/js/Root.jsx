@@ -29,6 +29,7 @@ import FuelEnergy from './pages/company/FuelEnergy.jsx';
 import LiveMonitor from './pages/company/LiveMonitor.jsx';
 import ConductorTrip from './pages/conductor/ConductorTrip.jsx';
 import Drivers from './pages/company/Drivers.jsx';
+import Conductors from './pages/company/Conductors.jsx';
 import FareMatrixGrid from './pages/company/FareMatrixGrid.jsx';
 import Franchises from './pages/company/Franchises.jsx';
 import PassengerTypes from './pages/company/PassengerTypes.jsx';
@@ -120,6 +121,7 @@ export default function Root() {
                         {/* Fleet */}
                         <Route path="company/terminals" element={<ProtectedRoute permission="terminals.view"><Terminals /></ProtectedRoute>} />
                         <Route path="company/drivers" element={<ProtectedRoute permission="drivers.view"><Drivers /></ProtectedRoute>} />
+                        <Route path="company/conductors" element={<ProtectedRoute permission="conductors.view"><Conductors /></ProtectedRoute>} />
                         <Route path="company/passenger-types" element={<ProtectedRoute permission="passengertypes.view"><PassengerTypes /></ProtectedRoute>} />
                         <Route path="company/franchises" element={<ProtectedRoute permission="franchises.view"><Franchises /></ProtectedRoute>} />
                         <Route path="company/fare-matrix/:franchiseId" element={<ProtectedRoute permission="farematrix.view"><FareMatrixGrid /></ProtectedRoute>} />

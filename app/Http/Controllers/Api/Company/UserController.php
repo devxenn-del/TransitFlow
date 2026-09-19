@@ -32,6 +32,8 @@ class UserController extends Controller
 
         $users = User::query()
             ->with('accessRole')
+            // Conductors have their own dedicated Fleet > Conductors page.
+            ->whereDoesntHave('accessRole', fn ($q) => $q->where('key', 'conductor'))
             ->when($request->string('role')->isNotEmpty(), fn ($q) => $q->whereRelation('accessRole', 'key', $request->string('role')))
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->orderBy('name')

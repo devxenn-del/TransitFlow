@@ -7,6 +7,7 @@ use Database\Factories\DriverFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * A login-free driver record, chosen per trip. `employee_id` is generated
@@ -27,6 +28,9 @@ class Driver extends Model
         'name',
         'license_number',
         'contact_number',
+        'sex',
+        'email',
+        'address',
         'status',
         'driver_code',
     ];
@@ -62,7 +66,7 @@ class Driver extends Model
      * by DriverController::update() to backfill a code for a driver that
      * doesn't have one yet, not just on create.
      */
-    public static function generateCode(?int $companyId, \Illuminate\Support\Carbon $at): string
+    public static function generateCode(?int $companyId, Carbon $at): string
     {
         do {
             $code = sprintf('DR-%s-%s-%s', $at->format('ym'), self::randomCodeSegment(), self::randomCodeSegment());
