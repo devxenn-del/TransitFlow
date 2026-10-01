@@ -7,6 +7,7 @@ use Database\Factories\DriverFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -143,6 +144,30 @@ class Driver extends Model
     public function isActive(): bool
     {
         return $this->status === 'Active';
+    }
+
+    /**
+     * The bus this driver regularly drives, if any.
+     *
+     * @return HasOne<Bus, $this>
+     */
+    public function bus(): HasOne
+    {
+        return $this->hasOne(Bus::class);
+    }
+
+    /**
+     * Make `$busId` this driver's bus (null releases them from any bus).
+     */
+    public function assignBus(?int $busId): void
+    {
+        if ($busId === null) {
+            Bus::query()->where('driver_id', $this->id)->update(['driver_id' => null]);
+
+            return;
+        }
+
+        Bus::query()->findOrFail($busId)->assignDriver($this->id);
     }
 
     /**

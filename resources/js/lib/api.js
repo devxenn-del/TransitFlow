@@ -36,6 +36,12 @@ export const companies = {
     setPermissions: (id, disabled) => api.put(`/super-admin/companies/${id}/permissions`, { disabled }).then((r) => r.data.data),
 };
 
+// The company workspace (`/companies/:id`): header details, overview counts
+// and recent activity. Super Admin: any company; others: their own only.
+export const companyWorkspace = {
+    get: (id) => api.get(`/companies/${id}`).then((r) => r.data),
+};
+
 // One mobile app, platform-wide — every company's conductors run the same
 // build, so only the Super Admin publishes it (version, force-update,
 // notes, APK). A company only ever reads this (see `mobileApp` below).
@@ -136,19 +142,19 @@ export const thermalPrinters = {
     assign: (id, userId) => api.put(`/company/thermal-printers/${id}/assign`, { user_id: userId }).then((r) => r.data.data),
 };
 
-export const adminAssignments = {
-    list: (params) => api.get('/company/admin-assignments', { params }).then((r) => r.data),
-    create: (payload) => api.post('/company/admin-assignments', payload).then((r) => r.data.data),
-    update: (id, payload) => api.put(`/company/admin-assignments/${id}`, payload).then((r) => r.data.data),
-    remove: (id) => api.delete(`/company/admin-assignments/${id}`),
-};
-
 export const terminals = {
     list: (params) => api.get('/company/terminals', { params }).then((r) => r.data),
     create: (payload) => api.post('/company/terminals', payload).then((r) => r.data.data),
     update: (id, payload) => api.put(`/company/terminals/${id}`, payload).then((r) => r.data.data),
     remove: (id) => api.delete(`/company/terminals/${id}`),
     routeStops: () => api.get('/company/route-stops').then((r) => r.data.data),
+};
+
+export const routes = {
+    list: (params) => api.get('/company/routes', { params }).then((r) => r.data),
+    create: (payload) => api.post('/company/routes', payload).then((r) => r.data.data),
+    update: (id, payload) => api.put(`/company/routes/${id}`, payload).then((r) => r.data.data),
+    remove: (id) => api.delete(`/company/routes/${id}`),
 };
 
 export const conductor = {
@@ -182,20 +188,6 @@ export const attendance = {
     close: (id, payload) => api.post(`/company/attendance/${id}/close`, payload).then((r) => r.data.data),
 };
 
-// Per bus/day/shift cash rollup — built from received remittances; a
-// manager may re-tally its denominations (void-PIN required).
-export const cashCounts = {
-    list: (params) => api.get('/company/cash-counts', { params }).then((r) => r.data),
-    get: (id) => api.get(`/company/cash-counts/${id}`).then((r) => r.data),
-    adjust: (id, payload) => api.post(`/company/cash-counts/${id}/adjust`, payload).then((r) => r.data.data),
-};
-
-export const expenses = {
-    list: (params) => api.get('/company/expenses', { params }).then((r) => r.data),
-    create: (payload) => api.post('/company/expenses', payload).then((r) => r.data.data),
-    void: (id, payload) => api.post(`/company/expenses/${id}/void`, payload).then((r) => r.data.data),
-};
-
 export const fuel = {
     list: (params) => api.get('/company/fuel', { params }).then((r) => r.data),
     create: (payload) => api.post('/company/fuel', payload).then((r) => r.data.data),
@@ -208,35 +200,10 @@ export const charging = {
     end: (id, payload) => api.post(`/company/charging/${id}/end`, payload).then((r) => r.data.data),
 };
 
-export const voidPin = {
-    status: () => api.get('/company/void-pin').then((r) => r.data),
-    set: (payload) => api.put('/company/void-pin', payload).then((r) => r.data),
-};
-
-export const voidSecurity = {
-    list: () => api.get('/company/void-security').then((r) => r.data.data),
-    attempts: (params) => api.get('/company/void-security/attempts', { params }).then((r) => r.data),
-    reset: (userId) => api.post(`/company/void-security/${userId}/reset`).then((r) => r.data),
-    unlock: (userId) => api.post(`/company/void-security/${userId}/unlock`).then((r) => r.data),
-};
-
-// The Remittance desk: Received (count cash) → Approved; manager-only void.
-export const remittances = {
-    list: (params) => api.get('/company/remittances', { params }).then((r) => r.data),
-    get: (tripId) => api.get(`/company/remittances/${tripId}`).then((r) => r.data),
-    lock: (tripId) => api.post(`/company/remittances/${tripId}/lock`).then((r) => r.data),
-    unlock: (tripId) => api.delete(`/company/remittances/${tripId}/lock`).then((r) => r.data),
-    receive: (tripId, denominations) => api.post(`/company/remittances/${tripId}/receive`, denominations).then((r) => r.data),
-    void: (tripId, payload) => api.post(`/company/remittances/${tripId}/void`, payload).then((r) => r.data),
-    approve: (tripId, payload) => api.post(`/company/remittances/${tripId}/approve`, payload ?? {}).then((r) => r.data.data),
-    flag: (tripId, flagged, note) => api.post(`/company/remittances/${tripId}/flag`, { flagged, note }).then((r) => r.data.data),
-};
-
 // Thermal receipt DTOs (BITS receipt/conductor/*.php) — rendered by
 // resources/js/pages/ReceiptView.jsx at `receipt_width_mm`.
 export const receipts = {
     conductorTrip: (tripId, kind) => api.get(`/conductor/trips/${tripId}/receipt/${kind}`).then((r) => r.data.data),
-    companyTrip: (tripId, kind) => api.get(`/company/remittances/${tripId}/receipt/${kind}`).then((r) => r.data.data),
     monitorTrip: (tripId, kind) => api.get(`/company/trip-monitor/${tripId}/receipt/${kind}`).then((r) => r.data.data),
     ticket: (ticketId, qty = 1) => api.get(`/conductor/tickets/${ticketId}/receipt`, { params: { qty } }).then((r) => r.data.data),
     dispatch: (dispatchId) => api.get(`/conductor/dispatches/${dispatchId}/receipt`).then((r) => r.data.data),
@@ -341,6 +308,42 @@ export const devices = {
     register: (payload) => api.post('/conductor/devices/register', payload).then((r) => r.data.data),
 };
 
+// Fee Management (Super Admin) — fee catalogue / standard pricing and assignments.
+export const fees = {
+    list: (params) => api.get('/super-admin/fees', { params }).then((r) => r.data),
+    get: (id) => api.get(`/super-admin/fees/${id}`).then((r) => r.data),
+    create: (payload) => api.post('/super-admin/fees', payload).then((r) => r.data.data),
+    update: (id, payload) => api.put(`/super-admin/fees/${id}`, payload).then((r) => r.data.data),
+    setStatus: (id, isActive) => api.patch(`/super-admin/fees/${id}/status`, { is_active: isActive }).then((r) => r.data.data),
+    remove: (id) => api.delete(`/super-admin/fees/${id}`),
+    setCompanies: (id, payload) => api.put(`/super-admin/fees/${id}/companies`, payload).then((r) => r.data.data),
+};
+
+// A company's pricing configuration + billing generation (Super Admin).
+export const companyPricing = {
+    get: (companyId) => api.get(`/super-admin/companies/${companyId}/pricing`).then((r) => r.data),
+    setPlan: (companyId, plan) => api.put(`/super-admin/companies/${companyId}/pricing`, { pricing_plan: plan }).then((r) => r.data),
+    // { billing_cycle_day?, next_billing_number? }
+    updateSettings: (companyId, payload) => api.put(`/super-admin/companies/${companyId}/pricing`, payload).then((r) => r.data),
+    createRate: (companyId, payload) => api.post(`/super-admin/companies/${companyId}/special-rates`, payload).then((r) => r.data.data),
+    updateRate: (companyId, id, payload) => api.put(`/super-admin/companies/${companyId}/special-rates/${id}`, payload).then((r) => r.data.data),
+    removeRate: (companyId, id) => api.delete(`/super-admin/companies/${companyId}/special-rates/${id}`),
+    // { data: statement, email: { sent, to, error } }
+    generateStatement: (companyId, period) => api.post(`/super-admin/companies/${companyId}/billing-statements`, { period }).then((r) => r.data),
+    recalculateStatement: (companyId, id) => api.post(`/super-admin/companies/${companyId}/billing-statements/${id}/recalculate`).then((r) => r.data.data),
+    emailStatement: (companyId, id) => api.post(`/super-admin/companies/${companyId}/billing-statements/${id}/email`).then((r) => r.data),
+    // { data: statement, email: { sent, to, error } | null } — email is set when marking paid sent a confirmation.
+    // amountReceived (paid only): what the company paid — any excess / shortage goes to the next bill.
+    setStatementStatus: (companyId, id, status, amountReceived = null) => api.patch(`/super-admin/companies/${companyId}/billing-statements/${id}/status`, { status, amount_received: amountReceived }).then((r) => r.data),
+};
+
+// Billing & Fees — the current company's own fees and statements (read-only).
+export const companyBilling = {
+    fees: () => api.get('/company/billing/fees').then((r) => r.data.data),
+    statements: (params) => api.get('/company/billing/statements', { params }).then((r) => r.data),
+    statement: (id) => api.get(`/company/billing/statements/${id}`).then((r) => r.data.data),
+};
+
 export const auditLog = {
     list: (params) => api.get('/company/audit-log', { params }).then((r) => r.data),
     platform: (params) => api.get('/super-admin/audit-log', { params }).then((r) => r.data),
@@ -363,10 +366,9 @@ export const mobileApp = {
 };
 
 /**
- * Reports & Analytics. `key` is one of income | trip-income | daily-operations
- * | expenses | cash-count | fuel-energy. `params` carries the report filters
- * (period/date/from/to/bus_id/type). `download(key, 'pdf'|'xlsx', params)`
- * streams the export.
+ * Reports & Analytics. `key` is one of income | trip-income | fuel-energy.
+ * `params` carries the report filters (period/date/from/to/bus_id/type).
+ * `download(key, 'pdf'|'xlsx', params)` streams the export.
  */
 export const reports = {
     get: (key, params) => api.get(`/company/reports/${key}`, { params }).then((r) => r.data.data),
@@ -376,3 +378,39 @@ export const reports = {
             `${key}.${format}`,
         ),
 };
+
+/** The company document library. `update` is multipart POST so a replacement file can ride along. */
+export const companyDocuments = {
+    list: (params) => api.get('/company/documents', { params }).then((r) => r.data),
+    summary: () => api.get('/company/documents/summary').then((r) => r.data.data),
+    setImportant: (id, isImportant) => api.patch(`/company/documents/${id}/important`, { is_important: isImportant }).then((r) => r.data.data),
+    create: (payload) => api.post('/company/documents', toFormData(payload)).then((r) => r.data.data),
+    update: (id, payload) => api.post(`/company/documents/${id}`, toFormData(payload)).then((r) => r.data.data),
+    remove: (id) => api.delete(`/company/documents/${id}`),
+    download: (doc) => downloadBlob(api.get(`/company/documents/${doc.id}/download`, { responseType: 'blob' }), doc.original_name),
+    // Opens PDFs / images in a new tab (the file is private, so it's fetched with auth first).
+    preview: async (doc) => {
+        const tab = window.open('', '_blank');
+        const res = await api.get(`/company/documents/${doc.id}/download`, { params: { inline: 1 }, responseType: 'blob' });
+        const url = URL.createObjectURL(res.data);
+        if (tab) tab.location.href = url;
+        else window.location.href = url;
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    },
+};
+
+/** Every ticket the company has issued, across trips. */
+export const companyTickets = {
+    list: (params) => api.get('/company/tickets', { params }).then((r) => r.data),
+};
+
+/** Builds multipart form data: undefined is skipped, null clears a field, booleans become 1/0. */
+function toFormData(payload) {
+    const fd = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined) return;
+        if (typeof value === 'boolean') fd.append(key, value ? '1' : '0');
+        else fd.append(key, value === null ? '' : value);
+    });
+    return fd;
+}

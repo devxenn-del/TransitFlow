@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthContext.jsx';
 import Modal from '../../components/Modal.jsx';
@@ -10,11 +11,37 @@ import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const STATUSES = ['active', 'inactive', 'suspended'];
+const fmtDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
+
+/** One count in a company row — muted when zero. */
+function Count({ icon, value, label }) {
+    return (
+        <span className={`tf-company-count${value ? '' : ' is-zero'}`} title={label}>
+            <i className={`bi ${icon}`} />{value ?? 0}
+            <span className="visually-hidden"> {label}</span>
+        </span>
+    );
+}
 const BLANK = { name: '', code: '', email: '', phone: '', address_city: '', address_province: '', can_create_accounts: true };
 
 export default function Companies() {
     const { can } = useAuth();
-    const { rows, meta, loading, page, setPage, reload } = useList(companies.list);
+    const navigate = useNavigate();
+    const [search, setSearch] = useState('');
+    const [q, setQ] = useState('');
+    const [status, setStatus] = useState('');
+    const { rows, meta, loading, page, setPage, reload } = useList(
+        (params) => companies.list({ ...params, q: q || undefined, status: status || undefined }),
+        { deps: [q, status] },
+    );
+
+    // Debounce the search box; a new filter always starts from page 1.
+    useEffect(() => {
+        const t = setTimeout(() => { setQ(search.trim()); setPage(1); }, 300);
+        return () => clearTimeout(t);
+    }, [search, setPage]);
+
+    const open = (c) => navigate(`/companies/${c.id}`);
     const [editing, setEditing] = useState(null); // null | {} (new) | company (edit)
     const [form, setForm] = useState(BLANK);
     const [withAdmin, setWithAdmin] = useState(true);
@@ -123,7 +150,7 @@ export default function Companies() {
         <>
             <PageHeader
                 title="Companies"
-                subtitle="Every transport company on the platform"
+                subtitle="Every transport company on the platform. Open one to manage its users, fleet, documents and operations."
                 actions={can('companies.create') && (
                     <button className="btn btn-primary" onClick={openNew}>
                         <i className="bi bi-plus-lg me-1" /> New company
@@ -131,17 +158,34 @@ export default function Companies() {
                 )}
             />
 
+            <div className="d-flex flex-wrap gap-2 mb-3">
+                <div className="input-group flex-grow-1" style={{ maxWidth: 420 }}>
+                    <span className="input-group-text bg-body"><i className="bi bi-search" /></span>
+                    <input
+                        className="form-control"
+                        placeholder="Search by company name or code"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+                <select className="form-select w-auto" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+                    <option value="">All statuses</option>
+                    {STATUSES.map((st) => <option key={st} value={st}>{st[0].toUpperCase() + st.slice(1)}</option>)}
+                </select>
+                {meta && <span className="align-self-center small text-body-secondary ms-auto">{meta.total} {meta.total === 1 ? 'company' : 'companies'}</span>}
+            </div>
+
             <div className="card border-0 shadow-sm">
                 <div className="table-responsive">
                     <table className="table table-hover align-middle mb-0">
                         <thead className="table-light">
                             <tr>
-                                <th>Name</th>
-                                <th>Code</th>
-                                <th>Contact</th>
-                                <th>Users</th>
+                                <th>Company</th>
                                 <th>Status</th>
-                                <th className="text-end">Actions</th>
+                                <th>Contact</th>
+                                <th>Users · Drivers · Conductors · Buses</th>
+                                <th>Created</th>
+                                <th className="text-end"><span className="visually-hidden">Actions</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -154,56 +198,77 @@ export default function Companies() {
                             )}
                             {!loading && rows.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-4 text-body-secondary">No companies yet.</td>
+                                    <td colSpan={6} className="tf-empty">
+                                        <i className="bi bi-buildings d-block fs-3 mb-2" />
+                                        {q || status ? 'No companies match these filters.' : 'No companies yet.'}
+                                    </td>
                                 </tr>
                             )}
-                            {rows.map((c) => (
-                                <tr key={c.id}>
-                                    <td className="fw-semibold">{c.name}</td>
-                                    <td><code>{c.code}</code></td>
-                                    <td className="small">
-                                        {c.email || <span className="text-body-secondary">—</span>}
-                                        {c.phone && <div className="text-body-secondary">{c.phone}</div>}
-                                    </td>
+                            {!loading && rows.map((c) => (
+                                <tr
+                                    key={c.id}
+                                    className="tf-row-link"
+                                    tabIndex={0}
+                                    role="link"
+                                    aria-label={`Open ${c.name}`}
+                                    onClick={() => open(c)}
+                                    onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && open(c)}
+                                >
                                     <td>
-                                        {c.users_count ?? '—'}
+                                        <div className="fw-semibold">{c.name}</div>
+                                        <code className="small">{c.code}</code>
                                         {c.can_create_accounts === false && (
                                             <i className="bi bi-person-fill-lock text-warning ms-2" title="This company cannot create its own accounts" />
                                         )}
                                     </td>
                                     <td><StatusBadge value={c.status} /></td>
-                                    <td className="text-end text-nowrap">
-                                        {can('companies.edit') && (
-                                            <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => openEdit(c)}>
-                                                <i className="bi bi-pencil" />
-                                            </button>
-                                        )}
-                                        {can('companies.edit') && (
-                                            <button className="btn btn-sm btn-outline-secondary me-1" title="Feature access" onClick={() => openPerms(c)}>
-                                                <i className="bi bi-toggles" />
-                                            </button>
-                                        )}
-                                        {can('companies.status') && (
-                                            <div className="btn-group btn-group-sm me-1">
-                                                <button className="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                                                    Status
+                                    <td className="small">
+                                        {c.email || <span className="text-body-secondary">—</span>}
+                                        {c.phone && <div className="text-body-secondary">{c.phone}</div>}
+                                    </td>
+                                    <td className="text-nowrap">
+                                        <Count icon="bi-people" value={c.users_count} label="users" />
+                                        <Count icon="bi-person-badge" value={c.drivers_count} label="drivers" />
+                                        <Count icon="bi-person-vcard" value={c.conductors_count} label="conductors" />
+                                        <Count icon="bi-bus-front" value={c.buses_count} label="buses" />
+                                    </td>
+                                    <td className="small text-nowrap">{fmtDate(c.created_at)}</td>
+                                    <td className="text-end text-nowrap" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                                        {(can('companies.edit') || can('companies.status') || can('companies.delete')) && (
+                                            <div className="dropdown d-inline-block">
+                                                <button className="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-label={`Actions for ${c.name}`}>
+                                                    <i className="bi bi-three-dots" />
                                                 </button>
                                                 <ul className="dropdown-menu dropdown-menu-end">
-                                                    {STATUSES.map((s) => (
-                                                        <li key={s}>
-                                                            <button className="dropdown-item text-capitalize" disabled={s === c.status} onClick={() => changeStatus(c, s)}>
-                                                                {s}
-                                                            </button>
-                                                        </li>
-                                                    ))}
+                                                    {can('companies.edit') && (
+                                                        <li><button className="dropdown-item" onClick={() => openEdit(c)}><i className="bi bi-pencil me-2" />Edit details</button></li>
+                                                    )}
+                                                    {can('companies.edit') && (
+                                                        <li><button className="dropdown-item" onClick={() => openPerms(c)}><i className="bi bi-toggles me-2" />Feature access</button></li>
+                                                    )}
+                                                    {can('companies.status') && (
+                                                        <>
+                                                            <li><hr className="dropdown-divider" /></li>
+                                                            <li><h6 className="dropdown-header">Set status</h6></li>
+                                                            {STATUSES.map((st) => (
+                                                                <li key={st}>
+                                                                    <button className="dropdown-item text-capitalize" disabled={st === c.status} onClick={() => changeStatus(c, st)}>
+                                                                        {st === c.status && <i className="bi bi-check2 me-2" />}{st}
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+                                                        </>
+                                                    )}
+                                                    {can('companies.delete') && (
+                                                        <>
+                                                            <li><hr className="dropdown-divider" /></li>
+                                                            <li><button className="dropdown-item text-danger" onClick={() => remove(c)}><i className="bi bi-trash me-2" />Delete company</button></li>
+                                                        </>
+                                                    )}
                                                 </ul>
                                             </div>
                                         )}
-                                        {can('companies.delete') && (
-                                            <button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)}>
-                                                <i className="bi bi-trash" />
-                                            </button>
-                                        )}
+                                        <i className="bi bi-chevron-right text-body-tertiary ms-2" />
                                     </td>
                                 </tr>
                             ))}

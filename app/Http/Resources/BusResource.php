@@ -25,6 +25,15 @@ class BusResource extends JsonResource
             'model' => $this->model,
             'vehicle_type' => $this->vehicle_type,
             'status' => $this->status,
+            'driver_id' => $this->driver_id,
+            'driver' => $this->whenLoaded('driver', fn () => $this->driver ? [
+                'id' => $this->driver->id,
+                'name' => $this->driver->name,
+            ] : null),
+            'conductors' => $this->whenLoaded('conductors', fn () => $this->conductors->map(fn ($conductor) => [
+                'id' => $conductor->id,
+                'name' => $conductor->name,
+            ])->values()),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

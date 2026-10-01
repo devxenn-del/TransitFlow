@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Company;
 
+use App\Support\CompanyContext;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -17,7 +18,7 @@ class UpdateCompanySettingsRequest extends FormRequest
         $user = $this->user();
 
         return $user !== null
-            && $user->company !== null
+            && app(CompanyContext::class)->hasCompany()
             && $user->hasPermissionTo('company.settings.manage');
     }
 

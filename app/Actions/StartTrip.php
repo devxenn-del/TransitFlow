@@ -3,7 +3,6 @@
 namespace App\Actions;
 
 use App\Models\Attendance;
-use App\Models\CashCount;
 use App\Models\Driver;
 use App\Models\Route;
 use App\Models\Terminal;
@@ -111,7 +110,7 @@ class StartTrip
             'trip_type' => $input['trip_type'] ?? 'Regular',
             'at_terminal' => $input['at_terminal'] ?? true,
             'op_date' => $now->toDateString(),
-            'shift' => CashCount::shiftForHour($now->hour),
+            'shift' => Trip::shiftForHour($now->hour),
             'status' => $terminal->skipsTerminalBoarding() ? 'OnTrip' : 'Departure',
             'started_at' => $now,
             'marked_on_trip_at' => $terminal->skipsTerminalBoarding() ? $now : null,

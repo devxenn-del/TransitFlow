@@ -3,8 +3,9 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 
 /**
- * Gate for authenticated routes. Optionally requires a permission key (or
- * `superAdmin` / `companyAdmin`) — otherwise renders a 403 panel.
+ * Gate for authenticated routes. Optionally requires a permission key — or
+ * an array of keys, any one of which is enough — or `superAdmin` /
+ * `companyAdmin`; otherwise renders a 403 panel.
  */
 export default function ProtectedRoute({ children, permission, superAdmin, companyAdmin }) {
     const { isAuthenticated, loading, can, isSuperAdmin, isCompanyAdmin } = useAuth();
@@ -25,7 +26,7 @@ export default function ProtectedRoute({ children, permission, superAdmin, compa
     const denied =
         (superAdmin && !isSuperAdmin) ||
         (companyAdmin && !isCompanyAdmin && !isSuperAdmin) ||
-        (permission && !can(permission));
+        (permission && ![].concat(permission).some((key) => can(key)));
 
     if (denied) {
         return (

@@ -5,33 +5,31 @@ namespace App\Http\Controllers\Api\Shared;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RoleResource;
 use App\Models\Role;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
- * Read-only list of roles, for the "assign role" pickers. A Super Admin
- * sees the platform templates; a company user sees their own company's
- * roles (falling back to the shared templates if none exist yet).
+ * Read-only list of roles, for the "assign role" pickers. A Super Admin on
+ * the platform sees the platform templates; inside a company (a company
+ * user, or a Super Admin scoped into one) it's that company's roles
+ * (falling back to the shared templates if none exist yet).
  */
 class RoleController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request, CompanyContext $context): AnonymousResourceCollection
     {
-        $user = $request->user();
-
         $query = Role::query()->with('permissions')->orderBy('sort_order');
 
-        if ($user->isSuperAdmin()) {
-            $query->templates();
-        } else {
-            $companyRoles = (clone $query)->forCompany($user->company_id)->get();
-            $roles = $companyRoles->isNotEmpty()
-                ? $companyRoles
-                : $query->templates()->where('is_platform', false)->get();
-
-            return RoleResource::collection($roles);
+        if (! $context->hasCompany()) {
+            return RoleResource::collection($query->templates()->get());
         }
 
-        return RoleResource::collection($query->get());
+        $companyRoles = (clone $query)->forCompany($context->companyId())->get();
+        $roles = $companyRoles->isNotEmpty()
+            ? $companyRoles
+            : $query->templates()->where('is_platform', false)->get();
+
+        return RoleResource::collection($roles);
     }
 }

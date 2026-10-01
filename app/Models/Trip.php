@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -117,6 +116,12 @@ class Trip extends Model
         return $reference;
     }
 
+    /** Morning/Evening split for the `shift` column, keyed off the hour a trip starts. */
+    public static function shiftForHour(int $hour): string
+    {
+        return $hour >= 17 ? 'Evening' : 'Morning';
+    }
+
     /**
      * @return BelongsTo<User, $this>
      */
@@ -163,17 +168,6 @@ class Trip extends Model
     public function dispatches(): HasMany
     {
         return $this->hasMany(Dispatch::class);
-    }
-
-    /**
-     * The latest denomination count for this trip's remittance (there can
-     * be an earlier Voided one after a re-receive).
-     *
-     * @return HasOne<RemittanceCashCount, $this>
-     */
-    public function remittanceCashCount(): HasOne
-    {
-        return $this->hasOne(RemittanceCashCount::class)->latestOfMany();
     }
 
     /**

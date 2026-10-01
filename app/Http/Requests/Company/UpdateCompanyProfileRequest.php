@@ -2,24 +2,26 @@
 
 namespace App\Http\Requests\Company;
 
+use App\Support\CompanyContext;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * A Company Admin editing their own company's profile. The company being
- * edited is always the authenticated user's — never taken from the request
- * — so there is no id to validate or authorize against here beyond "is a
- * company admin with an active company".
+ * Editing the bound company's profile (App\Support\CompanyContext): a
+ * Company Admin's own company, or the one a Super Admin has scoped into. The
+ * company is never taken from the request body.
  */
 class UpdateCompanyProfileRequest extends FormRequest
 {
     public function authorize(): bool
     {
         $user = $this->user();
+        $company = app(CompanyContext::class)->company();
 
+        // CompanyPolicy::update — a Company Admin of this company, or the
+        // Super Admin (Gate::before) scoped into it.
         return $user !== null
-            && $user->isCompanyAdmin()
-            && $user->company !== null
-            && $user->can('update', $user->company);
+            && $company !== null
+            && $user->can('update', $company);
     }
 
     /**

@@ -44,7 +44,7 @@ class UserResource extends JsonResource
             'sex' => $this->sex,
             'role' => $this->role->value,
             'must_change_password' => (bool) $this->must_change_password,
-            'has_void_pin' => $this->hasVoidPin(),
+            'last_login_at' => $this->last_login_at,
             'has_pin' => $this->hasPin(),
             'is_locked' => AccountLock::isLocked($this->resource),
             'lock_type' => $this->lock_type,
@@ -73,6 +73,12 @@ class UserResource extends JsonResource
                 'color_accent_dark' => $this->company->relationLoaded('settings') ? $this->company->settings?->color_accent_dark : null,
             ] : null),
             'company_id' => $this->company_id,
+            // Conductor accounts: the buses they may run trips on.
+            'buses' => $this->whenLoaded('buses', fn () => $this->buses->map(fn ($bus) => [
+                'id' => $bus->id,
+                'bus_number' => $bus->bus_number,
+                'plate_number' => $bus->plate_number,
+            ])->values()),
             // The caller's own permission keys, or when explicitly asked for.
             'permissions' => $this->when(
                 $this->forceIncludePermissions || $this->isSelf($request) || $request->boolean('with_permissions'),

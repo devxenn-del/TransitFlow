@@ -19,6 +19,12 @@ class TicketResource extends JsonResource
         return [
             'id' => $this->id,
             'trip_id' => $this->trip_id,
+            'trip' => $this->whenLoaded('trip', fn () => $this->trip ? [
+                'id' => $this->trip->id,
+                'reference' => $this->trip->reference,
+                'bus_number' => $this->trip->bus_number,
+                'conductor' => $this->trip->relationLoaded('conductor') ? $this->trip->conductor?->name : null,
+            ] : null),
             'ticket_group_id' => $this->ticket_group_id,
             'route_id' => $this->route_id,
             'route' => $this->whenLoaded('route', fn () => $this->route ? [

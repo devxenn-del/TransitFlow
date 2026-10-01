@@ -37,10 +37,29 @@ const api = axios.create({
     },
 });
 
+/**
+ * The company workspace currently open (`/companies/:id`), or null. Sent as
+ * `X-Company-Id` so the shared `company/*` endpoints act on that company:
+ * a Super Admin scopes into it; for anyone else the server refuses (403) any
+ * company but their own. Set by CompanyWorkspace, cleared when it unmounts.
+ */
+let companyScope = null;
+
+export function setCompanyScope(companyId) {
+    companyScope = companyId ? String(companyId) : null;
+}
+
+export function getCompanyScope() {
+    return companyScope;
+}
+
 api.interceptors.request.use((config) => {
     const token = getToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (companyScope && config.headers['X-Company-Id'] === undefined) {
+        config.headers['X-Company-Id'] = companyScope;
     }
     return config;
 });

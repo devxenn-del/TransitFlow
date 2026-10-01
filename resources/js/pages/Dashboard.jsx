@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext.jsx';
+import AccessSummary from '../components/AccessSummary.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { companies, dashboard } from '../lib/api.js';
 
@@ -179,28 +180,7 @@ export default function Dashboard() {
                 </div>
             )}
 
-            <div className="card">
-                <div className="card-body">
-                    <h2 className="h6 text-uppercase tf-eyebrow" style={{ color: 'var(--tf-muted)' }}>
-                        Your access
-                    </h2>
-                    <p className="small text-muted mb-2">
-                        <span className="badge tf-badge-active text-capitalize me-1">{user?.role?.replace(/_/g, ' ')}</span>
-                        {user?.access_role && <>· {user.access_role.name}</>}
-                    </p>
-                    <div className="d-flex flex-wrap gap-1">
-                        {isSuperAdmin ? (
-                            <span className="badge tf-badge-active">Full platform access</span>
-                        ) : (
-                            (user?.permissions ?? []).map((p) => (
-                                <code key={p} className="badge border bg-body-tertiary text-body">
-                                    {p}
-                                </code>
-                            ))
-                        )}
-                    </div>
-                </div>
-            </div>
+            <AccessSummary user={user} isSuperAdmin={isSuperAdmin} />
         </>
     );
 }

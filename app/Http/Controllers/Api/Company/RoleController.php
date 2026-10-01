@@ -11,6 +11,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\CompanyContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,8 +28,8 @@ class RoleController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $company = $request->user()->company;
-        $companyId = $request->user()->company_id;
+        $company = app(CompanyContext::class)->company();
+        $companyId = app(CompanyContext::class)->companyId();
         $disabled = $company?->disabledPermissionKeys() ?? collect();
 
         $roles = Role::query()
@@ -57,7 +58,7 @@ class RoleController extends Controller
 
     public function store(StoreRoleRequest $request): JsonResponse
     {
-        $companyId = $request->user()->company_id;
+        $companyId = app(CompanyContext::class)->companyId();
 
         $role = DB::transaction(function () use ($request, $companyId) {
             $role = Role::query()->create([
@@ -133,7 +134,7 @@ class RoleController extends Controller
 
     private function authorizeCompany(Request $request, Role $role): void
     {
-        abort_unless($role->company_id === $request->user()->company_id, 404);
+        abort_unless($role->company_id === app(CompanyContext::class)->companyId(), 404);
     }
 
     private function uniqueKey(int $companyId, string $name): string

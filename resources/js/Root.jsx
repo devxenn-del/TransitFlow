@@ -13,10 +13,8 @@ import NotFound from './pages/NotFound.jsx';
 import ReceiptView from './pages/ReceiptView.jsx';
 import LegalDocumentPage from './pages/public/LegalDocumentPage.jsx';
 import Attendance from './pages/company/Attendance.jsx';
-import AdminAssignments from './pages/company/AdminAssignments.jsx';
 import Buses from './pages/company/Buses.jsx';
 import ThermalPrinters from './pages/company/ThermalPrinters.jsx';
-import CashCounts from './pages/company/CashCounts.jsx';
 import CompanyProfile from './pages/company/CompanyProfile.jsx';
 import CompanySettings from './pages/company/CompanySettings.jsx';
 import Devices from './pages/company/Devices.jsx';
@@ -24,7 +22,6 @@ import MobileApp from './pages/company/MobileApp.jsx';
 import CompanyUsers from './pages/company/CompanyUsers.jsx';
 import DataTools from './pages/company/DataTools.jsx';
 import AuditLog from './pages/company/AuditLog.jsx';
-import Expenses from './pages/company/Expenses.jsx';
 import FuelEnergy from './pages/company/FuelEnergy.jsx';
 import LiveMonitor from './pages/company/LiveMonitor.jsx';
 import ConductorTrip from './pages/conductor/ConductorTrip.jsx';
@@ -33,22 +30,69 @@ import Conductors from './pages/company/Conductors.jsx';
 import FareMatrixGrid from './pages/company/FareMatrixGrid.jsx';
 import Franchises from './pages/company/Franchises.jsx';
 import PassengerTypes from './pages/company/PassengerTypes.jsx';
-import Remittances from './pages/company/Remittances.jsx';
-import CashCountReport from './pages/company/reports/CashCountReport.jsx';
-import DailyOperations from './pages/company/reports/DailyOperations.jsx';
-import ExpenseReport from './pages/company/reports/ExpenseReport.jsx';
 import FuelEnergyReport from './pages/company/reports/FuelEnergyReport.jsx';
 import IncomeMonitoring from './pages/company/reports/IncomeMonitoring.jsx';
 import Roles from './pages/company/Roles.jsx';
+import RoutesPage from './pages/company/Routes.jsx';
 import Terminals from './pages/company/Terminals.jsx';
 import TripMonitor from './pages/company/TripMonitor.jsx';
 import UserPermissions from './pages/company/UserPermissions.jsx';
-import VoidSecurity from './pages/company/VoidSecurity.jsx';
 import Companies from './pages/superadmin/Companies.jsx';
+import CompanyOverview from './pages/companies/CompanyOverview.jsx';
+import CompanyWorkspace from './pages/companies/CompanyWorkspace.jsx';
+import CompanyDocuments from './pages/company/CompanyDocuments.jsx';
+import Billing from './pages/company/Billing.jsx';
+import PricingConfiguration from './pages/company/PricingConfiguration.jsx';
+import Fees from './pages/superadmin/Fees.jsx';
+import CompanyTickets from './pages/company/CompanyTickets.jsx';
+import UserDetails from './pages/company/UserDetails.jsx';
 import LegalDocuments from './pages/superadmin/LegalDocuments.jsx';
 import SuperAdminMobileApp from './pages/superadmin/MobileApp.jsx';
 import PlatformUsers from './pages/superadmin/PlatformUsers.jsx';
 import SystemConfiguration from './pages/superadmin/SystemConfiguration.jsx';
+
+/**
+ * Every company module page as `[path, permission(s), element]` — rendered
+ * under both `/company` and `/companies/:companyId` (see companyRoutes()).
+ * Keep in step with lib/companyModules.js, which drives the navigation.
+ */
+const COMPANY_PAGES = [
+    ['live', 'tracking.view', <LiveMonitor />],
+    ['trip-monitor', 'tripmonitoring.view', <TripMonitor />],
+    ['tickets', 'tripmonitoring.view', <CompanyTickets />],
+    ['attendance', 'attendance.view', <Attendance />],
+    ['fuel', 'fuel.view', <FuelEnergy />],
+    ['buses', 'buses.view', <Buses />],
+    ['drivers', 'drivers.view', <Drivers />],
+    ['conductors', 'conductors.view', <Conductors />],
+    ['terminals', 'terminals.view', <Terminals />],
+    ['thermal-printers', 'thermalprinters.view', <ThermalPrinters />],
+    ['franchises', 'franchises.view', <Franchises />],
+    ['fare-matrix/:franchiseId', 'farematrix.view', <FareMatrixGrid />],
+    ['routes', 'routes.view', <RoutesPage />],
+    ['passenger-types', 'passengertypes.view', <PassengerTypes />],
+    ['reports/income', 'reports.view', <IncomeMonitoring />],
+    ['reports/fuel-energy', 'fuelenergyreport.view', <FuelEnergyReport />],
+    ['audit-log', 'audit.view', <AuditLog />],
+    ['users', 'accounts.view', <CompanyUsers />],
+    ['users/:userId', 'accounts.view', <UserDetails />],
+    ['users/:id/permissions', 'permissions.view', <UserPermissions />],
+    ['roles', 'roles.view', <Roles />],
+    ['profile', 'company.profile.view', <CompanyProfile />],
+    ['documents', 'documents.view', <CompanyDocuments />],
+    ['billing', 'billing.view', <Billing />],
+    ['pricing', 'fees.view', <PricingConfiguration />],
+    ['settings', ['company.settings.view', 'company.settings.manage'], <CompanySettings />],
+    ['devices', 'devices.view', <Devices />],
+    ['mobile-app', 'mobileapp.view', <MobileApp />],
+    ['data-tools', ['backup.view', 'backup.download', 'cleandata.run'], <DataTools />],
+];
+
+function companyRoutes() {
+    return COMPANY_PAGES.map(([path, permission, element]) => (
+        <Route key={path} path={path} element={<ProtectedRoute permission={permission}>{element}</ProtectedRoute>} />
+    ));
+}
 
 /**
  * Blocks the whole app behind a forced password change for a brand-new
@@ -97,49 +141,30 @@ export default function Root() {
 
                         {/* Conductor */}
                         <Route path="conductor/trips" element={<ProtectedRoute permission="trips.view"><ConductorTrip /></ProtectedRoute>} />
-                        <Route path="company/live" element={<ProtectedRoute permission="tracking.view"><LiveMonitor /></ProtectedRoute>} />
-                        <Route path="company/trip-monitor" element={<ProtectedRoute permission="tripmonitoring.view"><TripMonitor /></ProtectedRoute>} />
-                        <Route path="company/attendance" element={<ProtectedRoute permission="attendance.view"><Attendance /></ProtectedRoute>} />
-                        <Route path="company/cash-counts" element={<ProtectedRoute permission="cashcount.view"><CashCounts /></ProtectedRoute>} />
-                        <Route path="company/expenses" element={<ProtectedRoute permission="expenses.view"><Expenses /></ProtectedRoute>} />
-                        <Route path="company/fuel" element={<ProtectedRoute permission="fuel.view"><FuelEnergy /></ProtectedRoute>} />
-                        <Route path="company/remittances" element={<ProtectedRoute permission="remittances.view"><Remittances /></ProtectedRoute>} />
-
-                        <Route path="company/reports/income" element={<ProtectedRoute permission="reports.view"><IncomeMonitoring /></ProtectedRoute>} />
-                        <Route path="company/reports/daily-operations" element={<ProtectedRoute permission="dailyops.view"><DailyOperations /></ProtectedRoute>} />
-                        <Route path="company/reports/expenses" element={<ProtectedRoute permission="expensereport.view"><ExpenseReport /></ProtectedRoute>} />
-                        <Route path="company/reports/cash-count" element={<ProtectedRoute permission="cashcountreport.view"><CashCountReport /></ProtectedRoute>} />
-                        <Route path="company/reports/fuel-energy" element={<ProtectedRoute permission="fuelenergyreport.view"><FuelEnergyReport /></ProtectedRoute>} />
 
                         {/* Platform (Super Admin) */}
                         <Route path="companies" element={<ProtectedRoute permission="companies.view"><Companies /></ProtectedRoute>} />
+                        <Route path="super-admin/fees" element={<ProtectedRoute permission="fees.view"><Fees /></ProtectedRoute>} />
                         <Route path="platform-users" element={<ProtectedRoute permission="platform.users.view"><PlatformUsers /></ProtectedRoute>} />
                         <Route path="super-admin/system-configuration" element={<ProtectedRoute permission="system.configuration.view"><SystemConfiguration /></ProtectedRoute>} />
                         <Route path="super-admin/legal-documents" element={<ProtectedRoute permission="legal.view"><LegalDocuments /></ProtectedRoute>} />
                         <Route path="super-admin/mobile-app" element={<ProtectedRoute permission="mobileapp.manage"><SuperAdminMobileApp /></ProtectedRoute>} />
 
-                        {/* Fleet */}
-                        <Route path="company/terminals" element={<ProtectedRoute permission="terminals.view"><Terminals /></ProtectedRoute>} />
-                        <Route path="company/drivers" element={<ProtectedRoute permission="drivers.view"><Drivers /></ProtectedRoute>} />
-                        <Route path="company/conductors" element={<ProtectedRoute permission="conductors.view"><Conductors /></ProtectedRoute>} />
-                        <Route path="company/passenger-types" element={<ProtectedRoute permission="passengertypes.view"><PassengerTypes /></ProtectedRoute>} />
-                        <Route path="company/franchises" element={<ProtectedRoute permission="franchises.view"><Franchises /></ProtectedRoute>} />
-                        <Route path="company/fare-matrix/:franchiseId" element={<ProtectedRoute permission="farematrix.view"><FareMatrixGrid /></ProtectedRoute>} />
-                        <Route path="company/buses" element={<ProtectedRoute permission="buses.view"><Buses /></ProtectedRoute>} />
-                        <Route path="company/thermal-printers" element={<ProtectedRoute permission="thermalprinters.view"><ThermalPrinters /></ProtectedRoute>} />
-                        <Route path="company/admin-assignments" element={<ProtectedRoute permission="adminassignments.view"><AdminAssignments /></ProtectedRoute>} />
+                        {/* A company user's own company: /company/<module> */}
+                        <Route path="company">{companyRoutes()}</Route>
 
-                        {/* Company */}
-                        <Route path="company/profile" element={<ProtectedRoute permission="company.profile.view"><CompanyProfile /></ProtectedRoute>} />
-                        <Route path="company/settings" element={<ProtectedRoute permission="company.settings.view"><CompanySettings /></ProtectedRoute>} />
-                        <Route path="company/devices" element={<ProtectedRoute permission="devices.view"><Devices /></ProtectedRoute>} />
-                        <Route path="company/mobile-app" element={<ProtectedRoute permission="mobileapp.view"><MobileApp /></ProtectedRoute>} />
-                        <Route path="company/data-tools" element={<ProtectedRoute permission="backup.view"><DataTools /></ProtectedRoute>} />
-                        <Route path="company/audit-log" element={<ProtectedRoute permission="audit.view"><AuditLog /></ProtectedRoute>} />
-                        <Route path="company/users" element={<ProtectedRoute permission="accounts.view"><CompanyUsers /></ProtectedRoute>} />
-                        <Route path="company/users/:id/permissions" element={<ProtectedRoute permission="permissions.view"><UserPermissions /></ProtectedRoute>} />
-                        <Route path="company/roles" element={<ProtectedRoute permission="roles.view"><Roles /></ProtectedRoute>} />
-                        <Route path="company/void-security" element={<ProtectedRoute permission="voidsecurity.view"><VoidSecurity /></ProtectedRoute>} />
+                        {/* Company workspace — the selected company as the container for its modules.
+                            Super Admin: any company; a company user: their own (enforced by the API).
+                            Same modules, same paths as /company/*. */}
+                        <Route path="companies/:companyId" element={<ProtectedRoute permission="company.profile.view"><CompanyWorkspace /></ProtectedRoute>}>
+                            <Route index element={<CompanyOverview />} />
+                            {companyRoutes()}
+                            {/* Earlier workspace tab links */}
+                            <Route path="trips" element={<Navigate to="../trip-monitor" replace />} />
+                            <Route path="fare-matrix" element={<Navigate to="../franchises" replace />} />
+                            <Route path="reports" element={<Navigate to="../reports/income" replace />} />
+                            <Route path="franchise-documents" element={<Navigate to="../documents" replace />} />
+                        </Route>
 
                         <Route path="*" element={<NotFound />} />
                     </Route>

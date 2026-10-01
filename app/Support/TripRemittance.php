@@ -56,10 +56,6 @@ class TripRemittance
         $remitted = $trip->remitted_amount !== null ? (float) $trip->remitted_amount : null;
         $variance = $remitted !== null ? round($remitted - $suggested, 2) : null;
 
-        $rcc = $trip->relationLoaded('remittanceCashCount')
-            ? $trip->remittanceCashCount
-            : $trip->remittanceCashCount()->where('status', 'Received')->first();
-
         $stage = $trip->remittance_approved_at !== null
             ? 'approved'
             : ($trip->remittance_received_at !== null ? 'received' : 'pending');
@@ -71,8 +67,8 @@ class TripRemittance
             'stage' => $stage,
 
             'received_at' => $trip->remittance_received_at,
-            'counted_total' => $rcc && $rcc->status === 'Received' ? (int) $rcc->counted_total : null,
-            'count_variance' => $rcc && $rcc->status === 'Received' ? (int) $rcc->variance : null,
+            'counted_total' => null,
+            'count_variance' => null,
             'ticket_count' => (clone $live)->count(),
             'refunded_count' => $trip->tickets()->whereNotNull('refunded_at')->count(),
             'article_count' => (clone $live)->whereNotNull('article_label')->count(),

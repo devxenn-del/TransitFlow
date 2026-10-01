@@ -60,6 +60,8 @@ class AuthController extends Controller
             $request->session()->regenerate();
         }
 
+        $user->forceFill(['last_login_at' => now()])->saveQuietly();
+
         $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($driver))->plainTextToken;
 
         return response()->json([
@@ -100,6 +102,8 @@ class AuthController extends Controller
         }
 
         $request->clearRateLimiter();
+
+        $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
         $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($driver))->plainTextToken;
 

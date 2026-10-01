@@ -4,11 +4,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { companyUsers, permissionCatalogue } from '../../lib/api.js';
+import { useCompanyPath } from '../../lib/companyScope.jsx';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 export default function UserPermissions() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const companyPath = useCompanyPath();
     const { can } = useAuth();
     const canManage = can('permissions.manage');
 
@@ -79,7 +81,7 @@ export default function UserPermissions() {
                 subtitle={<>{state.user.email} · role <span className="text-capitalize">{state.user.access_role?.name ?? state.user.role?.replaceAll('_', ' ')}</span></>}
                 actions={
                     <>
-                        <button className="btn btn-outline-secondary" onClick={() => navigate('/company/users')}>
+                        <button className="btn btn-outline-secondary" onClick={() => navigate(companyPath('users'))}>
                             <i className="bi bi-arrow-left me-1" /> Back
                         </button>
                         {canManage && (

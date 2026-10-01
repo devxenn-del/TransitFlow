@@ -4,9 +4,6 @@ namespace App\Http\Controllers\Api\Company;
 
 use App\Http\Controllers\Controller;
 use App\Support\Reports\BusIncomeReport;
-use App\Support\Reports\CashCountReport;
-use App\Support\Reports\DailyOperationsReport;
-use App\Support\Reports\ExpenseReport;
 use App\Support\Reports\FuelEnergyReport;
 use App\Support\Reports\PreparedBy;
 use App\Support\Reports\ReportLetterhead;
@@ -22,9 +19,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Reports & Analytics for the current company — BITS `admin/reports.php`,
- * `admin/dailyoperations.php`, `admin/expensereport.php`,
- * `admin/cashcountreport.php`, `admin/fuelenergyreport.php`
- * (docs/MIGRATION_MAP.md §J).
+ * `admin/fuelenergyreport.php` (docs/MIGRATION_MAP.md §J).
  *
  * Every endpoint returns JSON by default; `?format=pdf` renders the report
  * through dompdf with the company letterhead, `?format=xlsx` streams a
@@ -78,83 +73,6 @@ class ReportController extends Controller
         });
     }
 
-    public function dailyOperations(Request $request, DailyOperationsReport $report): JsonResponse|StreamedResponse
-    {
-        [$from, $to, $busId] = $this->rangeAndBus($request);
-
-        $data = $report->generate($from, $to, $busId);
-
-        return $this->deliver($request, 'daily-operations', 'Daily Operations Report', $data, function () use ($data) {
-            $rows = array_map(fn (array $r) => [
-                $r['bus_number'], $r['trips_count'], $r['passenger_total'],
-                $r['terminal_income'], $r['pickup_income'], $r['gross_income'],
-                $r['dispatch_total'], $r['operational_expenses'], $r['remaining_income'],
-                $r['cash_counted'], $r['morning_net'], $r['evening_net'],
-            ], $data['rows']);
-
-            $s = $data['summary'];
-
-            return [
-                'headings' => ['Bus', 'Trips', 'Pax', 'Terminal', 'Pickup', 'Gross', 'Dispatch', 'Op. Exp.', 'Remaining', 'Cash Counted', 'AM Net', 'PM Net'],
-                'rows' => $rows,
-                'totals' => ['TOTAL', $s['trips_count'], $s['total_passenger'], $s['terminal'], $s['pickup'], $s['gross_income'], $s['dispatch'], $s['operational_expenses'], $s['remaining_income'], $s['cash_counted'], $s['morning_net'], $s['evening_net']],
-            ];
-        });
-    }
-
-    public function expenses(Request $request, ExpenseReport $report): JsonResponse|StreamedResponse
-    {
-        [$from, $to, $busId] = $this->rangeAndBus($request);
-
-        $data = $report->generate($from, $to, $busId);
-
-        return $this->deliver($request, 'expenses', 'Operational Expense Report', $data, function () use ($data) {
-            $rows = [];
-            foreach ($data['days'] as $day) {
-                foreach ($day['items'] as $item) {
-                    $rows[] = [
-                        $day['op_date'], $item['bus_number'], $item['shift'],
-                        $item['category'], $item['description'], $item['amount'], $item['recorded_by_name'],
-                    ];
-                }
-            }
-
-            return [
-                'headings' => ['Op. Date', 'Bus', 'Shift', 'Category', 'Description', 'Amount', 'Recorded By'],
-                'rows' => $rows,
-                'totals' => ['GRAND TOTAL', '', '', '', '', $data['grand_total'], ''],
-            ];
-        });
-    }
-
-    public function cashCount(Request $request, CashCountReport $report): JsonResponse|StreamedResponse
-    {
-        [$from, $to, $busId] = $this->rangeAndBus($request);
-
-        $data = $report->generate($from, $to, $busId);
-
-        return $this->deliver($request, 'cash-count', 'Cash Count Report', $data, function () use ($data) {
-            $rows = array_map(function (array $r) {
-                $denoms = array_map(fn (int $d) => $r['denominations'][$d] ?? 0, CashCountReport::DENOMINATIONS);
-
-                return array_merge(
-                    [$r['op_date'], $r['bus_number'], $r['shift']],
-                    $denoms,
-                    [$r['counted_total'], $r['remitted_total'], $r['variance'], $r['net_cash']],
-                );
-            }, $data['rows']);
-
-            $denomHeadings = array_map(fn (int $d) => (string) $d, CashCountReport::DENOMINATIONS);
-            $denomTotals = array_map(fn (int $d) => $data['denom_totals'][$d] ?? 0, CashCountReport::DENOMINATIONS);
-
-            return [
-                'headings' => array_merge(['Op. Date', 'Bus', 'Shift'], $denomHeadings, ['Counted', 'Remitted', 'Variance', 'Net Cash']),
-                'rows' => $rows,
-                'totals' => array_merge(['TOTAL', '', ''], $denomTotals, [$data['grand_total'], $data['remitted_total'], '', $data['net_cash_total']]),
-            ];
-        });
-    }
-
     public function fuelEnergy(Request $request, FuelEnergyReport $report): JsonResponse|StreamedResponse
     {
         $from = $request->date('from');
@@ -178,18 +96,6 @@ class ReportController extends Controller
                 'totals' => ['TOTAL', '', '', $t['total_liters'], $t['avg_price'], $t['total_cost'], ''],
             ];
         });
-    }
-
-    /**
-     * @return array{0: Carbon, 1: Carbon, 2: ?int}
-     */
-    private function rangeAndBus(Request $request): array
-    {
-        $from = $request->date('from') ?? Carbon::today();
-        $to = $request->date('to') ?? $from->copy();
-        $busId = $request->filled('bus_id') ? $request->integer('bus_id') : null;
-
-        return [$from, $to, $busId];
     }
 
     /**

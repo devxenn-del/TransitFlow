@@ -32,7 +32,13 @@ class CompanyResource extends JsonResource
             'logo_path' => $this->logo_path,
             'status' => $this->status->value,
             'can_create_accounts' => $this->can_create_accounts,
+            // Pricing configuration is Super Admin business — never sent to company users.
+            'pricing_plan' => $this->when((bool) $request->user()?->isSuperAdmin(), fn () => $this->pricing_plan?->value),
             'users_count' => $this->whenCounted('users'),
+            'drivers_count' => $this->whenCounted('drivers'),
+            'conductors_count' => $this->whenCounted('conductors'),
+            'buses_count' => $this->whenCounted('buses'),
+            'documents_count' => $this->whenCounted('documents'),
             'settings' => CompanySettingResource::make($this->whenLoaded('settings')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

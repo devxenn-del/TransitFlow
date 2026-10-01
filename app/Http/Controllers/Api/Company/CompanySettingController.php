@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\UpdateCompanySettingsRequest;
 use App\Http\Resources\CompanySettingResource;
 use App\Models\CompanySetting;
+use App\Support\CompanyContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,8 +14,9 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Per-company branding / receipt / organization-identity settings — the
  * multi-tenant split of BITS' single global `system_settings` row
- * (docs/MIGRATION_MAP.md §K). The company is always the caller's own
- * (`$request->user()->company`), never read from the URL or body.
+ * (docs/MIGRATION_MAP.md §K). The company is the bound one
+ * (App\Support\CompanyContext — the caller's own for a company user), never
+ * read from the URL or body.
  *
  * Route-gated by `permission:company.settings.view` (read) /
  * `company.settings.manage` (write + image uploads).
@@ -56,7 +58,7 @@ class CompanySettingController extends Controller
         ]);
 
         $settings = $this->settingsFor($request);
-        $companyId = $request->user()->company->id;
+        $companyId = app(CompanyContext::class)->company()->id;
 
         $path = $request->file('image')->store("company-{$companyId}/branding", 'public');
 
@@ -89,7 +91,7 @@ class CompanySettingController extends Controller
 
     private function settingsFor(Request $request): CompanySetting
     {
-        $company = $request->user()->company;
+        $company = app(CompanyContext::class)->company();
 
         abort_if($company === null, 404);
 

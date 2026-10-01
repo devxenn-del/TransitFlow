@@ -32,8 +32,14 @@ class UserController extends Controller
 
         $users = User::query()
             ->with('accessRole')
-            // Conductors have their own dedicated Fleet > Conductors page.
-            ->whereDoesntHave('accessRole', fn ($q) => $q->where('key', 'conductor'))
+            // Conductors have their own dedicated Fleet > Conductors page;
+            // the company workspace's Users tab asks for every account.
+            ->unless($request->boolean('include_conductors'), fn ($q) => $q->whereDoesntHave('accessRole', fn ($r) => $r->where('key', 'conductor')))
+            ->when($request->string('q')->isNotEmpty(), fn ($q) => $q->where(
+                fn ($s) => $s->where('name', 'like', "%{$request->string('q')}%")
+                    ->orWhere('email', 'like', "%{$request->string('q')}%")
+                    ->orWhere('employee_id', 'like', "%{$request->string('q')}%")
+            ))
             ->when($request->string('role')->isNotEmpty(), fn ($q) => $q->whereRelation('accessRole', 'key', $request->string('role')))
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->orderBy('name')
@@ -74,7 +80,7 @@ class UserController extends Controller
     {
         $this->authorize('view', $user);
 
-        return UserResource::make($user->load('accessRole'));
+        return UserResource::make($user->load(['accessRole', 'buses']));
     }
 
     public function update(UpdateUserRequest $request, User $user): UserResource

@@ -3,16 +3,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { dataTools } from '../../lib/api.js';
+import { useActiveCompany } from '../../lib/companyScope.jsx';
 import { swal as Swal } from '../../lib/ui.js';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
 
 const dt = (v) => (v ? new Date(v).toLocaleString() : '—');
 
 export default function DataTools() {
-    const { can, user } = useAuth();
+    const { can } = useAuth();
+    const company = useActiveCompany();
     const canExport = can('backup.download');
     const canClean = can('cleandata.run');
-    const code = user?.company?.code ?? '';
+    const code = company?.code ?? '';
 
     const [preview, setPreview] = useState(null);
     const [history, setHistory] = useState([]);
@@ -44,7 +46,7 @@ export default function DataTools() {
         const { isConfirmed, value } = await Swal.fire({
             title: 'Clean Data',
             html: `<p class="text-start small">This permanently deletes <b>${preview?.total ?? 0}</b> transactional records `
-                + '(trips, tickets, remittances, attendance, fuel, expenses, GPS). Master data — buses, drivers, terminals, '
+                + '(trips, tickets, attendance, fuel, GPS). Master data — buses, drivers, terminals, '
                 + 'fares, users, settings — is kept. <b>This cannot be undone.</b></p>'
                 + `<input id="confirm" class="form-control" placeholder="Type ${code} to confirm" autocomplete="off">`,
             focusConfirm: false,

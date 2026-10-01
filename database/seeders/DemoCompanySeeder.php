@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Actions\ProvisionCompany;
-use App\Actions\RollUpBusDayCashCount;
 use App\Actions\SaveFareCell;
 use App\Actions\SyncUserRolePermissions;
 use App\Enums\UserRole;
@@ -14,7 +13,6 @@ use App\Models\Driver;
 use App\Models\Franchise;
 use App\Models\PassengerType;
 use App\Models\PassengerTypeArticle;
-use App\Models\RemittanceCashCount;
 use App\Models\Role;
 use App\Models\Route;
 use App\Models\RouteStop;
@@ -22,7 +20,6 @@ use App\Models\Terminal;
 use App\Models\Ticket;
 use App\Models\Trip;
 use App\Models\User;
-use App\Support\Denominations;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -126,10 +123,9 @@ class DemoCompanySeeder extends Seeder
     }
 
     /**
-     * A couple of trips so the admin Trip Monitoring + Remittance screens
-     * have content: one live OnTrip; one Arrived trip pending receipt; one
-     * Arrived + received (rolled into a cash count) pending approval.
-     * Idempotent.
+     * A couple of trips so the admin Trip Monitoring screen has content: one
+     * live OnTrip; one Arrived trip pending receipt; one Arrived + received
+     * trip. Idempotent.
      */
     private function seedOperations(int $companyId, User $conductor, Bus $bus, User $cashier): void
     {
@@ -189,7 +185,7 @@ class DemoCompanySeeder extends Seeder
             'company_id' => $companyId, 'barker_name' => 'Mang Tomas', 'amount' => 30, 'dispatched_at' => now()->subDay(),
         ]);
 
-        // Arrived — received (cash counted, rolled into a bus/day/shift cash count), awaiting approval.
+        // Arrived — received.
         $received = Trip::withoutGlobalScopes()->create([
             ...$base,
             'reference' => $ref(),
@@ -201,23 +197,6 @@ class DemoCompanySeeder extends Seeder
             'remittance_received_by' => $cashier->id,
         ]);
         $sellTickets($received);
-        $den = ['q1000' => 0, 'q500' => 0, 'q200' => 0, 'q100' => 1, 'q50' => 1, 'q20' => 1, 'q10' => 1, 'q5' => 2, 'q1' => 6]; // ₱186, ₱4 short
-        RemittanceCashCount::withoutGlobalScopes()->create([
-            'company_id' => $companyId,
-            'trip_id' => $received->id,
-            'bus_id' => $bus->id,
-            'op_date' => $base['op_date'],
-            'shift' => 'Morning',
-            ...$den,
-            'counted_total' => Denominations::total($den),
-            'expected_amount' => 190,
-            'variance' => Denominations::total($den) - 190,
-            'status' => 'Received',
-            'received_by' => $cashier->id,
-            'received_by_name' => $cashier->name,
-            'received_at' => now()->subDay()->setHour(12),
-        ]);
-        app(RollUpBusDayCashCount::class)->handle($companyId, $bus->id, $base['op_date'], 'Morning');
 
         // Live trip currently on the road (today).
         Trip::withoutGlobalScopes()->create([

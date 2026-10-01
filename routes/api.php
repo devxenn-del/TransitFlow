@@ -2,11 +2,11 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\LegalAcceptanceController;
-use App\Http\Controllers\Api\Company\AdminBusAssignmentController;
 use App\Http\Controllers\Api\Company\AttendanceController as CompanyAttendanceController;
 use App\Http\Controllers\Api\Company\AuditLogController;
+use App\Http\Controllers\Api\Company\BillingController;
 use App\Http\Controllers\Api\Company\BusController;
-use App\Http\Controllers\Api\Company\CashCountController;
+use App\Http\Controllers\Api\Company\CompanyDocumentController;
 use App\Http\Controllers\Api\Company\CompanyProfileController;
 use App\Http\Controllers\Api\Company\CompanySettingController;
 use App\Http\Controllers\Api\Company\ConductorBusController;
@@ -23,21 +23,18 @@ use App\Http\Controllers\Api\Company\FranchiseController;
 use App\Http\Controllers\Api\Company\FuelRecordController;
 use App\Http\Controllers\Api\Company\LiveMonitorController;
 use App\Http\Controllers\Api\Company\MobileAppController;
-use App\Http\Controllers\Api\Company\OpExpenseController;
 use App\Http\Controllers\Api\Company\PassengerTypeArticleController;
 use App\Http\Controllers\Api\Company\PassengerTypeController;
 use App\Http\Controllers\Api\Company\PermissionController;
-use App\Http\Controllers\Api\Company\RemittanceController;
 use App\Http\Controllers\Api\Company\ReportController;
 use App\Http\Controllers\Api\Company\RoleController as CompanyRoleController;
 use App\Http\Controllers\Api\Company\RouteController as CompanyRouteController;
 use App\Http\Controllers\Api\Company\RouteStopController;
 use App\Http\Controllers\Api\Company\TerminalController;
 use App\Http\Controllers\Api\Company\ThermalPrinterController;
+use App\Http\Controllers\Api\Company\TicketController as CompanyTicketController;
 use App\Http\Controllers\Api\Company\TripMonitorController;
 use App\Http\Controllers\Api\Company\UserController as CompanyUserController;
-use App\Http\Controllers\Api\Company\VoidPinController;
-use App\Http\Controllers\Api\Company\VoidSecurityController;
 use App\Http\Controllers\Api\Conductor\AttendanceController as ConductorAttendanceController;
 use App\Http\Controllers\Api\Conductor\DeviceController as ConductorDeviceController;
 use App\Http\Controllers\Api\Conductor\DispatchController;
@@ -48,16 +45,23 @@ use App\Http\Controllers\Api\Conductor\TripController;
 use App\Http\Controllers\Api\Meta\LegalDocumentController;
 use App\Http\Controllers\Api\Meta\ServerConfigController;
 use App\Http\Controllers\Api\ReceiptController;
+use App\Http\Controllers\Api\Shared\CompanyWorkspaceController;
 use App\Http\Controllers\Api\Shared\NavController;
 use App\Http\Controllers\Api\Shared\RoleController;
 use App\Http\Controllers\Api\SuperAdmin\AuditLogController as PlatformAuditLogController;
+use App\Http\Controllers\Api\SuperAdmin\CompanyBillingStatementController;
 use App\Http\Controllers\Api\SuperAdmin\CompanyController;
 use App\Http\Controllers\Api\SuperAdmin\CompanyPermissionController;
+use App\Http\Controllers\Api\SuperAdmin\CompanyPricingController;
+use App\Http\Controllers\Api\SuperAdmin\CompanySpecialRateController;
+use App\Http\Controllers\Api\SuperAdmin\FeeAssignmentController;
+use App\Http\Controllers\Api\SuperAdmin\FeeController;
 use App\Http\Controllers\Api\SuperAdmin\LegalDocumentAdminController;
 use App\Http\Controllers\Api\SuperAdmin\MobileAppController as SuperAdminMobileAppController;
 use App\Http\Controllers\Api\SuperAdmin\SystemConfigurationController;
 use App\Http\Controllers\Api\SuperAdmin\UserController as PlatformUserController;
 use App\Http\Middleware\EnsureAccountNotLocked;
+use App\Http\Middleware\RequireCompanyContext;
 use App\Http\Middleware\RequirePasswordChange;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -140,6 +144,12 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
     // Permission-gated navigation for the unified mobile app's dynamic menu.
     Route::get('/nav', [NavController::class, 'index'])->name('nav.index');
 
+    // The company workspace header + overview. Super Admin: any company;
+    // a company user: their own only (CompanyPolicy::view → 403 otherwise).
+    Route::get('/companies/{company}', [CompanyWorkspaceController::class, 'show'])
+        ->middleware('permission:company.profile.view')
+        ->name('companies.workspace');
+
     /*
     | Platform — Super Admin only.
     */
@@ -156,6 +166,26 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::match(['put', 'patch'], 'companies/{company}/permissions', [CompanyPermissionController::class, 'update'])->middleware('permission:companies.edit')->name('companies.permissions.update');
 
         Route::get('audit-log', [PlatformAuditLogController::class, 'index'])->middleware('permission:companies.view')->name('audit-log.index');
+
+        // Fee Management — platform fee catalogue + standard pricing, and which companies each fee is assigned to.
+        Route::get('fees', [FeeController::class, 'index'])->middleware('permission:fees.view,fees.manage')->name('fees.index');
+        Route::post('fees', [FeeController::class, 'store'])->middleware('permission:fees.manage')->name('fees.store');
+        Route::get('fees/{fee}', [FeeController::class, 'show'])->middleware('permission:fees.view,fees.manage')->name('fees.show');
+        Route::match(['put', 'patch'], 'fees/{fee}', [FeeController::class, 'update'])->middleware('permission:fees.manage')->name('fees.update');
+        Route::patch('fees/{fee}/status', [FeeController::class, 'updateStatus'])->middleware('permission:fees.manage')->name('fees.status');
+        Route::delete('fees/{fee}', [FeeController::class, 'destroy'])->middleware('permission:fees.manage')->name('fees.destroy');
+        Route::put('fees/{fee}/companies', [FeeAssignmentController::class, 'update'])->middleware('permission:fees.manage')->name('fees.companies.update');
+
+        // A company's pricing configuration (Standard / Special plan + special rates) and billing generation.
+        Route::get('companies/{company}/pricing', [CompanyPricingController::class, 'show'])->middleware('permission:fees.view,fees.manage')->name('companies.pricing.show');
+        Route::put('companies/{company}/pricing', [CompanyPricingController::class, 'update'])->middleware('permission:fees.manage')->name('companies.pricing.update');
+        Route::post('companies/{company}/special-rates', [CompanySpecialRateController::class, 'store'])->middleware('permission:fees.manage')->name('companies.special-rates.store');
+        Route::put('companies/{company}/special-rates/{feeRate}', [CompanySpecialRateController::class, 'update'])->middleware('permission:fees.manage')->scopeBindings()->name('companies.special-rates.update');
+        Route::delete('companies/{company}/special-rates/{feeRate}', [CompanySpecialRateController::class, 'destroy'])->middleware('permission:fees.manage')->scopeBindings()->name('companies.special-rates.destroy');
+        Route::post('companies/{company}/billing-statements', [CompanyBillingStatementController::class, 'store'])->middleware(['permission:fees.manage', 'throttle:30,1'])->name('companies.billing-statements.store');
+        Route::post('companies/{company}/billing-statements/{billingStatement}/recalculate', [CompanyBillingStatementController::class, 'recalculate'])->middleware(['permission:fees.manage', 'throttle:30,1'])->scopeBindings()->name('companies.billing-statements.recalculate');
+        Route::post('companies/{company}/billing-statements/{billingStatement}/email', [CompanyBillingStatementController::class, 'email'])->middleware(['permission:fees.manage', 'throttle:10,1'])->scopeBindings()->name('companies.billing-statements.email');
+        Route::patch('companies/{company}/billing-statements/{billingStatement}/status', [CompanyBillingStatementController::class, 'updateStatus'])->middleware('permission:fees.manage')->scopeBindings()->name('companies.billing-statements.status');
 
         // Platform-wide Server Base URL (System Configuration — docs/PARITY_CHECKLIST.md §K)
         Route::get('system-configuration', [SystemConfigurationController::class, 'show'])->middleware('permission:system.configuration.view,system.configuration.manage')->name('system-configuration.show');
@@ -188,7 +218,7 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
     | Company scope — the caller's own company. Isolation is enforced by
     | CompanyScope + policies; capability by `permission:` middleware.
     */
-    Route::prefix('company')->name('company.')->group(function () use ($companyCrud) {
+    Route::prefix('company')->name('company.')->middleware(RequireCompanyContext::class)->group(function () use ($companyCrud) {
         Route::get('profile', [CompanyProfileController::class, 'show'])->middleware('permission:company.profile.view')->name('profile.show');
         Route::match(['put', 'patch'], 'profile', [CompanyProfileController::class, 'update'])->middleware('permission:company.profile.edit')->name('profile.update');
 
@@ -208,6 +238,22 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         // Read-only view of the platform's one mobile-app distribution settings
         // (BITS admin/mobileapp → §K). Publishing lives at `super-admin/mobile-app`.
         Route::get('mobile-app', [MobileAppController::class, 'show'])->middleware('permission:mobileapp.view,mobileapp.manage')->name('mobile-app.show');
+
+        // Company document library — fare matrix, franchise papers, registration, permits.
+        // Update is POST (multipart) so a replacement file can be attached.
+        Route::get('documents', [CompanyDocumentController::class, 'index'])->middleware('permission:documents.view')->name('documents.index');
+        Route::get('documents/summary', [CompanyDocumentController::class, 'summary'])->middleware('permission:documents.view')->name('documents.summary');
+        Route::post('documents', [CompanyDocumentController::class, 'store'])->middleware('permission:documents.manage')->name('documents.store');
+        Route::get('documents/{document}', [CompanyDocumentController::class, 'show'])->middleware('permission:documents.view')->name('documents.show');
+        Route::post('documents/{document}', [CompanyDocumentController::class, 'update'])->middleware('permission:documents.manage')->name('documents.update');
+        Route::patch('documents/{document}/important', [CompanyDocumentController::class, 'toggleImportant'])->middleware('permission:documents.manage')->name('documents.important');
+        Route::delete('documents/{document}', [CompanyDocumentController::class, 'destroy'])->middleware('permission:documents.manage')->name('documents.destroy');
+        Route::get('documents/{document}/download', [CompanyDocumentController::class, 'download'])->middleware('permission:documents.view')->name('documents.download');
+
+        // Billing & Fees — this company's own assigned fees and statements, read-only.
+        Route::get('billing/fees', [BillingController::class, 'index'])->middleware('permission:billing.view')->name('billing.fees');
+        Route::get('billing/statements', [BillingController::class, 'statements'])->middleware('permission:billing.view')->name('billing.statements.index');
+        Route::get('billing/statements/{statement}', [BillingController::class, 'showStatement'])->middleware('permission:billing.view')->name('billing.statements.show');
 
         // Activity / audit trail (docs/PARITY_CHECKLIST.md §L)
         Route::get('audit-log', [AuditLogController::class, 'index'])->middleware('permission:audit.view')->name('audit-log.index');
@@ -238,9 +284,6 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         // Thermal printer inventory, assigned to a conductor (BITS admin/thermalprinters)
         $companyCrud('thermal-printers', ThermalPrinterController::class, 'thermalprinters', 'printer');
         Route::put('thermal-printers/{printer}/assign', [ThermalPrinterController::class, 'assign'])->middleware('permission:thermalprinters.edit');
-
-        // Office-admin ⇄ bus, time-boxed & shift-aware (BITS admin/adminassignments)
-        $companyCrud('admin-assignments', AdminBusAssignmentController::class, 'adminassignments', 'assignment');
 
         // Passenger types + their Manual-Amount article presets
         $companyCrud('passenger-types', PassengerTypeController::class, 'passengertypes', 'passenger_type');
@@ -291,35 +334,8 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::post('trip-monitor/{trip}/force-end', [TripMonitorController::class, 'forceEnd'])->middleware('permission:tripmonitoring.forceend');
         Route::get('trip-monitor/{trip}/receipt/{kind}', [ReceiptController::class, 'trip'])->middleware('permission:tripmonitoring.view');
 
-        // Remittance desk — receive (count cash) → approve; manager-only void (BITS remittances)
-        Route::get('remittances', [RemittanceController::class, 'index'])->middleware('permission:remittances.view');
-        Route::get('remittances/{trip}', [RemittanceController::class, 'show'])->middleware('permission:remittances.view');
-        Route::post('remittances/{trip}/lock', [RemittanceController::class, 'lock'])->middleware('permission:remittances.receive');
-        Route::delete('remittances/{trip}/lock', [RemittanceController::class, 'unlock'])->middleware('permission:remittances.receive');
-        Route::post('remittances/{trip}/receive', [RemittanceController::class, 'receive'])->middleware('permission:remittances.receive');
-        Route::post('remittances/{trip}/void', [RemittanceController::class, 'void'])->middleware('permission:remittances.void');
-        Route::post('remittances/{trip}/approve', [RemittanceController::class, 'approve'])->middleware('permission:remittances.approve');
-        Route::post('remittances/{trip}/flag', [RemittanceController::class, 'flag'])->middleware('permission:remittances.approve');
-        Route::get('remittances/{trip}/receipt/{kind}', [ReceiptController::class, 'trip'])->middleware('permission:remittances.view');
-
-        // Cash rollup (read-only) + the acting manager's void PIN (BITS cashcount)
-        Route::get('void-pin', [VoidPinController::class, 'show']);
-        Route::put('void-pin', [VoidPinController::class, 'update'])->middleware('permission:voidpin.manage');
-
-        // Void Security console (BITS admin/voidsecurity)
-        Route::get('void-security', [VoidSecurityController::class, 'index'])->middleware('permission:voidsecurity.view');
-        Route::get('void-security/attempts', [VoidSecurityController::class, 'attempts'])->middleware('permission:voidsecurity.view');
-        Route::post('void-security/{user}/reset', [VoidSecurityController::class, 'reset'])->middleware('permission:voidsecurity.manage');
-        Route::post('void-security/{user}/unlock', [VoidSecurityController::class, 'unlock'])->middleware('permission:voidsecurity.manage');
-        Route::get('cash-counts', [CashCountController::class, 'index'])->middleware('permission:cashcount.view');
-        Route::get('cash-counts/{cashCount}', [CashCountController::class, 'show'])->middleware('permission:cashcount.view');
-        Route::post('cash-counts/{cashCount}/adjust', [CashCountController::class, 'adjust'])->middleware('permission:cashcount.adjust');
-
-        // Operational expenses drawn from a bus's takings (BITS expenses)
-        Route::get('expenses', [OpExpenseController::class, 'index'])->middleware('permission:expenses.view');
-        Route::post('expenses', [OpExpenseController::class, 'store'])->middleware('permission:expenses.create');
-        Route::get('expenses/{expense}', [OpExpenseController::class, 'show'])->middleware('permission:expenses.view');
-        Route::post('expenses/{expense}/void', [OpExpenseController::class, 'void'])->middleware('permission:expenses.void');
+        // Every ticket the company has issued, across trips
+        Route::get('tickets', [CompanyTicketController::class, 'index'])->middleware('permission:tripmonitoring.view')->name('tickets.index');
 
         // Fuel purchases + EV charging sessions (BITS fuel / ev_charging)
         Route::get('fuel', [FuelRecordController::class, 'index'])->middleware('permission:fuel.view');
@@ -331,14 +347,10 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('charging/{session}', [EvChargingController::class, 'show'])->middleware('permission:charging.view');
         Route::post('charging/{session}/end', [EvChargingController::class, 'end'])->middleware('permission:charging.record');
 
-        // Reports & Analytics (BITS admin/reports, dailyoperations, expensereport,
-        // cashcountreport, fuelenergyreport) — JSON, ?format=pdf, ?format=xlsx
+        // Reports & Analytics (BITS admin/reports, fuelenergyreport) — JSON, ?format=pdf, ?format=xlsx
         Route::get('dashboard', DashboardController::class)->middleware('permission:dashboard.view');
         Route::get('reports/income', [ReportController::class, 'income'])->middleware('permission:reports.view');
         Route::get('reports/trip-income', [ReportController::class, 'tripIncome'])->middleware('permission:reports.view');
-        Route::get('reports/daily-operations', [ReportController::class, 'dailyOperations'])->middleware('permission:dailyops.view');
-        Route::get('reports/expenses', [ReportController::class, 'expenses'])->middleware('permission:expensereport.view');
-        Route::get('reports/cash-count', [ReportController::class, 'cashCount'])->middleware('permission:cashcountreport.view');
         Route::get('reports/fuel-energy', [ReportController::class, 'fuelEnergy'])->middleware('permission:fuelenergyreport.view');
 
         // Per-company roles (BITS Roles admin page)

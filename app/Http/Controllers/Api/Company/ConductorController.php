@@ -10,6 +10,7 @@ use App\Http\Requests\Company\UpdateConductorRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\CompanyContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -30,9 +31,14 @@ class ConductorController extends Controller
         $this->authorize('viewAny', User::class);
 
         $conductors = User::query()
-            ->with('accessRole')
+            ->with(['accessRole', 'buses'])
             ->whereRelation('accessRole', 'key', 'conductor')
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
+            ->when($request->string('q')->isNotEmpty(), fn ($q) => $q->where(
+                fn ($s) => $s->where('name', 'like', "%{$request->string('q')}%")
+                    ->orWhere('email', 'like', "%{$request->string('q')}%")
+                    ->orWhere('employee_id', 'like', "%{$request->string('q')}%")
+            ))
             ->orderBy('name')
             ->paginate($request->integer('per_page', 20));
 
@@ -43,7 +49,7 @@ class ConductorController extends Controller
     {
         $this->authorize('create', User::class);
 
-        $role = $this->conductorRole($request->user()->company_id);
+        $role = $this->conductorRole(app(CompanyContext::class)->companyId());
 
         $conductor = User::query()->create([
             // company_id is filled by the BelongsToCompany trait from context.
@@ -71,7 +77,7 @@ class ConductorController extends Controller
     {
         $this->authorize('view', $conductor);
 
-        return UserResource::make($conductor->load('accessRole'));
+        return UserResource::make($conductor->load(['accessRole', 'buses']));
     }
 
     public function update(UpdateConductorRequest $request, User $conductor): UserResource

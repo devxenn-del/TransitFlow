@@ -18,7 +18,7 @@ use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'email', 'password', 'company_id', 'role', 'role_id', 'status', 'must_change_password', 'password_changed_at', 'first_name', 'middle_name', 'last_name', 'phone', 'address', 'sex'])]
-#[Hidden(['password', 'remember_token', 'void_pin_hash', 'pin_hash'])]
+#[Hidden(['password', 'remember_token', 'pin_hash'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -39,12 +39,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'void_pin_hash' => 'hashed',
-            'void_pin_locked_until' => 'datetime',
             'pin_hash' => 'hashed',
             'locked_at' => 'datetime',
             'must_change_password' => 'boolean',
             'password_changed_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'role' => UserRole::class,
         ];
     }
@@ -58,16 +57,6 @@ class User extends Authenticatable
                 ])->saveQuietly();
             }
         });
-    }
-
-    public function hasVoidPin(): bool
-    {
-        return $this->void_pin_hash !== null;
-    }
-
-    public function voidPinIsLocked(): bool
-    {
-        return $this->void_pin_locked_until !== null && $this->void_pin_locked_until->isFuture();
     }
 
     public function hasPin(): bool

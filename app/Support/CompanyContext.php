@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Company;
 use Closure;
 
 /**
@@ -45,6 +46,19 @@ class CompanyContext
     public function companyId(): ?int
     {
         return $this->companyId;
+    }
+
+    /**
+     * The bound company itself — the caller's own for a company user, or
+     * the company a Super Admin has scoped into. Null when none is bound.
+     */
+    public function company(): ?Company
+    {
+        if ($this->companyId === null) {
+            return null;
+        }
+
+        return Company::query()->find($this->companyId);
     }
 
     public function hasCompany(): bool

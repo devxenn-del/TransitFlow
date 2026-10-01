@@ -23,6 +23,7 @@ class DriverController extends Controller
 
         return DriverResource::collection(
             Driver::query()
+                ->with('bus')
                 ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
                 ->when($request->string('q')->isNotEmpty(), fn ($q) => $q->where(
                     fn ($s) => $s->where('name', 'like', "%{$request->string('q')}%")
@@ -36,9 +37,13 @@ class DriverController extends Controller
 
     public function store(StoreDriverRequest $request): JsonResponse
     {
-        $driver = Driver::query()->create($request->validated());
+        $driver = Driver::query()->create($request->safe()->except('bus_id'));
 
-        return DriverResource::make($driver->refresh()) // pick up the generated employee_id
+        if ($request->filled('bus_id')) {
+            $driver->assignBus($request->integer('bus_id'));
+        }
+
+        return DriverResource::make($driver->refresh()->load('bus')) // pick up the generated employee_id
             ->response()
             ->setStatusCode(JsonResponse::HTTP_CREATED);
     }
@@ -47,12 +52,12 @@ class DriverController extends Controller
     {
         $this->authorize('view', $driver);
 
-        return DriverResource::make($driver);
+        return DriverResource::make($driver->load('bus'));
     }
 
     public function update(UpdateDriverRequest $request, Driver $driver): DriverResource
     {
-        $data = $request->validated();
+        $data = $request->safe()->except('bus_id');
 
         // Left blank on a driver that has never had one — generate it now,
         // same as a new driver would get on create, rather than leaving
@@ -63,7 +68,11 @@ class DriverController extends Controller
 
         $driver->update($data);
 
-        return DriverResource::make($driver->fresh());
+        if ($request->has('bus_id')) {
+            $driver->assignBus($request->validated('bus_id'));
+        }
+
+        return DriverResource::make($driver->fresh()->load('bus'));
     }
 
     public function destroy(Driver $driver): JsonResponse

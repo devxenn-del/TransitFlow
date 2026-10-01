@@ -8,6 +8,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { franchises } from '../../lib/api.js';
+import { useCompanyPath } from '../../lib/companyScope.jsx';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
@@ -23,6 +24,7 @@ const BLANK = {
 export default function Franchises() {
     const { can } = useAuth();
     const navigate = useNavigate();
+    const companyPath = useCompanyPath();
     const { rows, meta, loading, page, setPage, reload } = useList(franchises.list);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
@@ -108,7 +110,7 @@ export default function Franchises() {
                 <>
                     <button
                         className="btn btn-sm btn-primary me-1"
-                        onClick={() => navigate(`/company/fare-matrix/${f.id}`)}
+                        onClick={() => navigate(companyPath(`fare-matrix/${f.id}`))}
                         title="Open the fare-matrix grid"
                     >
                         <i className="bi bi-grid-3x3-gap-fill me-1" /> Fare Matrix

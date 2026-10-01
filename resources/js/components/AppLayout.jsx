@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { swal as Swal } from '../lib/ui.js';
 
 import { useAuth } from '../auth/AuthContext.jsx';
-import { auth as authApi, voidPin as voidPinApi } from '../lib/api.js';
+import { auth as authApi } from '../lib/api.js';
+import { COMPANY_MODULES, MODULE_GROUPS, OVERVIEW_MODULE, groupedModules } from '../lib/companyModules.js';
 import { errorMessage, notifySuccess } from '../lib/ui.js';
 
 const pinFields = (labels) => labels.map((p) => `<input id="${p.id}" type="password" ${p.numeric ? 'inputmode="numeric"' : ''} class="swal2-input" placeholder="${p.ph}">`).join('');
@@ -34,32 +35,6 @@ async function changePasswordDialog() {
     catch (e) { Swal.fire({ icon: 'error', text: errorMessage(e, 'Could not update your password.') }); }
 }
 
-async function voidPinDialog(hasPin) {
-    const { isConfirmed, value } = await Swal.fire({
-        title: hasPin ? 'Change your void PIN' : 'Set your void PIN',
-        html: pinFields([
-            { id: 'cur', ph: 'Current password' },
-            { id: 'p1', ph: 'New PIN (4–8 digits)', numeric: true },
-            { id: 'p2', ph: 'Confirm PIN', numeric: true },
-        ]),
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Save PIN',
-        preConfirm: () => {
-            const cur = document.getElementById('cur').value;
-            const p1 = document.getElementById('p1').value;
-            const p2 = document.getElementById('p2').value;
-            if (!cur || !p1) return Swal.showValidationMessage('All fields are required');
-            if (!/^\d{4,8}$/.test(p1)) return Swal.showValidationMessage('PIN must be 4–8 digits');
-            if (p1 !== p2) return Swal.showValidationMessage('PINs do not match');
-            return { current_password: cur, pin: p1, pin_confirmation: p2 };
-        },
-    });
-    if (!isConfirmed) return;
-    try { await voidPinApi.set(value); notifySuccess('Void PIN saved.'); }
-    catch (e) { Swal.fire({ icon: 'error', text: errorMessage(e, 'Could not save your void PIN.') }); }
-}
-
 async function appPinDialog(hasPin) {
     const { isConfirmed, value } = await Swal.fire({
         title: hasPin ? 'Change your App PIN' : 'Set your App PIN',
@@ -86,80 +61,114 @@ async function appPinDialog(hasPin) {
     catch (e) { Swal.fire({ icon: 'error', text: errorMessage(e, 'Could not save your App PIN.') }); }
 }
 
-/** Sidebar entries; each shown only when `visible(auth)` is true. */
+const isCompanyUser = (a) => !!a.user?.company_id;
+
+/**
+ * Sidebar, as sections of links. A section shows when `visible(auth)` is
+ * true and at least one of its items is visible; `label: null` renders its
+ * items without a heading. Super Admin gets the platform console; company
+ * users get their company's modules grouped by job. (A Super Admin works
+ * inside a company through its workspace — see workspaceSection() below.)
+ */
 const NAV = [
-    { to: '/', label: 'Dashboard', icon: 'bi-speedometer2', end: true, visible: () => true },
-    { to: '/conductor/trips', label: 'My Trips', icon: 'bi-bus-front-fill', visible: (a) => a.can('trips.view') },
     {
-        section: 'Platform',
+        id: 'home',
+        label: null,
+        visible: () => true,
+        items: [
+            { to: '/', label: 'Dashboard', icon: 'bi-speedometer2', end: true, visible: () => true },
+            { to: '/conductor/trips', label: 'My Trips', icon: 'bi-bus-front-fill', visible: (a) => a.can('trips.view') },
+            { to: (a) => `/companies/${a.user.company_id}`, label: 'My Company', icon: 'bi-buildings', visible: (a) => isCompanyUser(a) && a.can('company.profile.view') },
+        ],
+    },
+
+    // --- Super Admin -------------------------------------------------------
+    {
+        id: 'tenants',
+        label: 'Tenants',
         visible: (a) => a.isSuperAdmin,
         items: [
             { to: '/companies', label: 'Companies', icon: 'bi-buildings', visible: (a) => a.can('companies.view') },
+            { to: '/super-admin/fees', label: 'Fee Management', icon: 'bi-cash-stack', visible: (a) => a.can('fees.view') },
+        ],
+    },
+    {
+        id: 'platform',
+        label: 'Platform',
+        visible: (a) => a.isSuperAdmin,
+        items: [
             { to: '/platform-users', label: 'Platform Users', icon: 'bi-person-gear', visible: (a) => a.can('platform.users.view') },
-            { to: '/super-admin/system-configuration', label: 'System Configuration', icon: 'bi-hdd-network', visible: (a) => a.can('system.configuration.view') },
-            { to: '/super-admin/legal-documents', label: 'Legal Documents', icon: 'bi-file-earmark-text', visible: (a) => a.can('legal.view') },
             { to: '/super-admin/mobile-app', label: 'Mobile App', icon: 'bi-google-play', visible: (a) => a.can('mobileapp.manage') },
+            { to: '/super-admin/legal-documents', label: 'Legal Documents', icon: 'bi-file-earmark-text', visible: (a) => a.can('legal.view') },
         ],
     },
     {
-        section: 'Fleet',
-        visible: (a) => !!a.user?.company_id,
+        id: 'platform-system',
+        label: 'System',
+        visible: (a) => a.isSuperAdmin,
         items: [
-            { to: '/company/terminals', label: 'Terminals', icon: 'bi-signpost-split', visible: (a) => a.can('terminals.view') },
-            { to: '/company/franchises', label: 'Fare Matrix', icon: 'bi-cash-coin', visible: (a) => a.can('franchises.view') },
-            { to: '/company/drivers', label: 'Drivers', icon: 'bi-person-badge', visible: (a) => a.can('drivers.view') },
-            { to: '/company/conductors', label: 'Conductors', icon: 'bi-person-vcard', visible: (a) => a.can('conductors.view') },
-            { to: '/company/passenger-types', label: 'Passenger Types', icon: 'bi-people-fill', visible: (a) => a.can('passengertypes.view') },
-            { to: '/company/buses', label: 'Buses', icon: 'bi-bus-front', visible: (a) => a.can('buses.view') },
-            { to: '/company/thermal-printers', label: 'Thermal Printers', icon: 'bi-printer-fill', visible: (a) => a.can('thermalprinters.view') },
-            { to: '/company/admin-assignments', label: 'Admin Assignments', icon: 'bi-person-lines-fill', visible: (a) => a.can('adminassignments.view') },
+            { to: '/super-admin/system-configuration', label: 'System Configuration', icon: 'bi-hdd-network', visible: (a) => a.can('system.configuration.view') },
         ],
     },
-    {
-        section: 'Operations',
-        visible: (a) => a.can('tracking.view') || a.can('tripmonitoring.view') || a.can('remittances.view') || a.can('attendance.view') || a.can('cashcount.view') || a.can('expenses.view') || a.can('fuel.view'),
-        items: [
-            { to: '/company/live', label: 'Live Monitor', icon: 'bi-broadcast-pin', visible: (a) => a.can('tracking.view') },
-            { to: '/company/trip-monitor', label: 'Trip Monitoring', icon: 'bi-clipboard-data', visible: (a) => a.can('tripmonitoring.view') },
-            { to: '/company/remittances', label: 'Remittances', icon: 'bi-cash-coin', visible: (a) => a.can('remittances.view') },
-            { to: '/company/cash-counts', label: 'Cash Count', icon: 'bi-cash-stack', visible: (a) => a.can('cashcount.view') },
-            { to: '/company/expenses', label: 'Expenses', icon: 'bi-receipt-cutoff', visible: (a) => a.can('expenses.view') },
-            { to: '/company/fuel', label: 'Fuel & Energy', icon: 'bi-fuel-pump', visible: (a) => a.can('fuel.view') },
-            { to: '/company/attendance', label: 'Attendance', icon: 'bi-clock-history', visible: (a) => a.can('attendance.view') && !a.can('trips.view') },
-        ],
-    },
-    {
-        section: 'Reports & Analytics',
-        visible: (a) => a.can('reports.view') || a.can('dailyops.view') || a.can('expensereport.view') || a.can('cashcountreport.view') || a.can('fuelenergyreport.view'),
-        items: [
-            { to: '/company/reports/income', label: 'Income Monitoring', icon: 'bi-graph-up-arrow', visible: (a) => a.can('reports.view') },
-            { to: '/company/reports/daily-operations', label: 'Daily Operations', icon: 'bi-clipboard-data', visible: (a) => a.can('dailyops.view') },
-            { to: '/company/reports/expenses', label: 'Expense Report', icon: 'bi-receipt', visible: (a) => a.can('expensereport.view') },
-            { to: '/company/reports/cash-count', label: 'Cash Count Report', icon: 'bi-cash-stack', visible: (a) => a.can('cashcountreport.view') },
-            { to: '/company/reports/fuel-energy', label: 'Fuel & Energy Report', icon: 'bi-fuel-pump', visible: (a) => a.can('fuelenergyreport.view') },
-        ],
-    },
-    {
-        section: 'Company',
-        visible: (a) => !!a.user?.company_id,
-        items: [
-            { to: '/company/profile', label: 'Company Profile', icon: 'bi-building', visible: (a) => a.can('company.profile.view') },
-            { to: '/company/settings', label: 'Settings', icon: 'bi-sliders', visible: (a) => a.can('company.settings.view') || a.can('company.settings.manage') },
-            { to: '/company/devices', label: 'Devices', icon: 'bi-phone', visible: (a) => a.can('devices.view') },
-            { to: '/company/mobile-app', label: 'Mobile App', icon: 'bi-google-play', visible: (a) => a.can('mobileapp.view') },
-            { to: '/company/data-tools', label: 'Data Tools', icon: 'bi-database-gear', visible: (a) => a.can('backup.view') || a.can('backup.download') || a.can('cleandata.run') },
-            { to: '/company/audit-log', label: 'Audit Log', icon: 'bi-journal-text', visible: (a) => a.can('audit.view') },
-            { to: '/company/users', label: 'Users', icon: 'bi-people', visible: (a) => a.can('accounts.view') },
-            { to: '/company/roles', label: 'Roles', icon: 'bi-person-badge-fill', visible: (a) => a.can('roles.view') },
-            { to: '/company/void-security', label: 'Void Security', icon: 'bi-shield-lock-fill', visible: (a) => a.can('voidsecurity.view') },
-        ],
-    },
+
+    // --- Company users: one section per module group (lib/companyModules.js)
+    ...MODULE_GROUPS.map((group) => ({
+        id: `company-${group}`,
+        label: group,
+        visible: isCompanyUser,
+        items: COMPANY_MODULES.filter((m) => m.group === group).map((m) => ({
+            to: `/company/${m.path}`,
+            label: m.label,
+            icon: m.icon,
+            visible: m.visible,
+        })),
+    })),
 ];
+
+/**
+ * While a Super Admin has a company workspace open, a section for it sits
+ * right under Companies: the company's name and its modules, so moving
+ * between them doesn't mean scrolling back up to the tab bar.
+ */
+function workspaceSection(company, auth) {
+    const base = `/companies/${company.id}`;
+    const items = [{ to: base, end: true, label: 'Overview', icon: OVERVIEW_MODULE.icon, visible: () => true }];
+    groupedModules(auth).forEach(({ group, modules }) => {
+        items.push({ heading: group, visible: () => true });
+        modules.forEach((m) => items.push({ to: `${base}/${m.path}`, label: m.label, icon: m.icon, visible: m.visible }));
+    });
+    return { id: 'workspace', label: company.name, isContext: true, visible: (a) => a.isSuperAdmin, items };
+}
+
+const COLLAPSE_KEY = 'tf.nav.collapsed';
+
+function readCollapsed() {
+    try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY)) ?? {}; } catch { return {}; }
+}
 
 export default function AppLayout() {
     const auth = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [open, setOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(readCollapsed);
+    // Set by CompanyWorkspace (through the Outlet context) while one is open.
+    const [workspaceCompany, setWorkspaceCompany] = useState(null);
+    const outletContext = useMemo(() => ({ setWorkspaceCompany }), []);
+
+    const toggleSection = (id) => setCollapsed((prev) => {
+        const next = { ...prev, [id]: !prev[id] };
+        try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next)); } catch { /* per-viewer convenience only */ }
+        return next;
+    });
+
+    const sections = useMemo(() => {
+        const list = [...NAV];
+        if (workspaceCompany) {
+            list.splice(list.findIndex((sec) => sec.id === 'tenants') + 1, 0, workspaceSection(workspaceCompany, auth));
+        }
+        return list;
+    }, [workspaceCompany, auth]);
 
     const doLogout = async () => {
         await auth.logout();
@@ -168,11 +177,21 @@ export default function AppLayout() {
 
     const roleLabel = (auth.user?.access_role?.name || auth.user?.role || '').replace(/_/g, ' ');
 
-    const link = (item) =>
-        item.visible(auth) ? (
+    const hrefOf = (item) => (typeof item.to === 'function' ? item.to(auth) : item.to);
+    const isActive = (item) => {
+        if (item.heading) return false;
+        const href = hrefOf(item);
+        return item.end ? location.pathname === href : location.pathname === href || location.pathname.startsWith(`${href}/`);
+    };
+
+    const link = (item) => {
+        if (item.heading) {
+            return <div key={`h-${item.heading}`} className="tf-nav-subheading">{item.heading}</div>;
+        }
+        return item.visible(auth) ? (
             <NavLink
-                key={item.to}
-                to={item.to}
+                key={hrefOf(item)}
+                to={hrefOf(item)}
                 end={item.end}
                 className={({ isActive }) => `tf-nav-link${isActive ? ' active' : ''}`}
                 onClick={() => setOpen(false)}
@@ -181,6 +200,7 @@ export default function AppLayout() {
                 <span>{item.label}</span>
             </NavLink>
         ) : null;
+    };
 
     return (
         <div className="tf-app">
@@ -231,17 +251,6 @@ export default function AppLayout() {
                                     </button>
                                 </li>
                             )}
-                            {auth.can('voidpin.manage') && (
-                                <li>
-                                    <button
-                                        className="dropdown-item"
-                                        onClick={() => voidPinDialog(auth.user?.has_void_pin).then(() => auth.refreshUser?.())}
-                                    >
-                                        <i className="bi bi-shield-lock me-2" />
-                                        {auth.user?.has_void_pin ? 'Change void PIN' : 'Set void PIN'}
-                                    </button>
-                                </li>
-                            )}
                             <li><hr className="dropdown-divider" /></li>
                             <li>
                                 <button className="dropdown-item text-danger" onClick={doLogout}>
@@ -266,19 +275,34 @@ export default function AppLayout() {
                         </div>
                     </div>
 
-                    <nav className="tf-nav-wrap">
-                        {NAV.map((entry) =>
-                            entry.section ? (
-                                entry.visible(auth) && entry.items.some((i) => i.visible(auth)) ? (
-                                    <div key={entry.section}>
-                                        <div className="tf-nav-section-label">{entry.section}</div>
-                                        {entry.items.map(link)}
-                                    </div>
-                                ) : null
-                            ) : (
-                                link(entry)
-                            ),
-                        )}
+                    <nav className="tf-nav-wrap" aria-label="Main">
+                        {sections.map((section) => {
+                            if (!section.visible(auth)) return null;
+                            const items = section.items.filter((i) => i.visible(auth));
+                            if (!items.some((i) => !i.heading)) return null;
+                            if (!section.label) return <div key={section.id} className="tf-nav-group">{items.map(link)}</div>;
+
+                            // A section holding the current page never hides it.
+                            const hasActive = items.some(isActive);
+                            const isOpen = hasActive || !collapsed[section.id];
+                            return (
+                                <div key={section.id} className={`tf-nav-group${section.isContext ? ' is-context' : ''}`}>
+                                    <button
+                                        type="button"
+                                        className="tf-nav-section-label"
+                                        onClick={() => toggleSection(section.id)}
+                                        aria-expanded={isOpen}
+                                        disabled={hasActive}
+                                        title={hasActive ? undefined : (isOpen ? 'Collapse' : 'Expand')}
+                                    >
+                                        {section.isContext && <i className="bi bi-building me-1" />}
+                                        <span className="text-truncate">{section.label}</span>
+                                        {!hasActive && <i className={`bi ${isOpen ? 'bi-chevron-down' : 'bi-chevron-right'} tf-nav-chevron`} />}
+                                    </button>
+                                    {isOpen && items.map(link)}
+                                </div>
+                            );
+                        })}
                     </nav>
 
                     <div className="tf-sidebar-footer">
@@ -289,7 +313,7 @@ export default function AppLayout() {
                 </aside>
 
                 <main className="tf-content">
-                    <Outlet />
+                    <Outlet context={outletContext} />
                 </main>
             </div>
         </div>

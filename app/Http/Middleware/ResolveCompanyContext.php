@@ -14,8 +14,10 @@ use Symfony\Component\HttpFoundation\Response;
  * company am I?" is decided.
  *
  * - A company user (or company admin): their own `company_id`, always.
- *   Client input is never consulted, so tampering with a URL id, request
- *   body, or header cannot widen their view.
+ *   Client input is never used to pick it, so tampering with a URL id,
+ *   request body, or header cannot widen their view — and an explicit
+ *   `X-Company-Id` naming a different company is refused outright (403)
+ *   rather than silently answered with their own company's data.
  * - A Super Admin: no company by default (they see the platform). They may
  *   opt into one company's data for the request with the `X-Company-Id`
  *   header or a `?company=` query parameter — and only a Super Admin can.
@@ -61,6 +63,12 @@ class ResolveCompanyContext
         if ($user->isSuperAdmin()) {
             $this->context->set($this->superAdminScopedCompanyId($request), isSuperAdmin: true);
         } else {
+            $requested = $request->header('X-Company-Id');
+
+            if ($requested !== null && (string) $requested !== (string) $user->company_id) {
+                abort(Response::HTTP_FORBIDDEN, 'You do not have access to that company.');
+            }
+
             $this->context->set($user->company_id, isSuperAdmin: false);
         }
 

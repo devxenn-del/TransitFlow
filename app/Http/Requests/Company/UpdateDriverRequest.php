@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Company;
 
 use App\Models\Driver;
+use App\Support\CompanyContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -33,10 +34,12 @@ class UpdateDriverRequest extends FormRequest
             'email' => ['sometimes', 'nullable', 'email', 'max:150'],
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', Rule::in(Driver::STATUSES)],
+            // The bus this driver regularly drives (see Driver::assignBus()).
+            'bus_id' => ['sometimes', 'nullable', 'integer', Rule::exists('buses', 'id')->where('company_id', app(CompanyContext::class)->companyId())],
             'driver_code' => [
                 'sometimes', 'nullable', 'string', 'max:20',
                 Rule::unique('drivers', 'driver_code')
-                    ->where('company_id', $this->user()?->company_id)
+                    ->where('company_id', app(CompanyContext::class)->companyId())
                     ->ignore($this->route('driver')),
             ],
         ];

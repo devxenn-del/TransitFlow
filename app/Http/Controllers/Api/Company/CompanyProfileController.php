@@ -5,19 +5,20 @@ namespace App\Http\Controllers\Api\Company;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\UpdateCompanyProfileRequest;
 use App\Http\Resources\CompanyResource;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 
 /**
- * The authenticated company's own profile. The company is always the
- * caller's own (`$request->user()->company`) — it is never read from the
- * URL or body — so one company can't reach another's profile here no
- * matter what ids it sends.
+ * The bound company's profile (App\Support\CompanyContext) — always the
+ * caller's own for a company user, or the company a Super Admin has scoped
+ * into. It is never read from the URL or body, so one company can't reach
+ * another's profile here no matter what ids it sends.
  */
 class CompanyProfileController extends Controller
 {
     public function show(Request $request): CompanyResource
     {
-        $company = $request->user()->company;
+        $company = app(CompanyContext::class)->company();
 
         abort_if($company === null, 404);
 
@@ -28,7 +29,7 @@ class CompanyProfileController extends Controller
 
     public function update(UpdateCompanyProfileRequest $request): CompanyResource
     {
-        $company = $request->user()->company;
+        $company = app(CompanyContext::class)->company();
 
         $company->update($request->validated());
 

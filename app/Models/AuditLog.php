@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\AuditLogFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,9 @@ class AuditLog extends Model
     use HasFactory;
 
     public const UPDATED_AT = null;
+
+    /** Action prefix of the Super-Admin-only fee / pricing / billing entries. */
+    public const PLATFORM_BILLING_PREFIX = 'billing.';
 
     protected $fillable = [
         'company_id', 'user_id', 'user_name', 'action',
@@ -51,5 +55,19 @@ class AuditLog extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Hides Super-Admin-only entries from company users: fee and pricing
+     * changes (`billing.*`) carry standard vs special amounts and internal
+     * pricing notes, which a company must never see — even its own.
+     *
+     * @param  Builder<AuditLog>  $query
+     */
+    public function scopeVisibleTo(Builder $query, User $user): void
+    {
+        if (! $user->isSuperAdmin()) {
+            $query->where('action', 'not like', self::PLATFORM_BILLING_PREFIX.'%');
+        }
     }
 }

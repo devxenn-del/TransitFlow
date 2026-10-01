@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Company;
 
+use App\Support\CompanyContext;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -32,7 +33,7 @@ class CleanCompanyDataRequest extends FormRequest
 
     protected function passedValidation(): void
     {
-        $expected = (string) $this->user()->company->code;
+        $expected = (string) app(CompanyContext::class)->company()->code;
 
         if (! hash_equals($expected, (string) $this->input('confirm'))) {
             abort(422, 'Type your company code exactly to confirm.');

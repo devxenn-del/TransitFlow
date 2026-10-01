@@ -3,7 +3,10 @@
 namespace App\Models;
 
 use App\Enums\CompanyStatus;
+use App\Enums\PricingPlan;
 use App\Enums\UserRole;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,7 +40,21 @@ class Company extends Model
         'logo_path',
         'status',
         'can_create_accounts',
+        'pricing_plan',
+        'billing_cycle_day',
+        'next_billing_number',
     ];
+
+    /** Billing periods start on this day of the month at the latest, so every month has it. */
+    public const MAX_BILLING_CYCLE_DAY = 28;
+
+    protected static function booted(): void
+    {
+        // A new company's billing cycle starts on the day it registers.
+        static::creating(function (Company $company): void {
+            $company->billing_cycle_day ??= min(today()->day, self::MAX_BILLING_CYCLE_DAY);
+        });
+    }
 
     /**
      * @return array<string, string>
@@ -47,6 +64,9 @@ class Company extends Model
         return [
             'status' => CompanyStatus::class,
             'can_create_accounts' => 'boolean',
+            'pricing_plan' => PricingPlan::class,
+            'billing_cycle_day' => 'integer',
+            'next_billing_number' => 'integer',
         ];
     }
 
@@ -80,6 +100,77 @@ class Company extends Model
     public function buses(): HasMany
     {
         return $this->hasMany(Bus::class);
+    }
+
+    /**
+     * @return HasMany<Driver, $this>
+     */
+    public function drivers(): HasMany
+    {
+        return $this->hasMany(Driver::class);
+    }
+
+    /**
+     * Conductor accounts — the company's users holding its `conductor` role.
+     *
+     * @return HasMany<User, $this>
+     */
+    public function conductors(): HasMany
+    {
+        return $this->hasMany(User::class)->whereRelation('accessRole', 'key', 'conductor');
+    }
+
+    /**
+     * @return HasMany<CompanyDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(CompanyDocument::class);
+    }
+
+    /**
+     * @return HasMany<Trip, $this>
+     */
+    public function trips(): HasMany
+    {
+        return $this->hasMany(Trip::class);
+    }
+
+    /**
+     * @return HasMany<Ticket, $this>
+     */
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
+    /**
+     * Fees explicitly assigned to this company (fees that apply to every
+     * company are not listed here — see Fee::scopeAppliedTo()).
+     *
+     * @return BelongsToMany<Fee, $this>
+     */
+    public function assignedFees(): BelongsToMany
+    {
+        return $this->belongsToMany(Fee::class, 'company_fee')->withTimestamps();
+    }
+
+    /**
+     * Special (company-specific) fee pricing — Super Admin configuration.
+     *
+     * @return HasMany<CompanyFeeRate, $this>
+     */
+    public function feeRates(): HasMany
+    {
+        return $this->hasMany(CompanyFeeRate::class);
+    }
+
+    /**
+     * @return HasMany<BillingStatement, $this>
+     */
+    public function billingStatements(): HasMany
+    {
+        return $this->hasMany(BillingStatement::class);
     }
 
     /**
@@ -123,6 +214,31 @@ class Company extends Model
     public function permissionIsAvailable(string $permissionKey): bool
     {
         return ! $this->disabledPermissionKeys()->contains($permissionKey);
+    }
+
+    /**
+     * The billing period that starts in the given month: from the company's
+     * cycle day to the day before it a month later (e.g. 07/24 – 08/23).
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    public function billingPeriodStartingIn(CarbonInterface $month): array
+    {
+        $start = CarbonImmutable::create($month->year, $month->month, $this->billing_cycle_day);
+
+        return [$start, $start->addMonthNoOverflow()->subDay()];
+    }
+
+    /**
+     * The billing period that contains the given date.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    public function billingPeriodContaining(CarbonInterface $date): array
+    {
+        $day = CarbonImmutable::parse($date)->startOfDay();
+
+        return $this->billingPeriodStartingIn($day->day >= $this->billing_cycle_day ? $day : $day->subMonthNoOverflow());
     }
 
     public function isActive(): bool

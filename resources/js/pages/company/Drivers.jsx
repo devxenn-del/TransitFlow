@@ -8,6 +8,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { drivers } from '../../lib/api.js';
+import { useActiveCompany } from '../../lib/companyScope.jsx';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
@@ -110,7 +111,8 @@ function DriverQrModal({ driver, company, onClose }) {
 }
 
 export default function Drivers() {
-    const { can, user } = useAuth();
+    const { can } = useAuth();
+    const company = useActiveCompany();
     const { rows, meta, loading, page, setPage, reload } = useList(drivers.list);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
@@ -289,7 +291,7 @@ export default function Drivers() {
                 </form>
             </Modal>
 
-            <DriverQrModal driver={qrDriver} company={user?.company} onClose={() => setQrDriver(null)} />
+            <DriverQrModal driver={qrDriver} company={company} onClose={() => setQrDriver(null)} />
         </>
     );
 }

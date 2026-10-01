@@ -27,7 +27,7 @@ class CompanyController extends Controller
         $this->authorize('viewAny', Company::class);
 
         $companies = Company::query()
-            ->withCount('users')
+            ->withCount(['users', 'drivers', 'conductors', 'buses'])
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->string('q')->isNotEmpty(), fn ($q) => $q->where(
                 fn ($sub) => $sub->where('name', 'like', "%{$request->string('q')}%")

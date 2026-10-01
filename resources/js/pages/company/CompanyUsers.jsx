@@ -7,30 +7,59 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { companyUsers, roles as rolesApi } from '../../lib/api.js';
+import { useActiveCompany, useCompanyPath, useCompanyScope } from '../../lib/companyScope.jsx';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
-const BLANK = { name: '', email: '', password: '', role_id: '', status: 'active', pin: '' };
+const BLANK = { name: '', email: '', password: '', role_id: '', status: 'active', pin: '', phone: '' };
+const fmtDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
+const fmtDateTime = (v) => (v ? new Date(v).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never');
 
 export default function CompanyUsers() {
     const { can, user: me } = useAuth();
     const navigate = useNavigate();
-    const { rows, meta, loading, page, setPage, reload } = useList(companyUsers.list);
+    const company = useActiveCompany();
+    const companyPath = useCompanyPath();
+    // In a company workspace this is the company's full account list —
+    // conductors included, with a role filter. Standalone, conductors keep
+    // their own Fleet > Conductors screen.
+    const inWorkspace = !!useCompanyScope();
+    const [search, setSearch] = useState('');
+    const [q, setQ] = useState('');
+    const [roleFilter, setRoleFilter] = useState('');
+    const { rows, meta, loading, page, setPage, reload } = useList(
+        (params) => companyUsers.list({
+            ...params,
+            q: q || undefined,
+            role: roleFilter || undefined,
+            include_conductors: inWorkspace ? 1 : undefined,
+        }),
+        { deps: [q, roleFilter] },
+    );
     const [roles, setRoles] = useState([]);
+    const [allRoles, setAllRoles] = useState([]);
+
+    useEffect(() => {
+        const t = setTimeout(() => { setQ(search.trim()); setPage(1); }, 300);
+        return () => clearTimeout(t);
+    }, [search, setPage]);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         // Conductors get their own accounts screen (Fleet > Conductors).
-        rolesApi.list().then((list) => setRoles(list.filter((r) => r.key !== 'conductor'))).catch(() => {});
+        rolesApi.list().then((list) => {
+            setAllRoles(list);
+            setRoles(list.filter((r) => r.key !== 'conductor'));
+        }).catch(() => {});
     }, []);
 
     const openNew = () => { setForm(BLANK); setEditing({}); };
     const openEdit = (u) => {
         setForm({
             name: u.name, email: u.email, password: '', role_id: u.access_role?.id ?? '',
-            status: u.status, pin: '',
+            status: u.status, pin: '', phone: u.phone ?? '',
         });
         setEditing(u);
     };
@@ -94,20 +123,31 @@ export default function CompanyUsers() {
         <>
             <PageHeader
                 title="Users"
-                subtitle="Accounts in your company"
-                actions={can('accounts.create') && me.company?.can_create_accounts !== false && (
+                subtitle={inWorkspace ? 'Every account in this company' : 'Accounts in your company'}
+                actions={can('accounts.create') && (me.is_super_admin || company?.can_create_accounts !== false) && (
                     <button className="btn btn-primary" onClick={openNew}>
                         <i className="bi bi-plus-lg me-1" /> New user
                     </button>
                 )}
             />
 
-            {can('accounts.create') && me.company?.can_create_accounts === false && (
+            {can('accounts.create') && !me.is_super_admin && company?.can_create_accounts === false && (
                 <div className="alert alert-warning small">
                     <i className="bi bi-person-fill-lock me-1" />
                     Account creation is disabled for your company by the TransitFlow administrator. You can still edit or deactivate existing accounts.
                 </div>
             )}
+
+            <div className="d-flex flex-wrap gap-2 mb-3">
+                <div className="input-group flex-grow-1" style={{ maxWidth: 380 }}>
+                    <span className="input-group-text bg-body"><i className="bi bi-search" /></span>
+                    <input className="form-control" placeholder="Search name, email or employee ID" value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                <select className="form-select w-auto" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
+                    <option value="">All roles</option>
+                    {(inWorkspace ? allRoles : roles).map((r) => <option key={r.id} value={r.key}>{r.name}</option>)}
+                </select>
+            </div>
 
             <div className="card border-0 shadow-sm">
                 <div className="table-responsive">
@@ -115,21 +155,29 @@ export default function CompanyUsers() {
                         <thead className="table-light">
                             <tr>
                                 <th>Name</th>
-                                <th>Email</th>
+                                <th>Contact</th>
                                 <th>Role</th>
                                 <th>Status</th>
+                                <th>Last login</th>
+                                <th>Created</th>
                                 <th className="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loading && <tr><td colSpan={5} className="text-center py-4"><span className="spinner-border spinner-border-sm" /></td></tr>}
+                            {loading && <tr><td colSpan={7} className="text-center py-4"><span className="spinner-border spinner-border-sm" /></td></tr>}
+                            {!loading && rows.length === 0 && (
+                                <tr><td colSpan={7} className="tf-empty">{q || roleFilter ? 'No users match these filters.' : 'No users yet.'}</td></tr>
+                            )}
                             {!loading && rows.map((u) => (
-                                <tr key={u.id}>
+                                <tr key={u.id} className="tf-row-link" onClick={() => navigate(companyPath(`users/${u.id}`))}>
                                     <td className="fw-semibold">
                                         {u.name}
                                         {u.id === me.id && <span className="badge text-bg-light border ms-2">you</span>}
                                     </td>
-                                    <td className="small">{u.email}</td>
+                                    <td className="small">
+                                        {u.email}
+                                        {u.phone && <div className="text-body-secondary">{u.phone}</div>}
+                                    </td>
                                     <td>
                                         <span className="badge text-bg-light border text-capitalize">
                                             {u.access_role?.name ?? u.role?.replaceAll('_', ' ')}
@@ -143,7 +191,9 @@ export default function CompanyUsers() {
                                             </span>
                                         )}
                                     </td>
-                                    <td className="text-end text-nowrap">
+                                    <td className="small text-nowrap">{fmtDateTime(u.last_login_at)}</td>
+                                    <td className="small text-nowrap">{fmtDate(u.created_at)}</td>
+                                    <td className="text-end text-nowrap" onClick={(e) => e.stopPropagation()}>
                                         {can('accounts.lock') && u.id !== me.id && (
                                             <button
                                                 className={`btn btn-sm me-1 ${u.is_locked ? 'btn-outline-success' : 'btn-outline-danger'}`}
@@ -154,7 +204,7 @@ export default function CompanyUsers() {
                                             </button>
                                         )}
                                         {can('permissions.view') && (
-                                            <button className="btn btn-sm btn-outline-secondary me-1" title="Permissions" onClick={() => navigate(`/company/users/${u.id}/permissions`)}>
+                                            <button className="btn btn-sm btn-outline-secondary me-1" title="Permissions" onClick={() => navigate(companyPath(`users/${u.id}/permissions`))}>
                                                 <i className="bi bi-shield-lock" />
                                             </button>
                                         )}
@@ -227,12 +277,16 @@ export default function CompanyUsers() {
                                 : "Optional — leave blank and the conductor can set their own from the mobile app's Set PIN screen."}
                         </div>
                     </div>
+                    <div>
+                        <label className="form-label">Phone number</label>
+                        <input className="form-control" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                    </div>
                     <div className="row g-2">
                         <div className="col-md-6">
                             <label className="form-label">Role *</label>
                             <select className="form-select" required value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })}>
                                 <option value="">Select…</option>
-                                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                {(inWorkspace ? allRoles : roles).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                             </select>
                         </div>
                         <div className="col-md-6">

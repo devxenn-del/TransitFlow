@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Self-service: set or replace your own App PIN. The current password
- * confirms identity, same as VoidPin's SetVoidPinRequest.
+ * confirms identity.
  */
 class SetPinRequest extends FormRequest
 {

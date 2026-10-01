@@ -207,18 +207,6 @@ class ReceiptTest extends TestCase
         $this->getJson("/api/conductor/trips/{$trip->id}/receipt/remittance")->assertForbidden();
     }
 
-    public function test_office_prints_the_remittance_receipt_from_the_remittance_desk(): void
-    {
-        $office = User::factory()->forCompany($this->company)->withRole('office')->create();
-        $trip = $this->ownTrip(['status' => 'Arrived', 'ended_at' => now(), 'remitted_amount' => 0]);
-
-        Sanctum::actingAs($office);
-
-        $this->getJson("/api/company/remittances/{$trip->id}/receipt/remittance")
-            ->assertOk()
-            ->assertJsonPath('data.kind', 'remittance');
-    }
-
     public function test_an_unknown_receipt_kind_is_rejected(): void
     {
         $trip = $this->ownTrip();

@@ -89,24 +89,6 @@ class TripLifecycleTest extends TestCase
         );
     }
 
-    public function test_an_ended_trip_appears_on_the_remittance_desk_for_receiving(): void
-    {
-        $this->postJson('/api/conductor/trips', $this->startPayload())->assertCreated();
-        $trip = Trip::query()->where('conductor_id', $this->conductor->id)->firstOrFail();
-        $trip->tickets()->create(['company_id' => $this->company->id, 'passenger_type_id' => PassengerType::factory()->for($this->company)->create()->id, 'fare' => 25, 'issued_at' => now()]);
-
-        $this->postJson('/api/conductor/trips/end')->assertOk()->assertJsonPath('data.status', 'Arrived');
-
-        // A desk user sees it in the "to receive" queue by its reference.
-        $office = User::factory()->forCompany($this->company)->withRole('office')->create();
-        Sanctum::actingAs($office);
-
-        $this->getJson('/api/company/remittances?stage=pending')
-            ->assertOk()
-            ->assertJsonPath('data.0.reference', $trip->reference)
-            ->assertJsonPath('data.0.remittance.stage', 'pending');
-    }
-
     public function test_starting_from_a_pickup_only_terminal_skips_departure(): void
     {
         // Price a GARAGE → HUB route so coverage validates.
@@ -209,5 +191,4 @@ class TripLifecycleTest extends TestCase
         $this->postJson('/api/conductor/trips', $this->startPayload())
             ->assertJsonValidationErrorFor('attendance');
     }
-
 }

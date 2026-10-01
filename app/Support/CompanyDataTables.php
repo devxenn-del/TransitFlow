@@ -19,14 +19,9 @@ class CompanyDataTables
     /** @var list<string> */
     public const TRANSACTIONAL = [
         'bus_locations',
-        'cash_count_void_attempts',
-        'cash_count_history',
-        'remittance_cash_counts',
         'dispatches',
         'tickets',
         'ticket_groups',
-        'op_day_expenses',
-        'bus_day_cash_counts',
         'fuel_records',
         'ev_charging_sessions',
         'conductor_attendance',

@@ -4,11 +4,13 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { companyProfile } from '../../lib/api.js';
+import { useCompanyScope } from '../../lib/companyScope.jsx';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
 
 export default function CompanyProfile() {
     const { can } = useAuth();
     const editable = can('company.profile.edit');
+    const scope = useCompanyScope();
     const [company, setCompany] = useState(null);
     const [form, setForm] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -33,6 +35,7 @@ export default function CompanyProfile() {
         try {
             const updated = await companyProfile.update(form);
             setCompany(updated);
+            scope?.reload(); // refresh the workspace header
             notifySuccess('Company profile saved.');
         } catch (err) {
             notifyError(err);

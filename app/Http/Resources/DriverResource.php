@@ -28,6 +28,11 @@ class DriverResource extends JsonResource
             'email' => $this->email,
             'address' => $this->address,
             'status' => $this->status,
+            'bus' => $this->whenLoaded('bus', fn () => $this->bus ? [
+                'id' => $this->bus->id,
+                'bus_number' => $this->bus->bus_number,
+                'plate_number' => $this->bus->plate_number,
+            ] : null),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

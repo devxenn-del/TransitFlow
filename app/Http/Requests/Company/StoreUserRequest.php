@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Company;
 
 use App\Models\User;
+use App\Support\CompanyContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +26,7 @@ class StoreUserRequest extends FormRequest
             // Must be one of THIS company's own roles (or a shared template).
             'role_id' => ['required', Rule::exists('roles', 'id')->where(function ($q) {
                 $q->where('is_platform', 0)
-                    ->where(fn ($w) => $w->where('company_id', $this->user()?->company_id)->orWhereNull('company_id'));
+                    ->where(fn ($w) => $w->where('company_id', app(CompanyContext::class)->companyId())->orWhereNull('company_id'));
             })],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
             'first_name' => ['nullable', 'string', 'max:100'],

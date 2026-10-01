@@ -7,6 +7,7 @@ use App\Actions\ExportCompanyData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\CleanCompanyDataRequest;
 use App\Models\DataOperation;
+use App\Support\CompanyContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -26,7 +27,7 @@ class DataToolsController extends Controller
      */
     public function export(Request $request, ExportCompanyData $action): StreamedResponse
     {
-        $company = $request->user()->company;
+        $company = app(CompanyContext::class)->company();
         abort_if($company === null, 404);
 
         $payload = $action->handle($company, $request->user());
@@ -45,7 +46,7 @@ class DataToolsController extends Controller
      */
     public function cleanPreview(Request $request, CleanCompanyData $action): JsonResponse
     {
-        $company = $request->user()->company;
+        $company = app(CompanyContext::class)->company();
         abort_if($company === null, 404);
 
         $counts = $action->preview($company);
@@ -64,7 +65,7 @@ class DataToolsController extends Controller
      */
     public function clean(CleanCompanyDataRequest $request, CleanCompanyData $action): JsonResponse
     {
-        $summary = $action->handle($request->user()->company, $request->user());
+        $summary = $action->handle(app(CompanyContext::class)->company(), $request->user());
 
         return response()->json([
             'data' => [
@@ -80,7 +81,7 @@ class DataToolsController extends Controller
     public function history(Request $request): JsonResponse
     {
         $rows = DataOperation::query()
-            ->where('company_id', $request->user()->company_id)
+            ->where('company_id', app(CompanyContext::class)->companyId())
             ->latest('created_at')
             ->limit(50)
             ->get()

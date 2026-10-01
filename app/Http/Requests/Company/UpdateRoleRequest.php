@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Company;
 
 use App\Models\Permission;
+use App\Support\CompanyContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,7 @@ class UpdateRoleRequest extends FormRequest
         return [
             'name' => [
                 'sometimes', 'string', 'max:100',
-                Rule::unique('roles', 'name')->where('company_id', $this->user()?->company_id)->ignore($roleId),
+                Rule::unique('roles', 'name')->where('company_id', app(CompanyContext::class)->companyId())->ignore($roleId),
             ],
             'description' => ['sometimes', 'nullable', 'string', 'max:255'],
             'permission_keys' => ['sometimes', 'array'],

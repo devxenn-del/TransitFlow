@@ -7,6 +7,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { buses as busesApi, conductorBuses, conductors } from '../../lib/api.js';
+import { useActiveCompany } from '../../lib/companyScope.jsx';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
@@ -14,6 +15,7 @@ const BLANK = { name: '', email: '', password: '', status: 'active', phone: '', 
 
 export default function Conductors() {
     const { can, user: me } = useAuth();
+    const company = useActiveCompany();
     const { rows, meta, loading, page, setPage, reload } = useList(conductors.list);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
@@ -132,14 +134,14 @@ export default function Conductors() {
                 eyebrow="Fleet"
                 title="Conductors"
                 subtitle="Login accounts that run trips and issue tickets."
-                actions={can('conductors.create') && me.company?.can_create_accounts !== false && (
+                actions={can('conductors.create') && (me.is_super_admin || company?.can_create_accounts !== false) && (
                     <button className="btn btn-accent" onClick={openNew}>
                         <i className="bi bi-plus-lg me-1" /> Add conductor
                     </button>
                 )}
             />
 
-            {can('conductors.create') && me.company?.can_create_accounts === false && (
+            {can('conductors.create') && !me.is_super_admin && company?.can_create_accounts === false && (
                 <div className="alert alert-warning small">
                     <i className="bi bi-person-fill-lock me-1" />
                     Account creation is disabled for your company by the TransitFlow administrator. You can still edit or deactivate existing conductors.

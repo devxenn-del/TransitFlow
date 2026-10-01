@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Permission extends Model
 {
     /** Permission groups that only make sense for the Super Admin. */
-    public const PLATFORM_GROUPS = ['Companies', 'Platform Users', 'System Configuration', 'Legal Documents'];
+    public const PLATFORM_GROUPS = ['Companies', 'Platform Users', 'System Configuration', 'Legal Documents', 'Fee Management'];
 
     protected $fillable = [
         'permission_group_id',

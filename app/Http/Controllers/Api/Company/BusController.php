@@ -24,7 +24,17 @@ class BusController extends Controller
         $this->authorize('viewAny', Bus::class);
 
         return BusResource::collection(
-            Bus::query()->orderBy('bus_number')->paginate($request->integer('per_page', 20))
+            Bus::query()
+                ->with(['driver', 'conductors'])
+                ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
+                ->when($request->string('vehicle_type')->isNotEmpty(), fn ($q) => $q->where('vehicle_type', $request->string('vehicle_type')))
+                ->when($request->string('q')->isNotEmpty(), fn ($q) => $q->where(
+                    fn ($s) => $s->where('bus_number', 'like', "%{$request->string('q')}%")
+                        ->orWhere('plate_number', 'like', "%{$request->string('q')}%")
+                        ->orWhere('model', 'like', "%{$request->string('q')}%")
+                ))
+                ->orderBy('bus_number')
+                ->paginate($request->integer('per_page', 20))
         );
     }
 
@@ -33,9 +43,10 @@ class BusController extends Controller
         // company_id is filled in by the BelongsToCompany trait. Refresh so
         // DB-applied column defaults (status, vehicle_type) are reflected in
         // the response when the caller omitted them, not just in storage.
-        $bus = Bus::query()->create($request->validated())->fresh();
+        $bus = Bus::query()->create($request->safe()->except(['driver_id', 'conductor_ids']));
+        $this->assignCrew($request, $bus);
 
-        return BusResource::make($bus)
+        return BusResource::make($bus->fresh()->load(['driver', 'conductors']))
             ->response()
             ->setStatusCode(JsonResponse::HTTP_CREATED);
     }
@@ -44,14 +55,15 @@ class BusController extends Controller
     {
         $this->authorize('view', $bus);
 
-        return BusResource::make($bus);
+        return BusResource::make($bus->load(['driver', 'conductors']));
     }
 
     public function update(UpdateBusRequest $request, Bus $bus): BusResource
     {
-        $bus->update($request->validated());
+        $bus->update($request->safe()->except(['driver_id', 'conductor_ids']));
+        $this->assignCrew($request, $bus);
 
-        return BusResource::make($bus->fresh());
+        return BusResource::make($bus->fresh()->load(['driver', 'conductors']));
     }
 
     public function destroy(Bus $bus): JsonResponse
@@ -61,5 +73,20 @@ class BusController extends Controller
         $bus->delete();
 
         return response()->json(status: JsonResponse::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Apply the optional crew fields: the regular driver (released from any
+     * other bus first) and the assigned conductor accounts.
+     */
+    private function assignCrew(StoreBusRequest|UpdateBusRequest $request, Bus $bus): void
+    {
+        if ($request->has('driver_id')) {
+            $bus->assignDriver($request->validated('driver_id'));
+        }
+
+        if ($request->has('conductor_ids')) {
+            $bus->conductors()->sync($request->validated('conductor_ids'));
+        }
     }
 }

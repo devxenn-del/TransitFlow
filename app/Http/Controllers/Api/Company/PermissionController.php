@@ -11,6 +11,7 @@ use App\Models\Permission;
 use App\Models\PermissionGroup;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,7 @@ class PermissionController extends Controller
             ->get();
 
         return PermissionGroupResource::collection($groups)->additional([
-            'disabled_permissions' => $request->user()->company?->disabledPermissionKeys()->values() ?? [],
+            'disabled_permissions' => app(CompanyContext::class)->company()?->disabledPermissionKeys()->values() ?? [],
         ]);
     }
 

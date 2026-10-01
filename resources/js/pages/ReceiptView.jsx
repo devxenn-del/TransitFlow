@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { receipts } from '../lib/api.js';
+import { setCompanyScope } from '../lib/axios.js';
 
 /**
  * Full-screen thermal-receipt print page — BITS `receipt/conductor/*.php`.
@@ -20,9 +21,11 @@ export default function ReceiptView() {
     const [error, setError] = useState('');
 
     useEffect(() => {
+        // Opened from a company workspace: fetch within that company.
+        setCompanyScope(sp.get('company'));
+
         let request;
         if (src === 'conductor' && kind && id) request = receipts.conductorTrip(id, kind);
-        else if (src === 'company' && kind && id) request = receipts.companyTrip(id, kind);
         else if (src === 'monitor' && kind && id) request = receipts.monitorTrip(id, kind);
         else if (src === 'ticket' && id) request = receipts.ticket(id, Number(qty) || 1);
         else if (src === 'dispatch' && id) request = receipts.dispatch(id);

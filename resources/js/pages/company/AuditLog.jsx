@@ -49,7 +49,7 @@ export default function AuditLog() {
             <PageHeader
                 eyebrow="Company"
                 title="Audit Log"
-                subtitle="Who changed what — settings, roles, permissions, remittances, trips and data tools."
+                subtitle="Who changed what — settings, roles, permissions, trips and data tools."
             />
 
             <div className="d-flex flex-wrap gap-2 mb-3 align-items-end">

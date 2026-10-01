@@ -5,7 +5,6 @@ namespace Tests\Feature\MultiCompany;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\CompanySetting;
-use App\Models\Trip;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -52,34 +51,6 @@ class AuditLogTest extends TestCase
             'action' => 'role.created',
             'user_id' => $this->admin->id,
         ]);
-    }
-
-    public function test_approving_a_remittance_is_audited_with_the_variance(): void
-    {
-        $manager = User::factory()->forCompany($this->company)->withRole('manager')->create();
-        $trip = Trip::factory()->for($this->company)->create([
-            'status' => 'Arrived',
-            'ended_at' => now(),
-            'remitted_amount' => 500,
-            'remittance_received_at' => now(),
-        ]);
-        $trip->remittanceCashCount()->create([
-            'company_id' => $this->company->id,
-            'op_date' => now()->toDateString(),
-            'shift' => 'Morning',
-            'counted_total' => 480,
-            'expected_amount' => 500,
-            'status' => 'Received',
-            'received_by' => $manager->id,
-            'received_at' => now(),
-        ]);
-
-        Sanctum::actingAs($manager);
-        $this->postJson("/api/company/remittances/{$trip->id}/approve")->assertOk();
-
-        $log = AuditLog::query()->where('action', 'remittance.approved')->first();
-        $this->assertNotNull($log);
-        $this->assertEquals(20, $log->context['short']);
     }
 
     public function test_super_admin_actions_are_audited_against_the_target_company(): void

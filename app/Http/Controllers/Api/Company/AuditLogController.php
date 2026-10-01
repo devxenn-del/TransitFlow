@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Company;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AuditLogResource;
 use App\Models\AuditLog;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -18,7 +19,8 @@ class AuditLogController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $logs = AuditLog::query()
-            ->where('company_id', $request->user()->company_id)
+            ->where('company_id', app(CompanyContext::class)->companyId())
+            ->visibleTo($request->user())
             ->with('user:id,name')
             ->when($request->filled('action'), fn ($q) => $q->where('action', 'like', $request->string('action').'%'))
             ->when($request->filled('user_id'), fn ($q) => $q->where('user_id', $request->integer('user_id')))
