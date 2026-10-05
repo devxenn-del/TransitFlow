@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RbacSeeder::class,
             PlatformSeeder::class,
+            FeeSeeder::class,
             DemoCompanySeeder::class,
             LegalDocumentSeeder::class,
         ]);
