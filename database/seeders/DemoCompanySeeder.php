@@ -82,7 +82,6 @@ class DemoCompanySeeder extends Seeder
                 'role_id' => Role::query()->forCompany($company->id)->where('key', 'manager')->value('id'),
                 'status' => 'active',
                 'email_verified_at' => now(),
-                'void_pin_hash' => Hash::make('1234'), // demo void PIN
             ],
         );
         app(SyncUserRolePermissions::class)->handle($manager, reset: true);
