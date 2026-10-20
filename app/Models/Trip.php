@@ -214,6 +214,26 @@ class Trip extends Model
     }
 
     /**
+     * Passengers on this trip by where they boarded — one ticket is one
+     * passenger; refunded tickets don't count (same rule as collectedAmount()).
+     *
+     * @return array{total:int, terminal:int, pickup:int}
+     */
+    public function passengerCounts(): array
+    {
+        $byBoarding = $this->tickets()
+            ->whereNull('refunded_at')
+            ->selectRaw('boarding_type, COUNT(*) as aggregate')
+            ->groupBy('boarding_type')
+            ->pluck('aggregate', 'boarding_type');
+
+        $terminal = (int) ($byBoarding['Terminal'] ?? 0);
+        $pickup = (int) ($byBoarding['Pickup'] ?? 0);
+
+        return ['total' => $terminal + $pickup, 'terminal' => $terminal, 'pickup' => $pickup];
+    }
+
+    /**
      * Total barker payouts recorded against this trip (§4.3: total_dispatch).
      */
     public function dispatchTotal(): float

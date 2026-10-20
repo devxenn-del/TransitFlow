@@ -47,6 +47,8 @@ class TripResource extends JsonResource
                 'balance' => $this->remitted_amount !== null
                     ? round($this->collectedAmount() - (float) $this->remitted_amount, 2)
                     : null,
+                // The conductor app's Passengers tile: total, Via Terminal, Via Pick-up.
+                'passengers' => $this->passengerCounts(),
             ],
             'created_at' => $this->created_at,
         ];

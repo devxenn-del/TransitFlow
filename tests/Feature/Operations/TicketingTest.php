@@ -149,6 +149,20 @@ class TicketingTest extends TestCase
         $this->assertDatabaseCount('tickets', 1);
     }
 
+    public function test_active_trip_counts_passengers_by_boarding_type(): void
+    {
+        $this->issue(['quantity' => 2])->assertCreated();
+        $this->trip->update(['status' => 'OnTrip']);
+        $this->issue(['boarding_type' => 'Pickup', 'quantity' => 3])->assertCreated();
+        $this->trip->tickets()->where('boarding_type', 'Pickup')->first()->update(['refunded_at' => now()]);
+
+        $this->getJson('/api/conductor/trips/active')
+            ->assertOk()
+            ->assertJsonPath('data.summary.passengers.total', 4)
+            ->assertJsonPath('data.summary.passengers.terminal', 2)
+            ->assertJsonPath('data.summary.passengers.pickup', 2);
+    }
+
     public function test_cannot_issue_without_a_live_trip(): void
     {
         $this->trip->update(['status' => 'Arrived']);
