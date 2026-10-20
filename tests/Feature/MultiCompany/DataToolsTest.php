@@ -23,6 +23,8 @@ class DataToolsTest extends TestCase
 
     private User $admin;
 
+    private User $superAdmin;
+
     private Bus $bus;
 
     protected function setUp(): void
@@ -30,6 +32,8 @@ class DataToolsTest extends TestCase
         parent::setUp();
         $this->company = Company::factory()->create(['code' => 'PERJODA']);
         $this->admin = User::factory()->companyAdmin($this->company)->create();
+        $this->superAdmin = User::factory()->superAdmin()->create();
+        $this->withHeader('X-Company-Id', (string) $this->company->id);
         $this->bus = Bus::factory()->for($this->company)->create();
     }
 
@@ -49,7 +53,7 @@ class DataToolsTest extends TestCase
     {
         $this->seedTransactional();
 
-        Sanctum::actingAs($this->admin);
+        Sanctum::actingAs($this->superAdmin);
 
         $this->getJson('/api/company/data-tools/clean-preview')
             ->assertOk()
@@ -64,7 +68,7 @@ class DataToolsTest extends TestCase
     {
         $this->seedTransactional();
 
-        Sanctum::actingAs($this->admin);
+        Sanctum::actingAs($this->superAdmin);
 
         $this->postJson('/api/company/data-tools/clean', ['confirm' => 'perjoda'])->assertStatus(422);
         $this->postJson('/api/company/data-tools/clean', ['confirm' => ''])->assertStatus(422);
@@ -76,7 +80,7 @@ class DataToolsTest extends TestCase
     {
         $this->seedTransactional();
 
-        Sanctum::actingAs($this->admin);
+        Sanctum::actingAs($this->superAdmin);
 
         $this->postJson('/api/company/data-tools/clean', ['confirm' => 'PERJODA'])
             ->assertOk()
@@ -99,7 +103,7 @@ class DataToolsTest extends TestCase
         $this->assertDatabaseHas('data_operations', [
             'company_id' => $this->company->id,
             'type' => 'clean',
-            'performed_by' => $this->admin->id,
+            'performed_by' => $this->superAdmin->id,
         ]);
     }
 
@@ -109,7 +113,7 @@ class DataToolsTest extends TestCase
         $other = Company::factory()->create(['code' => 'SOUTH']);
         $this->seedTransactional($other);
 
-        Sanctum::actingAs($this->admin);
+        Sanctum::actingAs($this->superAdmin);
         $this->postJson('/api/company/data-tools/clean', ['confirm' => 'PERJODA'])->assertOk();
 
         $this->assertTrue(Trip::withoutGlobalScopes()->where('company_id', $other->id)->exists());
@@ -120,7 +124,7 @@ class DataToolsTest extends TestCase
     {
         $this->seedTransactional();
 
-        Sanctum::actingAs($this->admin);
+        Sanctum::actingAs($this->superAdmin);
 
         $response = $this->get('/api/company/data-tools/export')
             ->assertOk()
@@ -137,7 +141,7 @@ class DataToolsTest extends TestCase
 
     public function test_history_lists_recent_operations_for_the_company(): void
     {
-        Sanctum::actingAs($this->admin);
+        Sanctum::actingAs($this->superAdmin);
         $this->get('/api/company/data-tools/export');
         $this->postJson('/api/company/data-tools/clean', ['confirm' => 'PERJODA'])->assertOk();
 
@@ -147,13 +151,17 @@ class DataToolsTest extends TestCase
             ->assertJsonPath('data.0.type', 'clean');
     }
 
-    public function test_data_tools_are_permission_gated(): void
+    public function test_data_tools_are_super_admin_only(): void
     {
+        $chairman = User::factory()->forCompany($this->company)->withRole('chairman')->create();
         $office = User::factory()->forCompany($this->company)->withRole('office')->create();
 
-        Sanctum::actingAs($office);
-        $this->getJson('/api/company/data-tools/clean-preview')->assertForbidden();
-        $this->postJson('/api/company/data-tools/clean', ['confirm' => 'PERJODA'])->assertForbidden();
-        $this->get('/api/company/data-tools/export')->assertForbidden();
+        foreach ([$this->admin, $chairman, $office] as $companyUser) {
+            Sanctum::actingAs($companyUser);
+            $this->getJson('/api/company/data-tools/history')->assertForbidden();
+            $this->getJson('/api/company/data-tools/clean-preview')->assertForbidden();
+            $this->postJson('/api/company/data-tools/clean', ['confirm' => 'PERJODA'])->assertForbidden();
+            $this->get('/api/company/data-tools/export')->assertForbidden();
+        }
     }
 }

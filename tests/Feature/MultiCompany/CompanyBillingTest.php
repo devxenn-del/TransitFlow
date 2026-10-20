@@ -505,17 +505,16 @@ class CompanyBillingTest extends TestCase
         $this->getJson("/api/company/billing/statements/{$other->id}")->assertNotFound();
     }
 
-    public function test_pricing_audit_entries_are_hidden_from_the_company_audit_log(): void
+    public function test_pricing_audit_entries_are_hidden_from_company_users(): void
     {
         $admin = User::factory()->companyAdmin($this->companyA)->create();
         Audit::record('billing.special_rate.created', $this->companyA, ['previous' => 'x'], company: $this->companyA, actor: $admin);
         Audit::record('company.settings.updated', $this->companyA, company: $this->companyA, actor: $admin);
-        Sanctum::actingAs($admin);
 
-        $this->getJson('/api/company/audit-log')
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.action', 'company.settings.updated');
+        $this->assertSame(
+            ['company.settings.updated'],
+            AuditLog::query()->where('company_id', $this->companyA->id)->visibleTo($admin)->pluck('action')->all(),
+        );
     }
 
     public function test_pricing_plan_is_only_exposed_to_the_super_admin(): void

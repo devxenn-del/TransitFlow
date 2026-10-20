@@ -217,23 +217,20 @@ class MobileAppTest extends TestCase
         ])->assertNotFound();
     }
 
-    public function test_a_company_admin_and_chairman_see_the_same_published_settings_read_only(): void
+    public function test_no_company_user_can_read_the_mobile_app_settings(): void
     {
         MobileAppSetting::factory()->create(['latest_version' => '4.2.0']);
 
         $company = Company::factory()->create(['code' => 'PERJODA']);
-        $admin = User::factory()->companyAdmin($company)->create();
-        $chairman = User::factory()->forCompany($company)->withRole('chairman')->create();
 
-        Sanctum::actingAs($admin);
-        $this->getJson('/api/company/mobile-app')->assertOk()->assertJsonPath('data.latest_version', '4.2.0');
+        foreach (['company_admin', 'chairman', 'office'] as $roleKey) {
+            Sanctum::actingAs(User::factory()->forCompany($company)->withRole($roleKey)->create());
+            $this->getJson('/api/company/mobile-app')->assertForbidden();
+        }
 
-        Sanctum::actingAs($chairman);
-        $this->getJson('/api/company/mobile-app')->assertOk()->assertJsonPath('data.latest_version', '4.2.0');
-
-        // A plain company user without mobileapp.view cannot even read it.
-        $office = User::factory()->forCompany($company)->withRole('office')->create();
-        Sanctum::actingAs($office);
-        $this->getJson('/api/company/mobile-app')->assertForbidden();
+        Sanctum::actingAs(User::factory()->superAdmin()->create());
+        $this->getJson('/api/company/mobile-app', ['X-Company-Id' => (string) $company->id])
+            ->assertOk()
+            ->assertJsonPath('data.latest_version', '4.2.0');
     }
 }

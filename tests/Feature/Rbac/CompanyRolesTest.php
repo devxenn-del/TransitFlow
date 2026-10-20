@@ -83,6 +83,17 @@ class CompanyRolesTest extends TestCase
             ->assertJsonValidationErrorFor('permission_keys.0');
     }
 
+    public function test_a_company_role_cannot_be_granted_mobile_app_data_tools_or_audit_log(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $keys = ['mobileapp.view', 'backup.view', 'backup.download', 'cleandata.run', 'audit.view'];
+
+        $this->postJson('/api/company/roles', ['name' => 'Sneaky', 'permission_keys' => $keys])
+            ->assertJsonValidationErrorFor('permission_keys.0')
+            ->assertJsonValidationErrorFor('permission_keys.4');
+    }
+
     public function test_editing_a_role_updates_grants_and_can_reapply_to_existing_users(): void
     {
         $role = Role::query()->forCompany($this->company->id)->where('key', 'office')->firstOrFail();

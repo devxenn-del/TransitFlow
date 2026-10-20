@@ -17,7 +17,7 @@ class CleanCompanyDataRequest extends FormRequest
         $user = $this->user();
 
         return $user !== null
-            && $user->company !== null
+            && app(CompanyContext::class)->company() !== null
             && $user->hasPermissionTo('cleandata.run');
     }
 

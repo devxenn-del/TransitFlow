@@ -74,14 +74,17 @@ class AuditLogTest extends TestCase
         $other = Company::factory()->create();
         AuditLog::factory()->for($other)->create(['action' => 'role.created']);
 
-        Sanctum::actingAs($this->admin);
+        Sanctum::actingAs(User::factory()->superAdmin()->create());
+        $scoped = ['X-Company-Id' => (string) $this->company->id];
 
-        $this->getJson('/api/company/audit-log')->assertOk()->assertJsonCount(2, 'data');
-        $this->getJson('/api/company/audit-log?action=role.')->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson('/api/company/audit-log', $scoped)->assertOk()->assertJsonCount(2, 'data');
+        $this->getJson('/api/company/audit-log?action=role.', $scoped)->assertOk()->assertJsonCount(1, 'data');
 
-        // office has no audit.view
-        Sanctum::actingAs(User::factory()->forCompany($this->company)->withRole('office')->create());
-        $this->getJson('/api/company/audit-log')->assertForbidden();
+        // The audit log is Super Admin only — no company role holds audit.view.
+        foreach (['company_admin', 'chairman', 'office'] as $roleKey) {
+            Sanctum::actingAs(User::factory()->forCompany($this->company)->withRole($roleKey)->create());
+            $this->getJson('/api/company/audit-log')->assertForbidden();
+        }
     }
 
     public function test_the_platform_feed_sees_every_company_and_rejects_a_company_admin(): void
