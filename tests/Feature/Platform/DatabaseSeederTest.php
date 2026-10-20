@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Models\Company;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,7 +20,21 @@ class DatabaseSeederTest extends TestCase
         $this->seed();
         $this->seed();
 
-        $this->assertDatabaseHas('users', ['email' => 'manager@perjoda.test']);
         $this->assertDatabaseCount('fees', 3);
+    }
+
+    /**
+     * Companies, their franchises, routes, route stops and fare matrices are
+     * real operator data, entered or imported in the app — the deploy-time
+     * seed must never create or overwrite any of it.
+     */
+    public function test_seeding_creates_no_company_data(): void
+    {
+        $this->seed();
+
+        $this->assertSame(0, Company::query()->count());
+        $this->assertDatabaseCount('franchises', 0);
+        $this->assertDatabaseCount('route_stops', 0);
+        $this->assertDatabaseCount('routes', 0);
     }
 }
