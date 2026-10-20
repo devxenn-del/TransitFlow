@@ -18,6 +18,8 @@ class StartTripRequest extends FormRequest
     {
         return [
             'bus_id' => ['required', 'integer'],
+            // The route picked at Start Trip; optional for older app builds.
+            'franchise_id' => ['sometimes', 'nullable', 'integer'],
             'driver_id' => ['required', 'integer'],
             'origin' => ['required', 'string', 'max:150'],
             'coverage_origin' => ['required', 'string', 'max:150'],

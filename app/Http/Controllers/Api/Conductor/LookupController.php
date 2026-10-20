@@ -235,16 +235,20 @@ class LookupController extends Controller
      * routes for Via Pick-up. Ordered by each route's own franchise stop
      * sequence (route_stops.sort_order), not alphabetically — same ordering
      * rule as coverageOptions()/stops() above, so the Ticketing screen's
-     * destination grid reads in actual travel order instead of A-Z.
+     * destination grid reads in actual travel order instead of A-Z. When the
+     * trip's route (franchise) is known, only that franchise's fare matrix
+     * is offered — stop names shared with another route never mix in.
      */
     public function tripFares(Trip $trip): array
     {
         $this->authorize('view', $trip);
 
         $origin = $trip->coverage_origin !== '' ? $trip->coverage_origin : $trip->origin;
+        $franchiseId = $trip->resolvedFranchiseId();
+        $onRoute = fn ($q) => $q->when($franchiseId !== null, fn ($q) => $q->where('franchise_id', $franchiseId));
 
-        $terminal = Route::query()->priced()->where('origin', $origin)->with('fareMatrix')->get();
-        $pickup = Route::query()->priced()->with('fareMatrix')->get();
+        $terminal = Route::query()->priced()->where('origin', $origin)->tap($onRoute)->with('fareMatrix')->get();
+        $pickup = Route::query()->priced()->tap($onRoute)->with('fareMatrix')->get();
 
         $franchiseIds = $terminal->pluck('franchise_id')->merge($pickup->pluck('franchise_id'))->unique();
         $stopOrder = RouteStop::query()
@@ -284,61 +288,38 @@ class LookupController extends Controller
     }
 
     /**
-     * The trip's route stops in franchise order, clamped to the inclusive
-     * span between its coverage origin and destination, plus each stop's
-     * index — the conductor app's "STOP N OF M" / forward-only destination
-     * picker. Franchise is resolved from whichever priced Route matches the
-     * trip's declared coverage. If either endpoint can't be located in the
-     * franchise's stop list (stale data, no matching route), this fails
-     * open and returns the franchise's full stop list rather than blocking
-     * ticket sales over a missing sequence.
+     * The FULL stop list of the trip's route (the franchise picked at Start
+     * Trip — see Trip::resolvedFranchiseId()), in franchise order, plus each
+     * stop's index — the conductor app's "STOP N OF M" / destination picker.
+     * Not clamped to the trip's declared coverage: the conductor sells along
+     * the whole route. origin_index/destination_index locate the declared
+     * coverage in that list (null when a name isn't on it), and direction
+     * says which way along the list the trip runs.
      */
     public function stops(Trip $trip): array
     {
         $this->authorize('view', $trip);
 
-        $origin = $trip->coverage_origin;
-        $destination = $trip->coverage_destination;
+        $franchiseId = $trip->resolvedFranchiseId();
 
-        $route = Route::query()
-            ->where('origin', $origin)
-            ->where('destination', $destination)
-            ->first();
-
-        $stopNames = $route
-            ? RouteStop::query()->where('franchise_id', $route->franchise_id)
+        $stopNames = $franchiseId !== null
+            ? RouteStop::query()->where('franchise_id', $franchiseId)
                 ->orderBy('sort_order')->pluck('name')->all()
             : [];
 
-        $originIndex = array_search($origin, $stopNames, true);
-        $destinationIndex = array_search($destination, $stopNames, true);
+        $originIndex = array_search($trip->coverage_origin, $stopNames, true);
+        $destinationIndex = array_search($trip->coverage_destination, $stopNames, true);
 
-        if ($stopNames === [] || $originIndex === false || $destinationIndex === false) {
-            $stops = collect($stopNames)->values()
-                ->map(fn (string $name, int $i) => ['name' => $name, 'index' => $i])->all();
-
-            return [
-                'origin_index' => $originIndex !== false ? $originIndex : null,
-                'destination_index' => $destinationIndex !== false ? $destinationIndex : null,
-                'direction' => 'forward',
-                'stops' => $stops,
-            ];
-        }
-
-        $direction = $destinationIndex >= $originIndex ? 'forward' : 'backward';
-        $lo = min($originIndex, $destinationIndex);
-        $hi = max($originIndex, $destinationIndex);
-
-        $stops = [];
-        for ($i = $lo; $i <= $hi; $i++) {
-            $stops[] = ['name' => $stopNames[$i], 'index' => $i];
-        }
+        $direction = $originIndex !== false && $destinationIndex !== false && $destinationIndex < $originIndex
+            ? 'backward'
+            : 'forward';
 
         return [
-            'origin_index' => $originIndex,
-            'destination_index' => $destinationIndex,
+            'origin_index' => $originIndex !== false ? $originIndex : null,
+            'destination_index' => $destinationIndex !== false ? $destinationIndex : null,
             'direction' => $direction,
-            'stops' => $stops,
+            'stops' => collect($stopNames)->values()
+                ->map(fn (string $name, int $i) => ['name' => $name, 'index' => $i])->all(),
         ];
     }
 }

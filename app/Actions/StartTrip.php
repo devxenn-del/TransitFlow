@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Models\Attendance;
 use App\Models\Driver;
+use App\Models\Franchise;
 use App\Models\Route;
 use App\Models\Terminal;
 use App\Models\Trip;
@@ -28,7 +29,7 @@ use Illuminate\Validation\ValidationException;
 class StartTrip
 {
     /**
-     * @param  array{bus_id:int, driver_id:int, origin:string, coverage_origin:string, coverage_destination:string, trip_type?:string, at_terminal?:bool}  $input
+     * @param  array{bus_id:int, franchise_id?:int|null, driver_id:int, origin:string, coverage_origin:string, coverage_destination:string, trip_type?:string, at_terminal?:bool}  $input
      */
     public function handle(User $conductor, array $input): Trip
     {
@@ -86,9 +87,20 @@ class StartTrip
             );
         }
 
+        // The route (franchise) picked at Start Trip, when the app sends it —
+        // ticketing then uses that franchise's own stops and fare matrix.
+        $franchiseId = null;
+        if (! empty($input['franchise_id'])) {
+            $franchiseId = Franchise::query()->where('id', $input['franchise_id'])->where('status', 'Active')->value('id');
+            if ($franchiseId === null) {
+                throw ValidationException::withMessages(['franchise_id' => 'Pick an active route.']);
+            }
+        }
+
         $priced = Route::query()
             ->where('origin', $input['coverage_origin'])
             ->where('destination', $input['coverage_destination'])
+            ->when($franchiseId !== null, fn ($q) => $q->where('franchise_id', $franchiseId))
             ->priced()
             ->exists();
         if (! $priced) {
@@ -104,6 +116,7 @@ class StartTrip
             'bus_id' => $bus->id,
             'bus_number' => $bus->bus_number,
             'driver_id' => $driver->id,
+            'franchise_id' => $franchiseId,
             'origin' => $input['origin'],
             'coverage_origin' => $input['coverage_origin'],
             'coverage_destination' => $input['coverage_destination'],

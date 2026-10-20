@@ -24,6 +24,7 @@ class TripResource extends JsonResource
             'origin' => $this->origin,
             'coverage_origin' => $this->coverage_origin,
             'coverage_destination' => $this->coverage_destination,
+            'franchise_id' => $this->franchise_id,
             'trip_type' => $this->trip_type,
             'at_terminal' => (bool) $this->at_terminal,
             'bus_id' => $this->bus_id,

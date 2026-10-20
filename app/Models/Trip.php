@@ -28,6 +28,7 @@ class Trip extends Model
         'conductor_id',
         'bus_id',
         'driver_id',
+        'franchise_id',
         'bus_number',
         'reference',
         'origin',
@@ -144,6 +145,29 @@ class Trip extends Model
     public function driver(): BelongsTo
     {
         return $this->belongsTo(Driver::class);
+    }
+
+    /** The route picked at Start Trip — its stops and fare matrix drive the conductor app's ticketing. */
+    public function franchise(): BelongsTo
+    {
+        return $this->belongsTo(Franchise::class);
+    }
+
+    /**
+     * This trip's franchise: the one picked at Start Trip, or — for a trip
+     * started before that was recorded — the franchise of the priced route
+     * matching its coverage origin/destination.
+     */
+    public function resolvedFranchiseId(): ?int
+    {
+        if ($this->franchise_id !== null) {
+            return $this->franchise_id;
+        }
+
+        return Route::query()
+            ->where('origin', $this->coverage_origin)
+            ->where('destination', $this->coverage_destination)
+            ->value('franchise_id');
     }
 
     /**
