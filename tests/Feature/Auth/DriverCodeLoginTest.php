@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\SeedsRbac;
 use Tests\TestCase;
 
@@ -43,7 +44,7 @@ class DriverCodeLoginTest extends TestCase
         $driver = Driver::factory()->for($company)->create();
 
         $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
         ])
             ->assertOk()
             ->assertJsonPath('user.email', 'conductor@acme.test')
@@ -59,12 +60,12 @@ class DriverCodeLoginTest extends TestCase
         $driverB = Driver::factory()->for($company)->create();
 
         $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driverA->driver_code,
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driverA->driver_code,
         ])->assertOk()->assertJsonPath('driver.id', $driverA->id);
 
         // A completely different driver's code works just as well.
         $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driverB->driver_code,
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driverB->driver_code,
         ])->assertOk()->assertJsonPath('driver.id', $driverB->id);
     }
 
@@ -75,7 +76,7 @@ class DriverCodeLoginTest extends TestCase
         $driver = Driver::factory()->for($company)->create(['driver_code' => 'DR-9001']);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => '  dr-9001  ',
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => '  dr-9001  ',
         ])->assertOk();
     }
 
@@ -84,7 +85,7 @@ class DriverCodeLoginTest extends TestCase
         $company = Company::factory()->create();
         $this->conductor($company);
 
-        $this->postJson('/api/auth/login', ['email' => 'conductor@acme.test', 'password' => 'password'])
+        $this->postJson('/api/auth/login', ['company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password'])
             ->assertStatus(422)
             ->assertJsonValidationErrorFor('driver_code')
             ->assertJsonPath('errors.driver_code.0', 'Driver Code is required.');
@@ -96,7 +97,7 @@ class DriverCodeLoginTest extends TestCase
         $this->conductor($company);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => 'DR-9999',
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => 'DR-9999',
         ])
             ->assertStatus(422)
             ->assertJsonValidationErrorFor('driver_code')
@@ -111,7 +112,7 @@ class DriverCodeLoginTest extends TestCase
         $otherCompanysDriver = Driver::factory()->for($companyB)->create();
 
         $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $otherCompanysDriver->driver_code,
+            'company_code' => $companyA->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $otherCompanysDriver->driver_code,
         ])->assertStatus(422)->assertJsonValidationErrorFor('driver_code');
     }
 
@@ -122,7 +123,7 @@ class DriverCodeLoginTest extends TestCase
         $driver = Driver::factory()->for($company)->create(['status' => 'Inactive']);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
         ])->assertStatus(422)->assertJsonValidationErrorFor('driver_code');
     }
 
@@ -144,7 +145,7 @@ class DriverCodeLoginTest extends TestCase
         $driver = Driver::factory()->for($company)->create();
 
         $this->withToken($staleToken)->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
         ])
             ->assertOk()
             ->assertJsonPath('user.email', 'conductor@acme.test')
@@ -156,7 +157,7 @@ class DriverCodeLoginTest extends TestCase
         $company = Company::factory()->create();
         User::factory()->companyAdmin($company)->create(['email' => 'admin@acme.test']);
 
-        $this->postJson('/api/auth/login', ['email' => 'admin@acme.test', 'password' => 'password'])
+        $this->postJson('/api/auth/login', ['company_code' => $company->code, 'email' => 'admin@acme.test', 'password' => 'password'])
             ->assertOk()
             ->assertJsonPath('user.email', 'admin@acme.test')
             ->assertJsonPath('driver', null);
@@ -169,7 +170,7 @@ class DriverCodeLoginTest extends TestCase
         $driver = Driver::factory()->for($company)->create();
 
         $login = $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driver->driver_code,
         ])->assertOk();
 
         $token = PersonalAccessToken::findToken($login->json('token'));
@@ -184,7 +185,7 @@ class DriverCodeLoginTest extends TestCase
     public function test_editing_a_driver_with_no_code_and_leaving_it_blank_generates_one(): void
     {
         $company = Company::factory()->create();
-        \Laravel\Sanctum\Sanctum::actingAs(User::factory()->companyAdmin($company)->create());
+        Sanctum::actingAs(User::factory()->companyAdmin($company)->create());
         $driver = Driver::factory()->for($company)->create(['driver_code' => null]);
 
         $updated = $this->putJson("/api/company/drivers/{$driver->id}", ['name' => $driver->name])
@@ -198,7 +199,7 @@ class DriverCodeLoginTest extends TestCase
     public function test_creating_a_driver_rejects_a_duplicate_driver_code_within_the_same_company(): void
     {
         $company = Company::factory()->create();
-        \Laravel\Sanctum\Sanctum::actingAs(User::factory()->companyAdmin($company)->create());
+        Sanctum::actingAs(User::factory()->companyAdmin($company)->create());
         Driver::factory()->for($company)->create(['driver_code' => 'DR-DUPE']);
 
         $this->postJson('/api/company/drivers', ['name' => 'Another Driver', 'driver_code' => 'DR-DUPE'])

@@ -7,6 +7,7 @@ use App\Models\Bus;
 use App\Models\Company;
 use App\Models\Driver;
 use App\Models\Franchise;
+use App\Models\Terminal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\SeedsRbac;
@@ -41,7 +42,7 @@ class TripDriverLockTest extends TestCase
         $this->bus = Bus::factory()->for($this->company)->create();
         $this->conductor->buses()->attach($this->bus);
 
-        \App\Models\Terminal::factory()->for($this->company)->create(['name' => 'MAIN', 'boarding_mode' => 'Both']);
+        Terminal::factory()->for($this->company)->create(['name' => 'MAIN', 'boarding_mode' => 'Both']);
         Franchise::factory()->for($this->company)->withStops(['MAIN', 'HUB'])->create()
             ->routes()->create(['company_id' => $this->company->id, 'origin' => 'MAIN', 'destination' => 'HUB', 'name' => 'MAIN - HUB', 'status' => 'Active'])
             ->fareMatrix()->create(['company_id' => $this->company->id, 'amount' => 25, 'status' => 'Active']);
@@ -64,7 +65,7 @@ class TripDriverLockTest extends TestCase
     private function loginWithDriverCode(string $driverCode): string
     {
         return $this->postJson('/api/auth/login', [
-            'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driverCode,
+            'company_code' => $this->company->code, 'email' => 'conductor@acme.test', 'password' => 'password', 'driver_code' => $driverCode,
         ])->assertOk()->json('token');
     }
 

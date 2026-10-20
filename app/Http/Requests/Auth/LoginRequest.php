@@ -20,6 +20,10 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Which company this sign-in is for. Required for every company
+            // account (enforced in AuthController once the account is known);
+            // left blank only by a platform (Super Admin) account.
+            'company_code' => ['sometimes', 'nullable', 'string', 'max:32', 'alpha_dash'],
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
             // Requiredness depends on the account's role, which isn't known
@@ -31,6 +35,12 @@ class LoginRequest extends FormRequest
             'device_name' => ['sometimes', 'string', 'max:120'],
             'remember' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /** The submitted Company Code, trimmed and upper-cased ('' when none). */
+    public function companyCode(): string
+    {
+        return strtoupper(trim((string) $this->input('company_code', '')));
     }
 
     public function deviceName(): string

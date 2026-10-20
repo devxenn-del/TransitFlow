@@ -16,6 +16,7 @@ class PinLoginRequest extends LoginRequest
     public function rules(): array
     {
         return [
+            'company_code' => ['sometimes', 'nullable', 'string', 'max:32', 'alpha_dash'],
             'email' => ['required', 'string', 'email'],
             'pin' => ['required', 'string', 'regex:/^\d{4}$/'],
             'driver_code' => ['sometimes', 'nullable', 'string', 'max:20'],

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\User;
 use App\Support\CompanyContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -63,6 +64,13 @@ class ResolveCompanyContext
         if ($user->isSuperAdmin()) {
             $this->context->set($this->superAdminScopedCompanyId($request), isSuperAdmin: true);
         } else {
+            // A token issued for one company (AuthController::tokenAbilitiesFor())
+            // is never honored for another — e.g. after the account was moved.
+            $tokenCompanyId = self::tokenCompanyId($user);
+            if ($tokenCompanyId !== null && $tokenCompanyId !== (int) $user->company_id) {
+                abort(Response::HTTP_UNAUTHORIZED, 'This session belongs to a different company. Sign in again.');
+            }
+
             $requested = $request->header('X-Company-Id');
 
             if ($requested !== null && (string) $requested !== (string) $user->company_id) {
@@ -73,6 +81,23 @@ class ResolveCompanyContext
         }
 
         return $next($request);
+    }
+
+    /** The company stamped on the current bearer token, or null (session sign-in, or a token from before company stamping). */
+    private static function tokenCompanyId(User $user): ?int
+    {
+        $token = $user->currentAccessToken();
+        if ($token === null || ! is_array($token->abilities ?? null)) {
+            return null;
+        }
+
+        foreach ($token->abilities as $ability) {
+            if (str_starts_with($ability, 'company:')) {
+                return (int) substr($ability, 8);
+            }
+        }
+
+        return null;
     }
 
     /**

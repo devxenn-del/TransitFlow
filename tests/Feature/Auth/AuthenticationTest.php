@@ -23,6 +23,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response = $this->postJson('/api/auth/login', [
+            'company_code' => $company->code,
             'email' => 'admin@acme.test',
             'password' => 'secret-password',
         ]);
@@ -62,9 +63,9 @@ class AuthenticationTest extends TestCase
             'email' => 'sus@acme.test', 'password' => Hash::make('secret-password'),
         ]);
 
-        $this->postJson('/api/auth/login', ['email' => 'sus@acme.test', 'password' => 'secret-password'])
+        $this->postJson('/api/auth/login', ['company_code' => $company->code, 'email' => 'sus@acme.test', 'password' => 'secret-password'])
             ->assertStatus(422)
-            ->assertJsonValidationErrorFor('email');
+            ->assertJsonValidationErrorFor('company_code');
     }
 
     public function test_login_is_rate_limited(): void

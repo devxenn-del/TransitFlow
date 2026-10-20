@@ -11,13 +11,16 @@ use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Requests\Auth\VerifyPinRequest;
 use App\Http\Resources\DriverResource;
 use App\Http\Resources\UserResource;
+use App\Models\Company;
 use App\Models\Driver;
 use App\Models\User;
 use App\Support\AccountLock;
+use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\TransientToken;
 
@@ -28,13 +31,17 @@ use Laravel\Sanctum\TransientToken;
  *
  * Mirrors BITS' credential checks (auth/authenticate_login.php,
  * api/auth/login.php): bcrypt verify, account must be Active, and the
- * account's company must be Active.
+ * account's company must be Active. On top of that, every company account
+ * signs in with its Company Code, and must belong to that company — see
+ * companyFromCode() / ensureAccountBelongsToCompany().
  */
 class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
         $request->ensureIsNotRateLimited();
+
+        $company = $this->companyFromCode($request);
 
         $user = User::query()->where('email', $request->string('email'))->first();
 
@@ -45,6 +52,8 @@ class AuthController extends Controller
                 'email' => __('auth.failed'),
             ]);
         }
+
+        $this->ensureAccountBelongsToCompany($user, $company, $request, 'email', __('auth.failed'));
 
         $driver = $this->verifyDriverCode($user, $request);
 
@@ -62,7 +71,7 @@ class AuthController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
-        $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($driver))->plainTextToken;
+        $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($user, $driver))->plainTextToken;
 
         return response()->json([
             'token' => $token,
@@ -81,6 +90,8 @@ class AuthController extends Controller
     {
         $request->ensureIsNotRateLimited();
 
+        $company = $this->companyFromCode($request);
+
         $user = User::query()->where('email', $request->string('email'))->first();
 
         if ($user === null || $user->pin_hash === null || ! Hash::check($request->string('pin')->value(), $user->pin_hash)) {
@@ -88,6 +99,8 @@ class AuthController extends Controller
 
             throw ValidationException::withMessages(['pin' => 'Incorrect PIN.']);
         }
+
+        $this->ensureAccountBelongsToCompany($user, $company, $request, 'pin', 'Incorrect PIN.');
 
         if ($user->accessRole?->key !== 'conductor' || ! $user->hasPermissionTo('trips.view')) {
             $request->hitRateLimiter();
@@ -105,7 +118,7 @@ class AuthController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
-        $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($driver))->plainTextToken;
+        $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($user, $driver))->plainTextToken;
 
         return response()->json([
             'token' => $token,
@@ -179,19 +192,100 @@ class AuthController extends Controller
     }
 
     /**
-     * The Sanctum abilities to stamp onto a freshly-issued token. A
-     * conductor's token additionally carries which driver they verified at
-     * sign-in — the only place that's read back is StartTrip::handle(),
-     * which requires a new trip's driver_id to match it (switch drivers by
-     * signing in again with a different code). Nothing else in the app
-     * checks token abilities, so this rides along with the default '*'
-     * without restricting anything else the token can do.
+     * Step 1 of sign-in: the Company Code names an existing, Active company.
+     * Checked before the credentials and independent of them, so these two
+     * messages say nothing about any account. Null when no code was sent —
+     * only a platform account may sign in that way (see
+     * ensureAccountBelongsToCompany()).
+     */
+    private function companyFromCode(LoginRequest $request): ?Company
+    {
+        $code = $request->companyCode();
+        if ($code === '') {
+            return null;
+        }
+
+        $company = Company::query()->whereRaw('UPPER(code) = ?', [$code])->first();
+
+        if ($company === null) {
+            $request->hitRateLimiter();
+
+            throw ValidationException::withMessages(['company_code' => 'Invalid Company Code.']);
+        }
+
+        if (! $company->isActive()) {
+            $request->hitRateLimiter();
+
+            throw ValidationException::withMessages([
+                'company_code' => 'This company account is inactive. Contact the TransitFlow administrator.',
+            ]);
+        }
+
+        return $company;
+    }
+
+    /**
+     * The verified account must belong to the company named by the Company
+     * Code. A mismatch is answered exactly like wrong credentials ($field /
+     * $failedMessage), so a sign-in can't be used to learn which company an
+     * email belongs to — and is recorded as a security event (never with
+     * the submitted password or PIN). A company account that sent no code
+     * is asked for one; a platform account must not send one.
+     */
+    private function ensureAccountBelongsToCompany(User $user, ?Company $company, LoginRequest $request, string $field, string $failedMessage): void
+    {
+        if ($company === null) {
+            if ($user->company_id === null) {
+                return;
+            }
+
+            $request->hitRateLimiter();
+
+            throw ValidationException::withMessages(['company_code' => 'Enter your Company Code.']);
+        }
+
+        if ($user->company_id === $company->id) {
+            return;
+        }
+
+        $request->hitRateLimiter();
+
+        Log::warning('Sign-in rejected: account does not belong to the submitted company.', [
+            'user_id' => $user->id,
+            'company_code' => $company->code,
+            'ip' => $request->ip(),
+        ]);
+        Audit::record('auth.company_mismatch', $user, ['company_code' => $company->code], $user->company);
+
+        throw ValidationException::withMessages([$field => $failedMessage]);
+    }
+
+    /**
+     * The Sanctum abilities to stamp onto a freshly-issued token. A company
+     * account's token carries the company it signed in to — re-checked on
+     * every request by ResolveCompanyContext, so a token can never be used
+     * for a company other than the one it was issued for. A conductor's
+     * token additionally carries which driver they verified at sign-in —
+     * read back by StartTrip::handle(), which requires a new trip's
+     * driver_id to match it (switch drivers by signing in again with a
+     * different code). Both ride along with the default '*' without
+     * restricting anything else the token can do.
      *
      * @return list<string>
      */
-    private function tokenAbilitiesFor(?Driver $driver): array
+    private function tokenAbilitiesFor(User $user, ?Driver $driver): array
     {
-        return $driver ? ['*', "driver:{$driver->id}"] : ['*'];
+        $abilities = ['*'];
+
+        if ($user->company_id !== null) {
+            $abilities[] = "company:{$user->company_id}";
+        }
+
+        if ($driver !== null) {
+            $abilities[] = "driver:{$driver->id}";
+        }
+
+        return $abilities;
     }
 
     /** The driver a token verified at sign-in, or null (non-conductor account, or a token issued before this feature existed). */

@@ -153,7 +153,7 @@ class CompanyWorkspaceTest extends TestCase
     {
         $user = User::factory()->companyAdmin($this->companyA)->create(['password' => 'secret-password']);
 
-        $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'secret-password'])->assertOk();
+        $this->postJson('/api/auth/login', ['company_code' => $this->companyA->code, 'email' => $user->email, 'password' => 'secret-password'])->assertOk();
 
         $this->assertNotNull($user->fresh()->last_login_at);
     }

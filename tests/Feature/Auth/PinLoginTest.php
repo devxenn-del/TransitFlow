@@ -31,7 +31,7 @@ class PinLoginTest extends TestCase
         $this->conductorWithPin($company);
 
         $response = $this->postJson('/api/auth/pin-login', [
-            'email' => 'conductor@acme.test', 'pin' => '1234', 'driver_code' => $driver->driver_code,
+            'company_code' => $company->code, 'email' => 'conductor@acme.test', 'pin' => '1234', 'driver_code' => $driver->driver_code,
         ]);
 
         $response->assertOk()
@@ -44,7 +44,7 @@ class PinLoginTest extends TestCase
         $company = Company::factory()->create();
         $this->conductorWithPin($company);
 
-        $this->postJson('/api/auth/pin-login', ['email' => 'conductor@acme.test', 'pin' => '9999'])
+        $this->postJson('/api/auth/pin-login', ['company_code' => $company->code, 'email' => 'conductor@acme.test', 'pin' => '9999'])
             ->assertJsonValidationErrorFor('pin');
     }
 
@@ -56,7 +56,7 @@ class PinLoginTest extends TestCase
             'pin_hash' => Hash::make('1234'),
         ]);
 
-        $this->postJson('/api/auth/pin-login', ['email' => 'office@acme.test', 'pin' => '1234'])
+        $this->postJson('/api/auth/pin-login', ['company_code' => $company->code, 'email' => 'office@acme.test', 'pin' => '1234'])
             ->assertJsonValidationErrorFor('pin');
     }
 

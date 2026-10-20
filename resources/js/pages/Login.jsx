@@ -14,11 +14,32 @@ const FEATURES = [
     ['bi-graph-up-arrow', 'tf-chip-blue', 'Reports & Revenue', 'Trip income, remittance and operational reporting in one place.'],
 ];
 
+// The last Company Code that signed in on this browser — a convenience only;
+// the server checks the code (and the account's company) on every sign-in.
+const COMPANY_CODE_KEY = 'transitflow_company_code';
+
+function rememberedCompanyCode() {
+    try {
+        return localStorage.getItem(COMPANY_CODE_KEY) || '';
+    } catch {
+        return '';
+    }
+}
+
+function rememberCompanyCode(code) {
+    try {
+        if (code) localStorage.setItem(COMPANY_CODE_KEY, code);
+        else localStorage.removeItem(COMPANY_CODE_KEY);
+    } catch {
+        // storage unavailable — nothing to remember
+    }
+}
+
 export default function Login() {
     const { login, isAuthenticated, loading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const [form, setForm] = useState({ email: '', password: '', remember: true });
+    const [form, setForm] = useState({ company_code: rememberedCompanyCode(), email: '', password: '', remember: true });
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -43,6 +64,7 @@ export default function Login() {
     const attemptLogin = async (payload) => {
         try {
             await login(payload);
+            rememberCompanyCode(payload.company_code);
             navigate(location.state?.from || '/', { replace: true });
             return true;
         } catch (err) {
@@ -193,12 +215,29 @@ export default function Login() {
 
                             <form onSubmit={submit} className="vstack gap-3">
                                 <div>
+                                    <label className="form-label">Company Code</label>
+                                    <div className="tf-input-group">
+                                        <span className="tf-input-icon"><i className="bi bi-building-fill" /></span>
+                                        <input
+                                            type="text"
+                                            autoFocus={!form.company_code}
+                                            pattern="[A-Za-z0-9_\-]{1,32}"
+                                            maxLength={32}
+                                            autoCapitalize="characters"
+                                            placeholder="e.g. PERJODA"
+                                            value={form.company_code}
+                                            onChange={(e) => setForm({ ...form, company_code: e.target.value.toUpperCase().trim() })}
+                                        />
+                                    </div>
+                                    <div className="form-text">Platform administrators leave this blank.</div>
+                                </div>
+                                <div>
                                     <label className="form-label">Email address</label>
                                     <div className="tf-input-group">
                                         <span className="tf-input-icon"><i className="bi bi-envelope-fill" /></span>
                                         <input
                                             type="email"
-                                            autoFocus
+                                            autoFocus={!!form.company_code}
                                             required
                                             placeholder="you@company.com"
                                             value={form.email}
