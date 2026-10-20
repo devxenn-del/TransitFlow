@@ -8,6 +8,7 @@ import { setCompanyScope } from '../../lib/axios.js';
 import { CompanyScopeContext } from '../../lib/companyScope.jsx';
 import { COMPANY_MODULES, OVERVIEW_MODULE, groupedModules, moduleForPath } from '../../lib/companyModules.js';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const STATUSES = ['active', 'inactive', 'suspended'];
 
@@ -112,11 +113,7 @@ function CompanyWorkspace() {
     if (errorStatus) return <Blocked status={errorStatus} />;
 
     if (!company) {
-        return (
-            <div className="d-flex justify-content-center py-5">
-                <div className="spinner-border text-primary" role="status" />
-            </div>
-        );
+        return <SkeletonPage variant="detail" />;
     }
 
     const address = addressLine(company.address);

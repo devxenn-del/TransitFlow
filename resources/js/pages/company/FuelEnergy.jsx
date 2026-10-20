@@ -8,7 +8,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { buses as busesApi, charging, fuel } from '../../lib/api.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const peso = (n) => `₱${Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
@@ -19,7 +19,7 @@ const blankFuel = () => ({ bus_id: '', fuel_type: 'Diesel', liters: '', price_pe
 /* ---------------- Fuel tab ---------------- */
 function FuelTab({ buses }) {
     const { can } = useAuth();
-    const { rows, meta, loading, page, setPage, reload } = useList(fuel.list);
+    const { rows, meta, loading, page, setPage, reload } = useList(fuel.list, { perPage: LIST_PAGE_SIZE });
     const [form, setForm] = useState(null);
     const [saving, setSaving] = useState(false);
 
@@ -158,7 +158,7 @@ function FuelTab({ buses }) {
 /* ---------------- EV Charging tab ---------------- */
 function ChargingTab({ buses }) {
     const { can } = useAuth();
-    const { rows, meta, loading, page, setPage, reload } = useList(charging.list);
+    const { rows, meta, loading, page, setPage, reload } = useList(charging.list, { perPage: LIST_PAGE_SIZE });
 
     const start = async () => {
         const { isConfirmed, value } = await Swal.fire({

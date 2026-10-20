@@ -7,6 +7,7 @@ import StatusBadge from '../../components/StatusBadge.jsx';
 import { conductor } from '../../lib/api.js';
 import { openReceipt } from '../../lib/receipt.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const peso = (n) => `₱${Number(n ?? 0).toFixed(2)}`;
 
@@ -785,7 +786,7 @@ export default function ConductorTrip() {
     };
 
     if (trip === undefined) {
-        return <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="detail" />;
     }
 
     return (

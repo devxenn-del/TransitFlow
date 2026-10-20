@@ -9,6 +9,7 @@ import Pagination from '../../components/Pagination.jsx';
 import { companyDocuments } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonGrid } from '../../components/Skeleton.jsx';
 
 const PER_PAGE = 6;
 const LAYOUT_KEY = 'tf.documents.layout';
@@ -359,7 +360,7 @@ export default function CompanyDocuments() {
                     )}
 
                     {loading && (
-                        <div className="d-flex justify-content-center py-5"><div className="spinner-border text-primary" role="status" /></div>
+                        <SkeletonGrid count={6} />
                     )}
 
                     {!loading && rows.length === 0 && (

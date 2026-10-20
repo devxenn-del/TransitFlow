@@ -9,7 +9,7 @@ import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { franchises } from '../../lib/api.js';
 import { useCompanyPath } from '../../lib/companyScope.jsx';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const BLANK = {
@@ -25,7 +25,7 @@ export default function Franchises() {
     const { can } = useAuth();
     const navigate = useNavigate();
     const companyPath = useCompanyPath();
-    const { rows, meta, loading, page, setPage, reload } = useList(franchises.list);
+    const { rows, meta, loading, page, setPage, reload } = useList(franchises.list, { perPage: LIST_PAGE_SIZE });
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);

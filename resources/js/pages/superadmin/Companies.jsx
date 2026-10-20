@@ -9,6 +9,7 @@ import StatusBadge from '../../components/StatusBadge.jsx';
 import { companies } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonTableRows } from '../../components/Skeleton.jsx';
 
 const STATUSES = ['active', 'inactive', 'suspended'];
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
@@ -189,13 +190,7 @@ export default function Companies() {
                             </tr>
                         </thead>
                         <tbody>
-                            {loading && (
-                                <tr>
-                                    <td colSpan={6} className="text-center py-4">
-                                        <span className="spinner-border spinner-border-sm" />
-                                    </td>
-                                </tr>
-                            )}
+                            {loading && <SkeletonTableRows columns={6} />}
                             {!loading && rows.length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="tf-empty">

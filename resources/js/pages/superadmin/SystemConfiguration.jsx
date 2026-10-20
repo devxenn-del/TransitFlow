@@ -7,6 +7,7 @@ import Pagination from '../../components/Pagination.jsx';
 import { systemConfiguration } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const dt = (v) => (v ? new Date(v).toLocaleString() : '—');
 
@@ -112,7 +113,7 @@ export default function SystemConfiguration() {
     ];
 
     if (!config) {
-        return <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="form" />;
     }
 
     return (

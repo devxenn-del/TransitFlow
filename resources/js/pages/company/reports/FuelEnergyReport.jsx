@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import PageHeader from '../../../components/PageHeader.jsx';
+import Pagination from '../../../components/Pagination.jsx';
 import { reports } from '../../../lib/api.js';
 import { notifyError } from '../../../lib/ui.js';
+import { usePagedRows } from '../../../lib/useList.js';
 import ReportToolbar from './ReportToolbar.jsx';
+import { SkeletonTableRows } from '../../../components/Skeleton.jsx';
 
 const peso = (n) => `₱${Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const num = (n) => Number(n ?? 0).toLocaleString();
@@ -13,6 +16,8 @@ export default function FuelEnergyReport() {
     const [params, setParams] = useState({ from: '', to: '', type: '' });
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
+    const fuelRows = usePagedRows(data?.fuel.rows);
+    const chargingRows = usePagedRows(data?.charging.rows);
 
     const run = useCallback(async () => {
         setLoading(true);
@@ -60,7 +65,7 @@ export default function FuelEnergyReport() {
             </ReportToolbar>
 
             <h6 className="fw-bold mt-2">Fuel Purchases</h6>
-            <div className="card mb-4">
+            <div className="card">
                 <div className="table-responsive">
                     <table className="table table-sm table-hover align-middle mb-0">
                         <thead>
@@ -71,10 +76,11 @@ export default function FuelEnergyReport() {
                             </tr>
                         </thead>
                         <tbody>
+                            {loading && <SkeletonTableRows columns={7} rows={4} />}
                             {!loading && (data?.fuel.rows.length ?? 0) === 0 && (
                                 <tr><td colSpan={7} className="tf-empty">No fuel purchases.</td></tr>
                             )}
-                            {!loading && data?.fuel.rows.map((r) => (
+                            {!loading && fuelRows.pageRows.map((r) => (
                                 <tr key={r.id}>
                                     <td className="small">{dt(r.fueled_at)}</td>
                                     <td className="fw-semibold">{r.bus_number ?? '—'}</td>
@@ -100,6 +106,9 @@ export default function FuelEnergyReport() {
                     </table>
                 </div>
             </div>
+            <div className="mb-4">
+                <Pagination meta={fuelRows.meta} page={fuelRows.page} onPage={fuelRows.setPage} />
+            </div>
 
             <h6 className="fw-bold">EV Charging Sessions</h6>
             <div className="card">
@@ -112,10 +121,11 @@ export default function FuelEnergyReport() {
                             </tr>
                         </thead>
                         <tbody>
+                            {loading && <SkeletonTableRows columns={7} rows={4} />}
                             {!loading && (data?.charging.rows.length ?? 0) === 0 && (
                                 <tr><td colSpan={7} className="tf-empty">No charging sessions.</td></tr>
                             )}
-                            {!loading && data?.charging.rows.map((r) => (
+                            {!loading && chargingRows.pageRows.map((r) => (
                                 <tr key={r.id}>
                                     <td className="small">{dt(r.started_at)}</td>
                                     <td className="small">{dt(r.ended_at)}</td>
@@ -140,6 +150,7 @@ export default function FuelEnergyReport() {
                     </table>
                 </div>
             </div>
+            <Pagination meta={chargingRows.meta} page={chargingRows.page} onPage={chargingRows.setPage} />
         </>
     );
 }

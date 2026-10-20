@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import FleetMap from '../../components/FleetMap.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { live } from '../../lib/api.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const POLL_MS = 3000;
 const peso = (n) => `₱${Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -103,7 +104,7 @@ export default function LiveMonitor() {
             )}
 
             {!board ? (
-                <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>
+                <SkeletonPage variant="map" header={false} />
             ) : (
                 <>
                     <div className="d-flex flex-wrap gap-2 mb-4">

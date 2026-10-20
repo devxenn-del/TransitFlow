@@ -6,7 +6,7 @@ import DataTable from '../../components/DataTable.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import { attendance as attendanceApi } from '../../lib/api.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
 
 const dt = (v) => (v ? new Date(v).toLocaleString() : '—');
@@ -28,7 +28,7 @@ export default function Attendance() {
         }),
         [filters],
     );
-    const { rows, meta, loading, page, setPage, reload } = useList(fetcher, { deps: [filters] });
+    const { rows, meta, loading, page, setPage, reload } = useList(fetcher, { deps: [filters], perPage: LIST_PAGE_SIZE });
 
     const forceClose = async (row) => {
         const { isConfirmed, value } = await Swal.fire({

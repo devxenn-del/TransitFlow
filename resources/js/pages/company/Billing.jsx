@@ -8,8 +8,9 @@ import Pagination from '../../components/Pagination.jsx';
 import { companyBilling, companyPricing } from '../../lib/api.js';
 import { RateBadge, StatementSummary, billingPeriod, feeAmount, isFree, mdy, peso, php } from '../../lib/billing.jsx';
 import { useActiveCompany } from '../../lib/companyScope.jsx';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess, swal } from '../../lib/ui.js';
+import { SkeletonList } from '../../components/Skeleton.jsx';
 
 const STATEMENT_BADGE = {
     unpaid: 'text-bg-warning-subtle text-warning-emphasis',
@@ -33,7 +34,14 @@ export default function Billing() {
     const company = useActiveCompany();
     const canManage = isSuperAdmin && can('fees.manage');
     const [feeRows, setFeeRows] = useState(null);
-    const statements = useList(companyBilling.statements, { perPage: 12 });
+    const statements = useList(companyBilling.statements, { perPage: LIST_PAGE_SIZE });
+    // The newest statements, fetched apart from the paged table so paging it
+    // never changes which bill the summary treats as current.
+    const latestStatements = useList(companyBilling.statements, { perPage: 12 });
+    const reloadStatements = () => {
+        statements.reload();
+        latestStatements.reload();
+    };
     const [viewing, setViewing] = useState(null);
     const [period, setPeriod] = useState(thisMonth());
     const [generating, setGenerating] = useState(false);
@@ -71,7 +79,7 @@ export default function Billing() {
                     text: `${generated} ${email?.error ?? ''} You can send it later from the statement's details.`,
                 });
             }
-            statements.reload();
+            reloadStatements();
         } catch (err) {
             notifyError(err);
         } finally {
@@ -137,7 +145,7 @@ export default function Billing() {
                 swal.fire({ icon: 'warning', title: 'Marked paid — email not sent', text: `${email.error} You can send it later with "Send email".` });
             }
             setViewing((v) => (v?.id === updated.id ? updated : v));
-            statements.reload();
+            reloadStatements();
         } catch (err) {
             notifyError(err);
         } finally {
@@ -173,7 +181,7 @@ export default function Billing() {
         try {
             const updated = await companyPricing.recalculateStatement(company.id, s.id);
             setViewing(updated);
-            statements.reload();
+            reloadStatements();
             const changed = updated.total !== s.total;
             notifySuccess(changed
                 ? `Billing No. ${updated.billing_number} recalculated: ${php(s.total)} → ${php(updated.total)}. Use "Send email" to send the corrected bill.`
@@ -190,8 +198,8 @@ export default function Billing() {
     const recurringTotal = (feeRows ?? []).filter((f) => f.billing_frequency === 'monthly').reduce((sum, f) => sum + Number(f.amount), 0);
 
     // The latest statement still to be paid, else the latest non-void one (listed newest first).
-    const currentBill = statements.rows.find((s) => s.status === 'unpaid')
-        ?? statements.rows.find((s) => s.status !== 'void')
+    const currentBill = latestStatements.rows.find((s) => s.status === 'unpaid')
+        ?? latestStatements.rows.find((s) => s.status !== 'void')
         ?? null;
     const billIsUnpaid = currentBill?.status === 'unpaid';
 
@@ -254,7 +262,7 @@ export default function Billing() {
                     </>
                 )}
             >
-                {feeRows === null && <div className="text-center py-4"><span className="spinner-border spinner-border-sm" /></div>}
+                {feeRows === null && <SkeletonList items={4} />}
                 {feeRows?.length === 0 && <p className="text-body-secondary mb-0">No fees are assigned to this company.</p>}
                 {feeRows?.length > 0 && (
                     <div className="list-group list-group-flush">

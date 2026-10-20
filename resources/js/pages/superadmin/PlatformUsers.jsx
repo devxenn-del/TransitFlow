@@ -8,6 +8,7 @@ import StatusBadge from '../../components/StatusBadge.jsx';
 import { companies as companiesApi, platformUsers, roles as rolesApi } from '../../lib/api.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonTableRows } from '../../components/Skeleton.jsx';
 
 const BLANK = { name: '', email: '', password: '', role_id: '', company_id: '' };
 
@@ -93,9 +94,7 @@ export default function PlatformUsers() {
                             </tr>
                         </thead>
                         <tbody>
-                            {loading && (
-                                <tr><td colSpan={6} className="text-center py-4"><span className="spinner-border spinner-border-sm" /></td></tr>
-                            )}
+                            {loading && <SkeletonTableRows columns={6} />}
                             {!loading && rows.map((u) => (
                                 <tr key={u.id}>
                                     <td className="fw-semibold">{u.name}</td>

@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { companySettings } from '../../lib/api.js';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 function ConfigRow({ label, value }) {
     return (
@@ -115,7 +116,7 @@ export default function CompanySettings() {
     };
 
     if (!form) {
-        return <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="form" />;
     }
 
     return (

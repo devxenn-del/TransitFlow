@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import PageHeader from '../../components/PageHeader.jsx';
 import { platformMobileApp } from '../../lib/api.js';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const FIELDS = ['api_base_url', 'latest_version', 'latest_version_code', 'minimum_version', 'force_update', 'download_url', 'release_notes'];
 
@@ -105,7 +106,7 @@ export default function MobileApp() {
     };
 
     if (!form) {
-        return <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="form" />;
     }
 
     return (

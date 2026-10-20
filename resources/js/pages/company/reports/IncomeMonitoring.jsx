@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 import DataTable from '../../../components/DataTable.jsx';
 import PageHeader from '../../../components/PageHeader.jsx';
+import Pagination from '../../../components/Pagination.jsx';
 import { reports } from '../../../lib/api.js';
 import { notifyError } from '../../../lib/ui.js';
+import { usePagedRows } from '../../../lib/useList.js';
 import ReportToolbar from './ReportToolbar.jsx';
 
 const peso = (n) => `₱${Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -20,6 +22,7 @@ export default function IncomeMonitoring() {
     const [params, setParams] = useState({ period: 'daily', date: new Date().toISOString().slice(0, 10) });
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
+    const incomeRows = usePagedRows(data?.rows);
 
     const run = useCallback(async () => {
         setLoading(true);
@@ -75,11 +78,12 @@ export default function IncomeMonitoring() {
 
             <DataTable
                 columns={COLUMNS}
-                rows={data?.rows ?? []}
+                rows={incomeRows.pageRows}
                 loading={loading}
                 empty="No activity in this period."
                 rowKey={(r) => r.bus_id}
             />
+            <Pagination meta={incomeRows.meta} page={incomeRows.page} onPage={incomeRows.setPage} />
         </>
     );
 }

@@ -8,6 +8,7 @@ import { companyPricing } from '../../lib/api.js';
 import { RateBadge, feeAmount, fmtDate, mdy, todayIso } from '../../lib/billing.jsx';
 import { useActiveCompany } from '../../lib/companyScope.jsx';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const RATE_STATE_BADGE = {
     active: 'tf-badge-active',
@@ -126,7 +127,7 @@ export default function PricingConfiguration() {
     };
 
     if (!data) {
-        return <div className="text-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="table" />;
     }
 
     const isSpecial = data.pricing_plan === 'special';

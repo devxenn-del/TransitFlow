@@ -7,7 +7,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { passengerTypes } from '../../lib/api.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const BLANK = { name: '', fare_mode: 'Fare Matrix', discount_percent: 0, sort_order: 10, status: 'Active' };
@@ -15,7 +15,7 @@ const BLANK = { name: '', fare_mode: 'Fare Matrix', discount_percent: 0, sort_or
 export default function PassengerTypes() {
     const { can } = useAuth();
     const editable = can('passengertypes.edit');
-    const { rows, meta, loading, page, setPage, reload } = useList(passengerTypes.list, { perPage: 50 });
+    const { rows, meta, loading, page, setPage, reload } = useList(passengerTypes.list, { perPage: LIST_PAGE_SIZE });
 
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);

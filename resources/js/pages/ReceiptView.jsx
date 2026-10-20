@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { receipts } from '../lib/api.js';
 import { setCompanyScope } from '../lib/axios.js';
+import { SkeletonText } from '../components/Skeleton.jsx';
 
 /**
  * Full-screen thermal-receipt print page — BITS `receipt/conductor/*.php`.
@@ -69,7 +70,7 @@ export default function ReceiptView() {
     if (doc === undefined) {
         return (
             <div className="tf-receipt-page">
-                <div className="spinner-border text-secondary" role="status" />
+                <div className="tf-skel-receipt"><SkeletonText lines={12} /></div>
             </div>
         );
     }

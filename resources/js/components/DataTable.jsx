@@ -1,3 +1,5 @@
+import { SkeletonTableRows } from './Skeleton.jsx';
+
 /**
  * Bootstrap table with a consistent loading / empty state.
  *
@@ -18,13 +20,7 @@ export default function DataTable({ columns, rows, loading, empty = 'Nothing her
                         </tr>
                     </thead>
                     <tbody>
-                        {loading && (
-                            <tr>
-                                <td colSpan={columns.length} className="tf-empty">
-                                    <span className="spinner-border spinner-border-sm" />
-                                </td>
-                            </tr>
-                        )}
+                        {loading && <SkeletonTableRows columns={columns.length} />}
                         {!loading && rows.length === 0 && (
                             <tr>
                                 <td colSpan={columns.length} className="tf-empty">

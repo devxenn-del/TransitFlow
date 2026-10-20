@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext.jsx';
+import BrandLoader from './BrandLoader.jsx';
 
 /**
  * Gate for authenticated routes. Optionally requires a permission key — or
@@ -12,11 +13,7 @@ export default function ProtectedRoute({ children, permission, superAdmin, compa
     const location = useLocation();
 
     if (loading) {
-        return (
-            <div className="d-flex justify-content-center py-5">
-                <div className="spinner-border text-primary" role="status" />
-            </div>
-        );
+        return <BrandLoader fullscreen label="Starting TransitFlow…" />;
     }
 
     if (!isAuthenticated) {

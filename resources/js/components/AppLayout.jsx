@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import transitFlowLogo from '../../images/transitflow-logo.png';
 import { swal as Swal } from '../lib/ui.js';
 
 import { useAuth } from '../auth/AuthContext.jsx';
 import { auth as authApi } from '../lib/api.js';
 import { COMPANY_MODULES, MODULE_GROUPS, OVERVIEW_MODULE, groupedModules } from '../lib/companyModules.js';
 import { errorMessage, notifySuccess } from '../lib/ui.js';
+import PageLoader from './PageLoader.jsx';
 
 const pinFields = (labels) => labels.map((p) => `<input id="${p.id}" type="password" ${p.numeric ? 'inputmode="numeric"' : ''} class="swal2-input" placeholder="${p.ph}">`).join('');
 
@@ -210,7 +212,7 @@ export default function AppLayout() {
                         <i className="bi bi-list fs-4" />
                     </button>
                     <span className="tf-brand">
-                        <i className="bi bi-bus-front-fill" />
+                        <span className="tf-brand-mark"><img src={transitFlowLogo} alt="" /></span>
                         <span>
                             {auth.user?.company?.name ?? 'TransitFlow'}
                             <small>{auth.user?.company ? 'Powered by TransitFlow' : 'Smart Transport Mgmt'}</small>
@@ -267,12 +269,25 @@ export default function AppLayout() {
                 <aside className={`tf-sidebar ${open ? 'open' : ''}`}>
                     <div className="tf-signage">
                         <div className="tf-signage-row">
-                            <i className="bi bi-bus-front-fill tf-signage-icon" />
-                            <div>
-                                <p className="tf-signage-title">TRANSITFLOW</p>
-                                <div className="tf-signage-sub">{auth.user?.company?.name ?? 'Platform Console'}</div>
+                            <span className="tf-signage-mark">
+                                <img src={transitFlowLogo} alt="TransitFlow" />
+                            </span>
+                            <div className="tf-signage-text">
+                                <p className="tf-signage-title">TransitFlow</p>
+                                <div className="tf-signage-sub" title={auth.user?.company?.name ?? 'Platform Console'}>
+                                    {auth.user?.company?.name ?? 'Platform Console'}
+                                </div>
                             </div>
+                            <button type="button" className="tf-signage-close d-lg-none" onClick={() => setOpen(false)} aria-label="Close menu">
+                                <i className="bi bi-x-lg" />
+                            </button>
                         </div>
+                        {roleLabel && (
+                            <div className="tf-signage-meta">
+                                <span className="tf-signage-dot" aria-hidden="true" />
+                                <span className="text-truncate">{roleLabel}</span>
+                            </div>
+                        )}
                     </div>
 
                     <nav className="tf-nav-wrap" aria-label="Main">
@@ -313,6 +328,7 @@ export default function AppLayout() {
                 </aside>
 
                 <main className="tf-content">
+                    <PageLoader />
                     <Outlet context={outletContext} />
                 </main>
             </div>

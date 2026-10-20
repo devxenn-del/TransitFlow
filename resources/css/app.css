@@ -147,6 +147,39 @@ a:hover {
     font-size: 1.25rem;
 }
 
+.tf-topbar .tf-brand > span:last-child {
+    min-width: 0;
+    max-width: min(46vw, 420px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    padding-bottom: 2px;
+}
+
+.tf-topbar .tf-brand > span:last-child small {
+    margin-top: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tf-brand-mark {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.tf-brand-mark img {
+    width: 128%;
+    height: 128%;
+    object-fit: contain;
+}
+
 .tf-topbar .tf-brand small {
     display: block;
     font-family: var(--tf-font-body);
@@ -217,21 +250,27 @@ a:hover {
     max-height: calc(100vh - 60px);
 }
 
+/* Signage — the sidebar's brand card */
+
 .tf-signage {
-    margin: 1rem 0.9rem 0.75rem;
-    padding: 0.9rem 1rem;
-    background: #0b0e13;
+    flex: none;
+    margin: 0.9rem 0.75rem 0.6rem;
+    padding: 0.8rem 0.85rem;
+    background: linear-gradient(145deg, var(--tf-nav-surface) 0%, #0d1219 100%);
     border: 1px solid var(--tf-nav-border);
-    border-radius: 6px;
+    border-radius: var(--tf-radius-sm);
     position: relative;
     overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* Amber route line along the top edge. */
 .tf-signage::before {
     content: '';
     position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient( to bottom, rgba(245, 166, 35, 0.035) 0 1px, transparent 1px 3px);
+    inset: 0 0 auto;
+    height: 2px;
+    background: linear-gradient(90deg, var(--tf-accent) 0%, rgba(245, 166, 35, 0.15) 70%, transparent 100%);
     pointer-events: none;
 }
 
@@ -239,30 +278,92 @@ a:hover {
     display: flex;
     align-items: center;
     gap: 0.7rem;
+    min-width: 0;
 }
 
-.tf-signage-icon {
-    font-size: 1.5rem;
-    color: var(--tf-accent);
-    text-shadow: 0 0 12px rgba(245, 166, 35, 0.45);
+.tf-signage-mark {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.35), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.tf-signage-mark img {
+    width: 128%;
+    height: 128%;
+    object-fit: contain;
+}
+
+.tf-signage-text {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .tf-signage-title {
-    font-family: var(--tf-font-mono);
+    font-family: var(--tf-font-display);
     font-weight: 700;
-    letter-spacing: 0.13em;
-    color: var(--tf-accent);
-    font-size: 0.95rem;
-    text-shadow: 0 0 10px rgba(245, 166, 35, 0.35);
+    font-size: 1.12rem;
+    line-height: 1.1;
+    letter-spacing: 0.03em;
+    color: #fff;
     margin: 0;
 }
 
 .tf-signage-sub {
-    font-size: 0.62rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: 0.72rem;
+    line-height: 1.3;
     color: var(--tf-nav-muted);
-    margin-top: 0.15rem;
+    margin-top: 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tf-signage-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    margin-top: 0.65rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed var(--tf-nav-border);
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tf-accent);
+}
+
+.tf-signage-dot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tf-green);
+    box-shadow: 0 0 0 3px rgba(47, 158, 110, 0.2);
+}
+
+.tf-signage-close {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--tf-nav-border);
+    background: transparent;
+    color: var(--tf-nav-muted);
+    display: grid;
+    place-items: center;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tf-signage-close:hover {
+    color: #fff;
+    border-color: var(--tf-nav-muted);
 }
 
 .tf-nav-wrap {
@@ -428,6 +529,7 @@ a:hover {
 /* Content */
 
 .tf-content {
+    position: relative;
     flex: 1 1 auto;
     min-width: 0;
     padding: 1.75rem 1.75rem 3rem;
@@ -451,7 +553,9 @@ a:hover {
         position: fixed;
         top: 60px;
         left: 0;
+        width: min(290px, 86vw);
         height: calc(100vh - 60px);
+        height: calc(100dvh - 60px);
         max-height: none;
         z-index: 1040;
         transform: translateX(-100%);
@@ -2781,4 +2885,292 @@ a.tf-stat:hover {
     .tf-access-stats > div {
         align-items: flex-start;
     }
+}
+
+
+/* ==========================================================================
+   Loading — BrandLoader (logo + animated ring) and the page-transition loader
+   ========================================================================== */
+
+.tf-loader {
+    --tf-loader-size: 88px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    text-align: center;
+}
+
+.tf-loader-sm {
+    --tf-loader-size: 46px;
+    gap: 0.5rem;
+}
+
+.tf-loader-lg {
+    --tf-loader-size: 120px;
+}
+
+.tf-loader-badge {
+    position: relative;
+    width: var(--tf-loader-size);
+    height: var(--tf-loader-size);
+    display: grid;
+    place-items: center;
+}
+
+.tf-loader-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    animation: tf-loader-spin 1.4s linear infinite;
+}
+
+.tf-loader-track,
+.tf-loader-arc {
+    fill: none;
+    stroke-width: 4;
+}
+
+.tf-loader-track {
+    stroke: var(--tf-line);
+}
+
+.tf-loader-arc {
+    stroke: var(--tf-accent);
+    stroke-linecap: round;
+    stroke-dasharray: 90 200;
+    transform-origin: 50% 50%;
+    animation: tf-loader-dash 1.4s ease-in-out infinite;
+}
+
+/* Soft halo that breathes behind the badge. */
+.tf-loader-pulse {
+    position: absolute;
+    inset: 14%;
+    border-radius: 50%;
+    background: var(--tf-accent-dim);
+    animation: tf-loader-pulse 1.8s ease-out infinite;
+}
+
+.tf-loader-logo {
+    position: relative;
+    width: 74%;
+    height: 74%;
+    border-radius: 50%;
+    background: #fff;
+    object-fit: cover;
+    object-position: center 42%;
+    padding: 2px;
+    box-shadow: 0 4px 14px rgba(20, 33, 59, 0.14);
+    animation: tf-loader-breathe 1.8s ease-in-out infinite;
+}
+
+.tf-loader-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tf-muted);
+}
+
+.tf-loader-sm .tf-loader-label {
+    font-size: 0.7rem;
+}
+
+.tf-loader-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: grid;
+    place-items: center;
+    background: var(--tf-paper);
+    animation: tf-fade-in 0.2s ease;
+}
+
+/* Overlay over the content area while a new page loads its data. */
+/* Fixed over the content area (right of the sidebar, under the topbar) so
+   the loader sits dead centre of what the user is looking at; the light
+   wash lets the page's skeleton show through. */
+.tf-page-loader {
+    position: fixed;
+    top: 60px;
+    right: 0;
+    bottom: 0;
+    left: 250px;
+    z-index: 1020;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(244, 246, 249, 0.55);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+}
+
+.tf-page-loader.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.18s ease;
+}
+
+/* Thin amber bar under the topbar. */
+.tf-route-progress {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    z-index: 1035;
+    height: 3px;
+    width: 0;
+    background: linear-gradient(90deg, var(--tf-accent), #ffd27a);
+    box-shadow: 0 0 8px rgba(245, 166, 35, 0.55);
+    opacity: 0;
+    transition: width 0.25s ease, opacity 0.3s ease 0.15s;
+    pointer-events: none;
+}
+
+.tf-route-progress.is-busy {
+    width: 85%;
+    opacity: 1;
+    transition: width 6s cubic-bezier(0.1, 0.7, 0.2, 1), opacity 0.1s ease;
+}
+
+@keyframes tf-loader-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes tf-loader-dash {
+    0% { stroke-dasharray: 1 290; stroke-dashoffset: 0; }
+    50% { stroke-dasharray: 150 290; stroke-dashoffset: -40; }
+    100% { stroke-dasharray: 150 290; stroke-dashoffset: -288; }
+}
+
+@keyframes tf-loader-pulse {
+    0% { transform: scale(0.9); opacity: 0.9; }
+    100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes tf-loader-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tf-loader-ring,
+    .tf-loader-arc,
+    .tf-loader-pulse,
+    .tf-loader-logo {
+        animation-duration: 3s;
+    }
+    .tf-loader-pulse,
+    .tf-loader-logo {
+        animation: none;
+    }
+}
+
+@media (max-height: 560px) {
+    .tf-signage-meta {
+        display: none;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .tf-page-loader {
+        left: 0;
+    }
+}
+
+
+/* ==========================================================================
+   Skeleton loading
+   ========================================================================== */
+
+.tf-skel {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    background: #e8ecf1;
+    flex: none;
+    max-width: 100%;
+}
+
+.tf-skel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.65) 50%, transparent 100%);
+    animation: tf-skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.tf-skel-circle {
+    border-radius: 50%;
+}
+
+.tf-skel-tile {
+    border-radius: 10px;
+}
+
+.tf-skel-input {
+    border-radius: var(--tf-radius-sm);
+}
+
+.tf-skel-block {
+    border-radius: var(--tf-radius);
+}
+
+.tf-skel-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.tf-skel-row td {
+    padding-top: 0.95rem;
+    padding-bottom: 0.95rem;
+}
+
+.tf-skel-row:hover > * {
+    --bs-table-bg-state: transparent;
+}
+
+.tf-skel-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tf-skel-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.tf-stat .tf-skel + .flex-fill {
+    min-width: 0;
+}
+
+@keyframes tf-skel-shimmer {
+    100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tf-skel::after {
+        animation: none;
+    }
+}
+
+.tf-skel-receipt {
+    width: min(340px, 100%);
+    padding: 1.5rem;
+    background: var(--tf-surface);
+    border-radius: var(--tf-radius-sm);
+    box-shadow: var(--tf-shadow);
 }

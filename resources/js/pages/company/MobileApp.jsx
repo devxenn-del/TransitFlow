@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import PageHeader from '../../components/PageHeader.jsx';
 import { mobileApp } from '../../lib/api.js';
 import { notifyError } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 /**
  * Read-only — the mobile app is published platform-wide by the Super Admin
@@ -18,7 +19,7 @@ export default function MobileApp() {
     }, []);
 
     if (!settings) {
-        return <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="form" />;
     }
 
     return (

@@ -6,8 +6,9 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { buses } from '../../lib/api.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonTableRows } from '../../components/Skeleton.jsx';
 
 const STATUSES = ['Active', 'Inactive', 'Maintenance'];
 const VEHICLE_TYPES = ['diesel', 'gasoline', 'electric'];
@@ -15,7 +16,7 @@ const BLANK = { bus_number: '', plate_number: '', capacity: '', model: '', vehic
 
 export default function Buses() {
     const { can } = useAuth();
-    const { rows, meta, loading, page, setPage, reload } = useList(buses.list);
+    const { rows, meta, loading, page, setPage, reload } = useList(buses.list, { perPage: LIST_PAGE_SIZE });
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);
@@ -89,7 +90,7 @@ export default function Buses() {
                             </tr>
                         </thead>
                         <tbody>
-                            {loading && <tr><td colSpan={7} className="text-center py-4"><span className="spinner-border spinner-border-sm" /></td></tr>}
+                            {loading && <SkeletonTableRows columns={7} />}
                             {!loading && rows.length === 0 && <tr><td colSpan={7} className="text-center py-4 text-body-secondary">No buses yet.</td></tr>}
                             {rows.map((b) => (
                                 <tr key={b.id}>

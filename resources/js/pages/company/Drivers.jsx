@@ -9,7 +9,7 @@ import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { drivers } from '../../lib/api.js';
 import { useActiveCompany } from '../../lib/companyScope.jsx';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const BLANK = { name: '', license_number: '', contact_number: '', sex: '', email: '', address: '', status: 'Active', driver_code: '' };
@@ -113,7 +113,7 @@ function DriverQrModal({ driver, company, onClose }) {
 export default function Drivers() {
     const { can } = useAuth();
     const company = useActiveCompany();
-    const { rows, meta, loading, page, setPage, reload } = useList(drivers.list);
+    const { rows, meta, loading, page, setPage, reload } = useList(drivers.list, { perPage: LIST_PAGE_SIZE });
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);

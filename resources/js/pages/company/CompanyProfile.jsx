@@ -6,6 +6,7 @@ import StatusBadge from '../../components/StatusBadge.jsx';
 import { companyProfile } from '../../lib/api.js';
 import { useCompanyScope } from '../../lib/companyScope.jsx';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 export default function CompanyProfile() {
     const { can } = useAuth();
@@ -45,7 +46,7 @@ export default function CompanyProfile() {
     };
 
     if (!form) {
-        return <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="form" />;
     }
 
     return (

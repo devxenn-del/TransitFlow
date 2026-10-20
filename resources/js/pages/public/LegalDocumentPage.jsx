@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { legalDocuments } from '../../lib/api.js';
 import { renderLegalContent } from '../../lib/legalContent.jsx';
+import { SkeletonText } from '../../components/Skeleton.jsx';
 
 /**
  * Public, unauthenticated Privacy Policy / Terms of Use page — linked from
@@ -29,7 +30,7 @@ export default function LegalDocumentPage({ type }) {
                             </Link>
 
                             {doc === undefined && (
-                                <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>
+                                <div className="py-3"><SkeletonText lines={10} /></div>
                             )}
 
                             {doc === null && (

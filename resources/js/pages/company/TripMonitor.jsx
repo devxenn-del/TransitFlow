@@ -9,7 +9,7 @@ import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { tripMonitor } from '../../lib/api.js';
 import { openReceipt } from '../../lib/receipt.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
 
 const peso = (n) => `₱${Number(n ?? 0).toFixed(2)}`;
@@ -158,7 +158,7 @@ export default function TripMonitor() {
         (params) => tripMonitor.list({ ...params, ...FILTERS.find((f) => f.key === filter).params }),
         [filter],
     );
-    const { rows, meta, loading, page, setPage, reload } = useList(fetcher, { deps: [filter] });
+    const { rows, meta, loading, page, setPage, reload } = useList(fetcher, { deps: [filter], perPage: LIST_PAGE_SIZE });
 
     const openDetail = async (id) => {
         try { setDetail(await tripMonitor.get(id)); }

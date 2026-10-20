@@ -8,7 +8,7 @@ import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { buses as busesApi, conductorBuses, conductors } from '../../lib/api.js';
 import { useActiveCompany } from '../../lib/companyScope.jsx';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const BLANK = { name: '', email: '', password: '', status: 'active', phone: '', address: '', sex: '', pin: '' };
@@ -16,7 +16,7 @@ const BLANK = { name: '', email: '', password: '', status: 'active', phone: '', 
 export default function Conductors() {
     const { can, user: me } = useAuth();
     const company = useActiveCompany();
-    const { rows, meta, loading, page, setPage, reload } = useList(conductors.list);
+    const { rows, meta, loading, page, setPage, reload } = useList(conductors.list, { perPage: LIST_PAGE_SIZE });
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);

@@ -8,8 +8,9 @@ import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { companyUsers, roles as rolesApi } from '../../lib/api.js';
 import { useActiveCompany, useCompanyPath, useCompanyScope } from '../../lib/companyScope.jsx';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonTableRows } from '../../components/Skeleton.jsx';
 
 const BLANK = { name: '', email: '', password: '', role_id: '', status: 'active', pin: '', phone: '' };
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
@@ -34,7 +35,7 @@ export default function CompanyUsers() {
             role: roleFilter || undefined,
             include_conductors: inWorkspace ? 1 : undefined,
         }),
-        { deps: [q, roleFilter] },
+        { deps: [q, roleFilter], perPage: LIST_PAGE_SIZE },
     );
     const [roles, setRoles] = useState([]);
     const [allRoles, setAllRoles] = useState([]);
@@ -164,7 +165,7 @@ export default function CompanyUsers() {
                             </tr>
                         </thead>
                         <tbody>
-                            {loading && <tr><td colSpan={7} className="text-center py-4"><span className="spinner-border spinner-border-sm" /></td></tr>}
+                            {loading && <SkeletonTableRows columns={7} />}
                             {!loading && rows.length === 0 && (
                                 <tr><td colSpan={7} className="tf-empty">{q || roleFilter ? 'No users match these filters.' : 'No users yet.'}</td></tr>
                             )}

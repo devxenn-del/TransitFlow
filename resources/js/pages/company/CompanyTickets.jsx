@@ -4,7 +4,7 @@ import DataTable from '../../components/DataTable.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import { companyTickets } from '../../lib/api.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 
 const PAYMENT_METHODS = ['Cash', 'E-Wallet', 'QR'];
 const peso = (n) => `₱${Number(n ?? 0).toFixed(2)}`;
@@ -19,7 +19,7 @@ export default function CompanyTickets() {
             ...params,
             ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
         }),
-        { deps: [filters], perPage: 25 },
+        { deps: [filters], perPage: LIST_PAGE_SIZE },
     );
 
     useEffect(() => {

@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import AccessSummary from '../components/AccessSummary.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { companies, dashboard } from '../lib/api.js';
+import { SkeletonAccessSummary, SkeletonCard, SkeletonPageHeader, SkeletonStats } from '../components/Skeleton.jsx';
 
 const peso = (n) => `₱${Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -54,37 +55,49 @@ export default function Dashboard() {
     const { user, isSuperAdmin, can } = useAuth();
     const [superStats, setSuperStats] = useState({});
     const [data, setData] = useState(null);
+    const [loadingDashboard, setLoadingDashboard] = useState(() => !!user?.company_id && can('dashboard.view'));
+    const [loadingCompanies, setLoadingCompanies] = useState(isSuperAdmin);
     const hasCompany = !!user?.company_id;
 
     useEffect(() => {
         if (isSuperAdmin) {
+            setLoadingCompanies(true);
             companies.list({ per_page: 1 })
                 .then((r) => setSuperStats((s) => ({ ...s, companies: r.meta?.total })))
-                .catch(() => {});
+                .catch(() => {})
+                .finally(() => setLoadingCompanies(false));
         }
         if (hasCompany && can('dashboard.view')) {
-            dashboard.get().then(setData).catch(() => {});
+            setLoadingDashboard(true);
+            dashboard.get().then(setData).catch(() => {}).finally(() => setLoadingDashboard(false));
         }
     }, [isSuperAdmin, hasCompany, can]);
 
     const today = data?.today;
     const recent = data?.recent_trips ?? [];
     const weekly = useMemo(() => data?.weekly_collection ?? [], [data]);
+    const pageLoading = loadingDashboard || loadingCompanies;
 
     return (
         <>
-            <PageHeader
-                eyebrow={user?.company ? 'Company Console' : 'Platform Console'}
-                title={`Welcome, ${user?.name?.split(' ')[0] ?? ''}`}
-                subtitle={user?.company ? user.company.name : 'TransitFlow platform'}
-            />
+            {pageLoading ? (
+                <SkeletonPageHeader />
+            ) : (
+                <PageHeader
+                    eyebrow={user?.company ? 'Company Console' : 'Platform Console'}
+                    title={`Welcome, ${user?.name?.split(' ')[0] ?? ''}`}
+                    subtitle={user?.company ? user.company.name : 'TransitFlow platform'}
+                />
+            )}
 
             <div className="row g-3 mb-4">
-                {isSuperAdmin && (
+                {isSuperAdmin && loadingCompanies && <SkeletonStats count={1} />}
+                {isSuperAdmin && !loadingCompanies && (
                     <div className="col-sm-6 col-xl-3">
                         <Stat icon="bi-buildings" label="Companies" value={superStats.companies} to="/companies" />
                     </div>
                 )}
+                {loadingDashboard && <SkeletonStats count={7} />}
                 {today && (
                     <>
                         <div className="col-sm-6 col-xl-3">
@@ -115,6 +128,13 @@ export default function Dashboard() {
                     </>
                 )}
             </div>
+
+            {loadingDashboard && (
+                <div className="row g-3 mb-4">
+                    <div className="col-lg-7"><SkeletonCard lines={5} className="h-100" /></div>
+                    <div className="col-lg-5"><SkeletonCard lines={4} className="h-100" /></div>
+                </div>
+            )}
 
             {data && (
                 <div className="row g-3 mb-4">
@@ -180,7 +200,7 @@ export default function Dashboard() {
                 </div>
             )}
 
-            <AccessSummary user={user} isSuperAdmin={isSuperAdmin} />
+            {pageLoading ? <SkeletonAccessSummary /> : <AccessSummary user={user} isSuperAdmin={isSuperAdmin} />}
         </>
     );
 }

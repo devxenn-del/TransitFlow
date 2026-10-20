@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { companyUsers } from '../../lib/api.js';
 import { useCompanyPath } from '../../lib/companyScope.jsx';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const fmtDateTime = (v) => (v ? new Date(v).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 
@@ -48,7 +49,7 @@ export default function UserDetails() {
     }
 
     if (!user) {
-        return <div className="d-flex justify-content-center py-5"><div className="spinner-border text-primary" role="status" /></div>;
+        return <SkeletonPage variant="detail" />;
     }
 
     const fullName = [user.first_name, user.middle_name, user.last_name].filter(Boolean).join(' ');

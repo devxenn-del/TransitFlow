@@ -7,7 +7,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { terminals } from '../../lib/api.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const MODES = ['Both', 'Terminal', 'Pickup'];
@@ -15,7 +15,7 @@ const BLANK = { name: '', default_route_origin: '', boarding_mode: 'Both', statu
 
 export default function Terminals() {
     const { can } = useAuth();
-    const { rows, meta, loading, page, setPage, reload } = useList(terminals.list);
+    const { rows, meta, loading, page, setPage, reload } = useList(terminals.list, { perPage: LIST_PAGE_SIZE });
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);
     const [saving, setSaving] = useState(false);

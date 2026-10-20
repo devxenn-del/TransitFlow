@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import { companyUsers, permissionCatalogue } from '../../lib/api.js';
 import { useCompanyPath } from '../../lib/companyScope.jsx';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 export default function UserPermissions() {
     const { id } = useParams();
@@ -71,7 +72,7 @@ export default function UserPermissions() {
     };
 
     if (!state) {
-        return <div className="d-flex justify-content-center py-5"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="table" />;
     }
 
     return (

@@ -7,7 +7,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { routes } from '../../lib/api.js';
-import { useList } from '../../lib/useList.js';
+import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const BLANK = { origin: '', destination: '', name: '', status: 'Active' };
@@ -24,7 +24,7 @@ export default function Routes() {
     const [q, setQ] = useState('');
     const { rows, meta, loading, page, setPage, reload } = useList(
         (params) => routes.list({ ...params, q: q || undefined }),
-        { deps: [q] },
+        { deps: [q], perPage: LIST_PAGE_SIZE },
     );
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(BLANK);

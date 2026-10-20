@@ -10,6 +10,7 @@ import { companies as companiesApi, fees } from '../../lib/api.js';
 import { BILLING_FREQUENCIES, RateBadge, feeAmount, fmtDate, todayIso } from '../../lib/billing.jsx';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonText } from '../../components/Skeleton.jsx';
 
 const BLANK = { name: '', description: '', amount: '', billing_frequency: 'monthly', billing_interval_months: '', is_active: true, effective_date: todayIso() };
 
@@ -293,7 +294,7 @@ function FeeCompaniesModal({ fee, canManage, onClose, onSaved }) {
                 </>
             )}
         >
-            {!detail && <div className="text-center py-4"><span className="spinner-border spinner-border-sm" /></div>}
+            {!detail && <SkeletonText lines={6} />}
 
             {detail && editingAssignments && (
                 <div className="vstack gap-3">
@@ -309,7 +310,7 @@ function FeeCompaniesModal({ fee, canManage, onClose, onSaved }) {
                     </div>
                     {!appliesToAll && (
                         <div className="border rounded p-2" style={{ maxHeight: 320, overflowY: 'auto' }}>
-                            {allCompanies.length === 0 && <div className="text-body-secondary small p-2">Loading companies…</div>}
+                            {allCompanies.length === 0 && <div className="p-2"><SkeletonText lines={4} /></div>}
                             {allCompanies.map((c) => (
                                 <div key={c.id} className="form-check">
                                     <input id={`co-${c.id}`} type="checkbox" className="form-check-input" checked={selected.includes(c.id)} onChange={() => toggleCompany(c.id)} />

@@ -5,6 +5,7 @@ import DataTable from '../../components/DataTable.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { legalDocuments } from '../../lib/api.js';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
+import { SkeletonPage } from '../../components/Skeleton.jsx';
 
 const TYPES = [
     { key: 'privacy_policy', label: 'Privacy Policy' },
@@ -44,7 +45,7 @@ function DocumentEditor({ type, label, manage, onPublished }) {
     };
 
     if (active === undefined) {
-        return <div className="d-flex justify-content-center py-4"><span className="spinner-border text-primary" /></div>;
+        return <SkeletonPage variant="table" />;
     }
 
     return (

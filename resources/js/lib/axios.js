@@ -53,7 +53,29 @@ export function getCompanyScope() {
     return companyScope;
 }
 
+/**
+ * In-flight request count, so the page loader (components/PageLoader.jsx)
+ * can wait for a freshly opened page's data before revealing it.
+ */
+let pendingRequests = 0;
+const pendingListeners = new Set();
+
+function setPending(delta) {
+    pendingRequests = Math.max(0, pendingRequests + delta);
+    pendingListeners.forEach((fn) => fn(pendingRequests));
+}
+
+export function getPendingRequests() {
+    return pendingRequests;
+}
+
+export function subscribePendingRequests(fn) {
+    pendingListeners.add(fn);
+    return () => pendingListeners.delete(fn);
+}
+
 api.interceptors.request.use((config) => {
+    setPending(1);
     const token = getToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -70,8 +92,12 @@ export function setUnauthorizedHandler(fn) {
 }
 
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        setPending(-1);
+        return response;
+    },
     (error) => {
+        setPending(-1);
         const status = error.response?.status;
         const url = error.config?.url ?? '';
         // Don't hijack the login request's own 401/422.
