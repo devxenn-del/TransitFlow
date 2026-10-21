@@ -224,6 +224,8 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         // Thermal Printer Management — the platform-wide printer inventory, issued to companies and then to buses.
         Route::get('thermal-printers', [PlatformThermalPrinterController::class, 'index'])->middleware('permission:printers.inventory.view')->name('thermal-printers.index');
         Route::get('thermal-printers/buses', [PlatformThermalPrinterController::class, 'buses'])->middleware('permission:printers.inventory.view')->name('thermal-printers.buses');
+        Route::get('thermal-printers/summary', [PlatformThermalPrinterController::class, 'summary'])->middleware('permission:printers.inventory.view')->name('thermal-printers.summary');
+        Route::get('thermal-printers/labels', [PlatformThermalPrinterController::class, 'labels'])->middleware(['permission:printers.inventory.view', 'throttle:30,1'])->name('thermal-printers.labels');
         Route::post('thermal-printers', [PlatformThermalPrinterController::class, 'store'])->middleware(['permission:printers.inventory.manage', 'throttle:60,1'])->name('thermal-printers.store');
         Route::get('thermal-printers/{inventoryPrinter}', [PlatformThermalPrinterController::class, 'show'])->middleware('permission:printers.inventory.view')->name('thermal-printers.show');
         Route::match(['put', 'patch'], 'thermal-printers/{inventoryPrinter}', [PlatformThermalPrinterController::class, 'update'])->middleware('permission:printers.inventory.manage')->name('thermal-printers.update');

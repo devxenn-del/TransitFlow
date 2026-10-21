@@ -3,6 +3,7 @@
 namespace Tests\Feature\Platform;
 
 use App\Enums\ThermalPrinterStatus;
+use App\Http\Controllers\Api\SuperAdmin\ThermalPrinterController;
 use App\Models\Bus;
 use App\Models\Company;
 use App\Models\ThermalPrinter;
@@ -273,6 +274,7 @@ class ThermalPrinterInventoryTest extends TestCase
         $this->getJson(self::BASE."?bus_id={$bus->id}")->assertJsonCount(1, 'data');
         $this->getJson(self::BASE.'?assignment=unassigned')->assertJsonCount(4, 'data');
         $this->getJson(self::BASE.'?assignment=no_bus')->assertJsonCount(1, 'data');
+        $this->getJson(self::BASE.'?assignment=on_bus')->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $onBus->id);
         $this->getJson(self::BASE.'?status=Defective')->assertJsonCount(1, 'data');
         $this->getJson(self::BASE.'?assignment=unassigned&q=Xprinter&per_page=2&page=2')
             ->assertJsonCount(1, 'data')
@@ -358,5 +360,76 @@ class ThermalPrinterInventoryTest extends TestCase
 
         $this->getJson(self::BASE)->assertUnauthorized();
         $this->postJson(self::BASE, ['model' => 'X'])->assertUnauthorized();
+    }
+
+    public function test_labels_are_returned_for_the_selected_printers_across_companies(): void
+    {
+        $bus = Bus::factory()->create(['company_id' => $this->company->id]);
+        $onBus = ThermalPrinter::factory()->onBus($bus)->create();
+        $elsewhere = ThermalPrinter::factory()->assignedTo(Company::factory()->create())->create();
+        ThermalPrinter::factory()->create(); // not selected
+
+        $labels = $this->getJson(self::BASE.'/labels?'.http_build_query(['ids' => [$elsewhere->id, $onBus->id]]))
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->json('data');
+
+        $byId = collect($labels)->keyBy('id');
+        $this->assertSame($onBus->mac_address, $byId[$onBus->id]['mac_address']);
+        $this->assertSame($bus->bus_number, $byId[$onBus->id]['bus']['bus_number']);
+        $this->assertSame($this->company->name, $byId[$onBus->id]['company']['name']);
+        $this->assertSame($elsewhere->company_id, $byId[$elsewhere->id]['company']['id']);
+
+        $this->assertDatabaseHas('audit_logs', ['action' => 'thermal_printer.labels_printed']);
+    }
+
+    public function test_labels_for_all_matching_use_the_same_filters_as_the_list(): void
+    {
+        ThermalPrinter::factory()->count(2)->assignedTo($this->company)->create();
+        ThermalPrinter::factory()->count(3)->create();
+
+        $listed = collect($this->getJson(self::BASE."?company_id={$this->company->id}")->json('data'))->pluck('id')->sort()->values();
+        $labelled = collect($this->getJson(self::BASE."/labels?all=1&company_id={$this->company->id}")->assertOk()->json('data'))->pluck('id')->sort()->values();
+
+        $this->assertCount(2, $labelled);
+        $this->assertEquals($listed, $labelled);
+    }
+
+    public function test_label_requests_are_validated_and_capped(): void
+    {
+        $this->getJson(self::BASE.'/labels')->assertJsonValidationErrorFor('ids');
+        $this->getJson(self::BASE.'/labels?'.http_build_query(['ids' => range(1, ThermalPrinterController::MAX_LABELS + 1)]))->assertJsonValidationErrorFor('ids');
+        $this->getJson(self::BASE.'/labels?'.http_build_query(['ids' => [999999]]))->assertJsonValidationErrorFor('ids');
+    }
+
+    public function test_the_summary_counts_the_whole_inventory(): void
+    {
+        $bus = Bus::factory()->create(['company_id' => $this->company->id]);
+        ThermalPrinter::factory()->onBus($bus)->create();
+        ThermalPrinter::factory()->assignedTo($this->company)->create();
+        ThermalPrinter::factory()->count(2)->create();
+        ThermalPrinter::factory()->withStatus(ThermalPrinterStatus::Defective)->create();
+
+        $this->getJson(self::BASE.'/summary')
+            ->assertOk()
+            ->assertJsonPath('data.total', 5)
+            ->assertJsonPath('data.by_status.Available', 2)
+            ->assertJsonPath('data.by_status.Assigned', 2)
+            ->assertJsonPath('data.by_status.Defective', 1)
+            ->assertJsonPath('data.by_status.Retired', 0)
+            ->assertJsonPath('data.on_bus', 1)
+            ->assertJsonPath('data.awaiting_bus', 1);
+
+        Sanctum::actingAs(User::factory()->companyAdmin($this->company)->create());
+        $this->getJson(self::BASE.'/summary')->assertForbidden();
+    }
+
+    public function test_company_admins_cannot_print_inventory_labels(): void
+    {
+        $printer = ThermalPrinter::factory()->assignedTo($this->company)->create();
+        Sanctum::actingAs(User::factory()->companyAdmin($this->company)->create());
+
+        $this->getJson(self::BASE.'/labels?'.http_build_query(['ids' => [$printer->id]]))->assertForbidden();
+        $this->getJson(self::BASE.'/labels?all=1')->assertForbidden();
     }
 }

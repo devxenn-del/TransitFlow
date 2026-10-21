@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '../../auth/AuthContext.jsx';
 import Modal from '../../components/Modal.jsx';
@@ -8,15 +8,20 @@ import PrinterStatusBadge, { PRINTER_STATUSES } from '../../components/PrinterSt
 import SearchableSelect from '../../components/SearchableSelect.jsx';
 import { SkeletonTableRows } from '../../components/Skeleton.jsx';
 import { companies, platformThermalPrinters as printersApi } from '../../lib/api.js';
+import { openPrinterLabels } from '../../lib/printerLabels.js';
 import { useList } from '../../lib/useList.js';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
 const ASSIGNMENTS = [
-    ['', 'Issued & unissued'],
+    ['', 'All assignments'],
     ['assigned', 'Issued to a company'],
+    ['on_bus', 'On a bus'],
     ['no_bus', 'Issued, no bus yet'],
     ['unassigned', 'Not issued'],
 ];
+
+/** Most labels one print job may hold — ThermalPrinterController::MAX_LABELS. */
+const MAX_LABELS = 500;
 
 /** Statuses a printer may be (re)issued to a company from — App\Enums\ThermalPrinterStatus::acceptsCompany(). */
 const ACCEPTS_COMPANY = ['Available', 'Returned', 'Assigned'];
@@ -48,6 +53,28 @@ const fmtDateTime = (v) => (v ? new Date(v).toLocaleString(undefined, { year: 'n
 const muted = (text) => <span className="text-body-secondary">{text}</span>;
 const busLabel = (bus) => (bus ? `${bus.bus_number}${bus.plate_number ? ` · ${bus.plate_number}` : ''}` : null);
 const notAssigned = muted('Not Assigned');
+
+/** One "label — value" row in the details drawer. */
+function DrawerRow({ label, children }) {
+    return (
+        <div className="tf-drawer-row">
+            <dt>{label}</dt>
+            <dd>{children || <span className="text-body-tertiary">—</span>}</dd>
+        </div>
+    );
+}
+
+/** "A → B" for whichever of company / bus / status a history entry changed. */
+function describeChange(h) {
+    const parts = [];
+    const diff = (from, to, noun) => {
+        if (from !== to) parts.push(`${noun}: ${from ?? 'none'} → ${to ?? 'none'}`);
+    };
+    diff(h.from_company, h.to_company, 'Company');
+    diff(h.from_bus, h.to_bus, 'Bus');
+    diff(h.from_status, h.to_status, 'Status');
+    return parts.join(' · ');
+}
 
 /** A company picker that searches the server as you type. */
 function useCompanyOptions(open) {
@@ -82,7 +109,7 @@ function Identity({ printer, showCompany }) {
             </div>
             <div className="col-6"><span className="text-body-secondary">MAC address</span><div>{printer.mac_address ? <code>{printer.mac_address}</code> : '—'}</div></div>
             <div className="col-6"><span className="text-body-secondary">Model</span><div>{printer.model}</div></div>
-            {showCompany && <div className="col-12"><span className="text-body-secondary">Assigned company</span><div className="fw-semibold">{printer.company?.name ?? 'Not Assigned'}</div></div>}
+            {showCompany && <div className="col-12"><span className="text-body-secondary">Assigned company</span><div className="fw-semibold">{printer.company?.name ?? 'Not Assigned'}</div>{printer.company && <code className="small">{printer.company.code}</code>}</div>}
         </div>
     );
 }
@@ -142,6 +169,59 @@ export default function ThermalPrinters() {
 
     const filtered = !!(q || status || assignment || companyId);
     const clearFilters = () => { setSearch(''); setStatus(''); setAssignment(''); setCompanyId(''); };
+    const currentFilters = { q, status, assignment, company_id: companyId, bus_id: busId };
+
+    // --- Selection (label printing) ------------------------------------------
+    // `selected` survives paging and filtering. `allMatching` means "every
+    // printer matching the current filters", so it resets when they change.
+    const [selected, setSelected] = useState(() => new Set());
+    const [allMatching, setAllMatching] = useState(false);
+    const headerCheckbox = useRef(null);
+
+    useEffect(() => setAllMatching(false), [q, status, assignment, companyId, busId]);
+
+    const pageIds = rows.map((p) => p.id);
+    const pageSelectedCount = allMatching ? pageIds.length : pageIds.filter((id) => selected.has(id)).length;
+    const allOnPage = pageIds.length > 0 && pageSelectedCount === pageIds.length;
+    const selectionCount = allMatching ? (meta?.total ?? 0) : selected.size;
+
+    useEffect(() => {
+        if (headerCheckbox.current) headerCheckbox.current.indeterminate = pageSelectedCount > 0 && !allOnPage;
+    }, [pageSelectedCount, allOnPage]);
+
+    const toggleOne = (id) => {
+        if (allMatching) {
+            // Leaving "all matching": keep this page minus the one unticked.
+            setAllMatching(false);
+            setSelected(new Set(pageIds.filter((pid) => pid !== id)));
+            return;
+        }
+        setSelected((prev) => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
+
+    const togglePage = () => {
+        if (allMatching) { setAllMatching(false); setSelected(new Set()); return; }
+        setSelected((prev) => {
+            const next = new Set(prev);
+            pageIds.forEach((id) => (allOnPage ? next.delete(id) : next.add(id)));
+            return next;
+        });
+    };
+
+    const clearSelection = () => { setAllMatching(false); setSelected(new Set()); };
+
+    const printSelected = () => {
+        if (selectionCount > MAX_LABELS) {
+            notifyError(null, `Up to ${MAX_LABELS} labels can be printed at once. Narrow the filters and print in batches.`);
+            return;
+        }
+        if (allMatching) openPrinterLabels({ filters: currentFilters });
+        else openPrinterLabels({ ids: [...selected] });
+    };
 
     // --- Register / edit ---------------------------------------------------
     const [editing, setEditing] = useState(null); // null | {} (new) | printer
@@ -294,6 +374,7 @@ export default function ThermalPrinters() {
 
     // --- Details + history -------------------------------------------------
     const [details, setDetails] = useState(null);
+    const detailsId = details?.id;
     const openDetails = useCallback(async (p) => {
         setDetails({ ...p, history: null });
         try {
@@ -303,10 +384,30 @@ export default function ThermalPrinters() {
         }
     }, []);
 
+    useEffect(() => {
+        if (!detailsId) return undefined;
+        const onKey = (e) => e.key === 'Escape' && !document.querySelector('.modal.show') && setDetails(null);
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [detailsId]);
+
+    // --- Summary cards -------------------------------------------------------
+    // Reloaded with the list, so they and an open drawer reflect every change.
+    const [summary, setSummary] = useState(null);
+    useEffect(() => {
+        if (loading) return;
+        printersApi.summary().then(setSummary).catch(() => {});
+        if (detailsId) printersApi.get(detailsId).then(setDetails).catch(() => {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading]);
+
     // -----------------------------------------------------------------------
 
     const actionsFor = (p) => {
-        const items = [{ key: 'view', icon: 'bi-eye', label: 'View details & history', run: () => openDetails(p) }];
+        const items = [
+            { key: 'view', icon: 'bi-eye', label: 'View details & history', run: () => openDetails(p) },
+            { key: 'label', icon: 'bi-qr-code', label: 'Print label', run: () => openPrinterLabels({ ids: [p.id] }) },
+        ];
         if (!canManage) return items;
         if (p.status !== 'Retired') items.push({ key: 'edit', icon: 'bi-pencil', label: 'Edit printer', run: () => openEdit(p) });
         if (ACCEPTS_COMPANY.includes(p.status)) {
@@ -322,12 +423,31 @@ export default function ThermalPrinters() {
         return items;
     };
 
+    const kpis = [
+        { key: 'all', icon: 'bi-printer', label: 'All printers', hint: 'Whole inventory', value: summary?.total, filter: {} },
+        { key: 'available', icon: 'bi-box-seam', label: 'Available', hint: 'Ready to issue', value: summary?.by_status.Available, filter: { status: 'Available' } },
+        { key: 'on_bus', icon: 'bi-bus-front', label: 'On a bus', hint: 'In service', value: summary?.on_bus, filter: { assignment: 'on_bus' } },
+        { key: 'no_bus', icon: 'bi-hourglass-split', label: 'Awaiting bus', hint: 'Needs a bus', value: summary?.awaiting_bus, filter: { assignment: 'no_bus' }, warn: summary?.awaiting_bus > 0 },
+        { key: 'maintenance', icon: 'bi-tools', label: 'Maintenance', hint: 'Being repaired', value: summary?.by_status['Under Maintenance'], filter: { status: 'Under Maintenance' } },
+        { key: 'defective', icon: 'bi-exclamation-triangle', label: 'Defective', hint: 'Reported faulty', value: summary?.by_status.Defective, filter: { status: 'Defective' }, warn: summary?.by_status.Defective > 0 },
+    ];
+    const activeKpi = kpis.find((k) => (k.filter.status ?? '') === status && (k.filter.assignment ?? '') === assignment && !q && !companyId)?.key;
+    const applyKpi = (k) => {
+        setSearch('');
+        setCompanyId('');
+        setStatus(k.filter.status ?? '');
+        setAssignment(k.filter.assignment ?? '');
+    };
+
+    const stop = (e) => e.stopPropagation();
+    const inventoryEmpty = !loading && !filtered && rows.length === 0;
+
     return (
         <>
             <PageHeader
                 eyebrow="Platform"
                 title="Thermal Printer Management"
-                subtitle="Every thermal printer the platform has issued: register units, issue them to companies, and assign each one to a specific bus."
+                subtitle="Register thermal printers, issue them to companies, assign each one to a bus, and print asset labels."
                 actions={canManage && (
                     <button className="btn btn-accent" onClick={openNew}>
                         <i className="bi bi-plus-lg me-1" /> Register printer
@@ -335,112 +455,210 @@ export default function ThermalPrinters() {
                 )}
             />
 
-            <div className="row g-2 mb-3 align-items-end">
-                <div className="col-12 col-lg-4">
-                    <div className="input-group">
-                        <span className="input-group-text bg-body"><i className="bi bi-search" /></span>
+            {/* Inventory at a glance — each card filters the list */}
+            <div className="row g-3 mb-4">
+                {kpis.map((k) => (
+                    <div key={k.key} className="col-6 col-md-4 col-xl-2">
+                        <button
+                            type="button"
+                            className={`tf-stat tf-stat--filter w-100 text-start${activeKpi === k.key ? ' is-active' : ''}${k.warn ? ' is-warn' : ''}`}
+                            aria-pressed={activeKpi === k.key}
+                            onClick={() => applyKpi(k)}
+                        >
+                            <div className="tf-stat-icon"><i className={`bi ${k.icon}`} /></div>
+                            <div className="min-w-0">
+                                <div className="tf-stat-value">{summary ? (k.value ?? 0).toLocaleString() : '—'}</div>
+                                <div className="tf-stat-label text-truncate">{k.label}</div>
+                                {k.hint && <div className="tf-stat-hint text-truncate">{k.hint}</div>}
+                            </div>
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            <div className="card tf-inventory-card">
+                {/* Toolbar */}
+                <div className="tf-inventory-toolbar">
+                    <div className="tf-inventory-search">
+                        <i className="bi bi-search" aria-hidden="true" />
                         <input
+                            type="search"
                             className="form-control"
-                            placeholder="Thermal ID, Device ID, MAC, model, company or bus"
+                            placeholder="Search printers…" title="Search by Device ID, Thermal ID, MAC, model, company or bus"
                             aria-label="Search printers"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                </div>
-                <div className="col-6 col-md-3 col-lg-2">
                     <select className="form-select" aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
                         <option value="">All statuses</option>
                         {PRINTER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
-                </div>
-                <div className="col-6 col-md-3 col-lg-2">
                     <select className="form-select" aria-label="Filter by assignment" value={assignment} onChange={(e) => setAssignment(e.target.value)}>
                         {ASSIGNMENTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
-                </div>
-                <div className="col-6 col-md-3 col-lg-2">
-                    <select
-                        className="form-select"
-                        aria-label="Filter by company"
-                        value={companyId}
-                        onChange={(e) => setCompanyId(e.target.value)}
-                    >
+                    <select className="form-select" aria-label="Filter by company" value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
                         <option value="">All companies</option>
                         {filterCompanies.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                </div>
-                <div className="col-6 col-md-3 col-lg-2">
                     <select className="form-select" aria-label="Filter by assigned bus" value={busId} disabled={!companyId} onChange={(e) => setBusId(e.target.value)}>
-                        <option value="">{companyId ? 'All buses' : 'Pick a company for buses'}</option>
+                        <option value="">All buses</option>
                         {filterBuses.map((b) => <option key={b.id} value={b.id}>{busLabel(b)}</option>)}
                     </select>
+                    {filtered && (
+                        <button type="button" className="btn btn-link text-decoration-none px-1" onClick={clearFilters}>
+                            <i className="bi bi-x-circle me-1" />Reset
+                        </button>
+                    )}
                 </div>
-            </div>
-            <div className="d-flex align-items-center mb-2 small text-body-secondary">
-                {meta && <span>{meta.total} {meta.total === 1 ? 'printer' : 'printers'}</span>}
-                {filtered && <button className="btn btn-link btn-sm ms-2 p-0" onClick={clearFilters}>Clear filters</button>}
-            </div>
 
-            <div className="card border-0 shadow-sm">
                 <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                        <thead className="table-light">
+                    <table className="table table-hover align-middle mb-0 tf-inventory-table">
+                        <thead>
                             <tr>
-                                <th>Thermal ID</th>
+                                <th className="tf-check-col">
+                                    <input
+                                        ref={headerCheckbox}
+                                        type="checkbox"
+                                        className="form-check-input"
+                                        aria-label="Select all printers on this page"
+                                        checked={allOnPage}
+                                        disabled={loading || pageIds.length === 0}
+                                        onChange={togglePage}
+                                    />
+                                </th>
                                 <th>Device ID</th>
-                                <th>MAC address</th>
                                 <th>Model</th>
-                                <th>Company</th>
+                                <th>Company Code</th>
                                 <th>Assigned bus</th>
                                 <th>Status</th>
                                 <th>Date issued</th>
-                                <th className="text-end"><span className="visually-hidden">Actions</span></th>
+                                <th className="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loading && <SkeletonTableRows columns={9} />}
+                            {loading && <SkeletonTableRows columns={8} />}
                             {!loading && rows.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className="tf-empty">
-                                        <i className="bi bi-printer d-block fs-3 mb-2" />
-                                        {filtered ? 'No printers match these filters.' : 'No thermal printers registered yet.'}
+                                    <td colSpan={8} className="tf-empty">
+                                        {inventoryEmpty ? (
+                                            <div className="tf-inventory-empty">
+                                                <span className="tf-inventory-empty__icon"><i className="bi bi-printer" /></span>
+                                                <div className="fw-semibold text-body">No thermal printers yet</div>
+                                                <div className="small mb-3">Register a printer to generate its Thermal ID and Device ID, then issue it to a company.</div>
+                                                {canManage && <button type="button" className="btn btn-accent btn-sm" onClick={openNew}><i className="bi bi-plus-lg me-1" />Register printer</button>}
+                                            </div>
+                                        ) : (
+                                            <div className="tf-inventory-empty">
+                                                <span className="tf-inventory-empty__icon"><i className="bi bi-funnel" /></span>
+                                                <div className="fw-semibold text-body">No printers match these filters</div>
+                                                <button type="button" className="btn btn-link btn-sm" onClick={clearFilters}>Reset filters</button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             )}
-                            {!loading && rows.map((p) => (
-                                <tr key={p.id}>
-                                    <td className="text-nowrap"><code className="fw-semibold">{p.thermal_id}</code></td>
-                                    <td className="text-nowrap"><code>{p.device_id}</code></td>
-                                    <td className="text-nowrap">{p.mac_address ? <code>{p.mac_address}</code> : muted('—')}</td>
-                                    <td>{p.model}</td>
-                                    <td>{p.company ? p.company.name : notAssigned}</td>
-                                    <td className="text-nowrap">{busLabel(p.bus) ?? notAssigned}</td>
-                                    <td><PrinterStatusBadge value={p.status} /></td>
-                                    <td className="small text-nowrap">{fmtDate(p.date_issued)}</td>
-                                    <td className="text-end text-nowrap">
-                                        <div className="dropdown d-inline-block">
-                                            <button className="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false" aria-label={`Actions for ${p.thermal_id}`}>
-                                                <i className="bi bi-three-dots" />
-                                            </button>
-                                            <ul className="dropdown-menu dropdown-menu-end">
+                            {!loading && rows.map((p) => {
+                                const isSelected = allMatching || selected.has(p.id);
+                                return (
+                                    <tr
+                                        key={p.id}
+                                        className={`tf-row-link${isSelected ? ' is-selected' : ''}`}
+                                        tabIndex={0}
+                                        aria-label={`Open ${p.device_id}`}
+                                        onClick={() => openDetails(p)}
+                                        onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && openDetails(p)}
+                                    >
+                                        <td className="tf-check-col" onClick={stop} onKeyDown={stop}>
+                                            <input
+                                                type="checkbox"
+                                                className="form-check-input"
+                                                aria-label={`Select ${p.device_id}`}
+                                                checked={isSelected}
+                                                onChange={() => toggleOne(p.id)}
+                                            />
+                                        </td>
+                                        <td className="text-nowrap">
+                                            <code
+                                                className="tf-hint tf-device-id"
+                                                title={`Thermal ID: ${p.thermal_id}\nMAC address: ${p.mac_address ?? 'Not registered'}`}
+                                                aria-label={`${p.device_id}. Thermal ID ${p.thermal_id}. MAC address ${p.mac_address ?? 'not registered'}`}
+                                            >
+                                                {p.device_id}
+                                            </code>
+                                            {!p.mac_address && <i className="bi bi-exclamation-circle text-warning ms-2" title="No MAC address — the label can't carry a QR code" />}
+                                        </td>
+                                        <td>{p.model}</td>
+                                        <td className="text-nowrap">
+                                            {p.company ? (
+                                                <span className="tf-code-chip tf-hint" title={p.company.name} aria-label={`${p.company.code}: ${p.company.name}`}>{p.company.code}</span>
+                                            ) : notAssigned}
+                                        </td>
+                                        <td className="text-nowrap">
+                                            {p.bus ? (
+                                                <span className="d-inline-flex align-items-center gap-2">
+                                                    <i className="bi bi-bus-front text-body-secondary" aria-hidden="true" />
+                                                    <span>
+                                                        <span className="fw-semibold">{p.bus.bus_number}</span>
+                                                        {p.bus.plate_number && <span className="d-block small text-body-secondary">{p.bus.plate_number}</span>}
+                                                    </span>
+                                                </span>
+                                            ) : notAssigned}
+                                        </td>
+                                        <td><PrinterStatusBadge value={p.status} /></td>
+                                        <td className="small text-nowrap">{fmtDate(p.date_issued)}</td>
+                                        <td className="text-end text-nowrap" onClick={stop} onKeyDown={stop}>
+                                            <div className="btn-group btn-group-sm tf-row-actions" role="group" aria-label={`Actions for ${p.device_id}`}>
                                                 {actionsFor(p).map((a) => (
-                                                    <li key={a.key}>
-                                                        <button className={`dropdown-item${a.danger ? ' text-danger' : ''}`} onClick={a.run}>
-                                                            <i className={`bi ${a.icon} me-2`} />{a.label}
-                                                        </button>
-                                                    </li>
+                                                    <button
+                                                        key={a.key}
+                                                        type="button"
+                                                        className={`btn ${a.danger ? 'btn-outline-danger' : 'btn-outline-secondary'}`}
+                                                        title={a.label}
+                                                        aria-label={`${a.label} — ${p.device_id}`}
+                                                        onClick={a.run}
+                                                    >
+                                                        <i className={`bi ${a.icon}`} />
+                                                    </button>
                                                 ))}
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
+
+                <div className="tf-inventory-foot">
+                    <span className="small text-body-secondary">
+                        {meta?.total ? `Showing ${meta.from}–${meta.to} of ${meta.total.toLocaleString()} ${meta.total === 1 ? 'printer' : 'printers'}` : ' '}
+                    </span>
+                    <Pagination meta={meta} page={page} onPage={setPage} />
+                </div>
             </div>
-            <Pagination meta={meta} page={page} onPage={setPage} />
+
+            {/* Bulk actions for the ticked printers */}
+            {selectionCount > 0 && (
+                <div className="tf-bulkbar" role="region" aria-label="Selected printers">
+                    <span className="tf-bulkbar__count">{selectionCount.toLocaleString()}</span>
+                    <span>
+                        {selectionCount === 1 ? 'printer' : 'printers'} selected
+                        {allMatching && <span className="opacity-75">{filtered ? ' · all matching the filters' : ' · whole inventory'}</span>}
+                    </span>
+                    {!allMatching && allOnPage && meta && meta.total > selected.size && (
+                        <button type="button" className="btn btn-link btn-sm tf-bulkbar__link" onClick={() => setAllMatching(true)}>
+                            Select all {meta.total.toLocaleString()}
+                        </button>
+                    )}
+                    <span className="ms-auto d-flex gap-2">
+                        <button type="button" className="btn btn-sm btn-accent" onClick={printSelected}>
+                            <i className="bi bi-qr-code me-1" />Print {selectionCount === 1 ? 'label' : 'labels'}
+                        </button>
+                        <button type="button" className="btn btn-sm btn-outline-light" onClick={clearSelection}>Clear</button>
+                    </span>
+                </div>
+            )}
 
             {/* Register / edit */}
             <Modal
@@ -601,54 +819,87 @@ export default function ThermalPrinters() {
             </Modal>
 
             {/* Details + history */}
-            <Modal open={!!details} title={details?.thermal_id ?? ''} size="lg" onClose={() => setDetails(null)}>
-                {details && (
-                    <>
-                        <dl className="row small mb-3">
-                            <dt className="col-sm-3">Thermal ID</dt><dd className="col-sm-3"><code>{details.thermal_id}</code></dd>
-                            <dt className="col-sm-3">Device ID</dt><dd className="col-sm-3"><code>{details.device_id}</code></dd>
-                            <dt className="col-sm-3">MAC address</dt><dd className="col-sm-3">{details.mac_address ? <code>{details.mac_address}</code> : '—'}</dd>
-                            <dt className="col-sm-3">Model</dt><dd className="col-sm-3">{details.model}</dd>
-                            <dt className="col-sm-3">Serial no.</dt><dd className="col-sm-3">{details.serial_number || '—'}</dd>
-                            <dt className="col-sm-3">Status</dt><dd className="col-sm-3"><PrinterStatusBadge value={details.status} /></dd>
-                            <dt className="col-sm-3">Company</dt><dd className="col-sm-3">{details.company?.name ?? 'Not Assigned'}</dd>
-                            <dt className="col-sm-3">Assigned bus</dt><dd className="col-sm-3">{busLabel(details.bus) ?? 'Not Assigned'}</dd>
-                            <dt className="col-sm-3">Date issued</dt><dd className="col-sm-3">{fmtDate(details.date_issued)}</dd>
-                            <dt className="col-sm-3">Registered</dt><dd className="col-sm-3">{fmtDateTime(details.created_at)}</dd>
-                            {details.remarks && (<><dt className="col-sm-3">Remarks</dt><dd className="col-sm-9" style={{ whiteSpace: 'pre-line' }}>{details.remarks}</dd></>)}
-                        </dl>
-                        <h6 className="mb-2">Assignment history</h6>
-                        {details.history === null ? (
-                            <div className="text-body-secondary small"><span className="spinner-border spinner-border-sm me-2" />Loading…</div>
-                        ) : (details.history ?? []).length === 0 ? (
-                            <div className="text-body-secondary small">No history yet.</div>
-                        ) : (
-                            <div className="table-responsive">
-                                <table className="table table-sm small align-middle mb-0">
-                                    <thead className="table-light">
-                                        <tr><th>When</th><th>Change</th><th>Company</th><th>Bus</th><th>Status</th><th>By</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        {details.history.map((h) => (
-                                            <tr key={h.id}>
-                                                <td className="text-nowrap">{fmtDateTime(h.created_at)}</td>
-                                                <td>
-                                                    {ACTION_LABELS[h.action] ?? h.action}
-                                                    {h.remarks && <div className="text-body-secondary">{h.remarks}</div>}
-                                                </td>
-                                                <td>{h.from_company === h.to_company ? (h.to_company ?? '—') : `${h.from_company ?? '—'} → ${h.to_company ?? '—'}`}</td>
-                                                <td>{h.from_bus === h.to_bus ? (h.to_bus ?? '—') : `${h.from_bus ?? '—'} → ${h.to_bus ?? '—'}`}</td>
-                                                <td>{h.from_status === h.to_status ? (h.to_status ?? '—') : `${h.from_status ?? '—'} → ${h.to_status ?? '—'}`}</td>
-                                                <td>{h.user_name ?? '—'}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+            {details && (
+                <>
+                    <div className="tf-drawer-backdrop" onClick={() => setDetails(null)} />
+                    <aside className="tf-drawer tf-printer-drawer" role="dialog" aria-modal="true" aria-label={`Printer ${details.device_id}`}>
+                        <div className="tf-drawer-head">
+                            <span className="tf-printer-tile"><i className="bi bi-printer" /></span>
+                            <div className="flex-grow-1 min-w-0">
+                                <h2 className="tf-drawer-title font-monospace">{details.device_id}</h2>
+                                <div className="small text-body-secondary font-monospace">{details.thermal_id}</div>
+                                <div className="mt-2"><PrinterStatusBadge value={details.status} /></div>
                             </div>
-                        )}
-                    </>
-                )}
-            </Modal>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={() => setDetails(null)} />
+                        </div>
+
+                        <div className="tf-drawer-body">
+                            {canManage && (
+                                <div className="tf-drawer-actions mb-4">
+                                    {actionsFor(details).filter((a) => !['view', 'label'].includes(a.key)).map((a) => (
+                                        <button key={a.key} type="button" className={`btn btn-sm ${a.danger ? 'btn-outline-danger' : 'btn-outline-secondary'}`} onClick={a.run}>
+                                            <i className={`bi ${a.icon} me-1`} />{a.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="tf-drawer-label">Identification</div>
+                            <dl className="tf-drawer-list mb-4">
+                                <DrawerRow label="Thermal ID"><code>{details.thermal_id}</code></DrawerRow>
+                                <DrawerRow label="Device ID"><code>{details.device_id}</code></DrawerRow>
+                                <DrawerRow label="MAC address">
+                                    {details.mac_address ? <code>{details.mac_address}</code> : <span className="text-warning-emphasis"><i className="bi bi-exclamation-circle me-1" />Not registered — the label can’t carry a QR code</span>}
+                                </DrawerRow>
+                                <DrawerRow label="Model">{details.model}</DrawerRow>
+                                <DrawerRow label="Serial no.">{details.serial_number}</DrawerRow>
+                                <DrawerRow label="Registered">{fmtDateTime(details.created_at)}</DrawerRow>
+                            </dl>
+
+                            <div className="tf-drawer-label">Assignment</div>
+                            <dl className="tf-drawer-list mb-4">
+                                <DrawerRow label="Company">
+                                    {details.company ? <>{details.company.name} <span className="tf-code-chip ms-1">{details.company.code}</span></> : 'Not Assigned'}
+                                </DrawerRow>
+                                <DrawerRow label="Assigned bus">{busLabel(details.bus) ?? 'Not Assigned'}</DrawerRow>
+                                <DrawerRow label="Date issued">{details.date_issued ? fmtDate(details.date_issued) : null}</DrawerRow>
+                            </dl>
+
+                            {details.remarks && (
+                                <div className="mb-4">
+                                    <div className="tf-drawer-label">Remarks</div>
+                                    <p className="small mb-0" style={{ whiteSpace: 'pre-line' }}>{details.remarks}</p>
+                                </div>
+                            )}
+
+                            <div className="tf-drawer-label">History</div>
+                            {details.history === null ? (
+                                <div className="text-body-secondary small"><span className="spinner-border spinner-border-sm me-2" />Loading…</div>
+                            ) : (details.history ?? []).length === 0 ? (
+                                <div className="text-body-secondary small">No history yet.</div>
+                            ) : (
+                                <ol className="tf-timeline">
+                                    {details.history.map((h) => (
+                                        <li key={h.id} className="tf-timeline__item">
+                                            <div className="tf-timeline__title">{ACTION_LABELS[h.action] ?? h.action}</div>
+                                            <div className="tf-timeline__change">{describeChange(h)}</div>
+                                            {h.remarks && <div className="tf-timeline__remarks">“{h.remarks}”</div>}
+                                            <div className="tf-timeline__meta">{fmtDateTime(h.created_at)}{h.user_name && ` · ${h.user_name}`}</div>
+                                        </li>
+                                    ))}
+                                </ol>
+                            )}
+                        </div>
+
+                        <div className="tf-drawer-foot">
+                            <button type="button" className="btn btn-primary" onClick={() => openPrinterLabels({ ids: [details.id] })}>
+                                <i className="bi bi-qr-code me-1" />Print label
+                            </button>
+                            <button type="button" className="btn btn-light ms-auto" onClick={() => setDetails(null)}>Close</button>
+                        </div>
+                    </aside>
+                </>
+            )}
         </>
     );
 }

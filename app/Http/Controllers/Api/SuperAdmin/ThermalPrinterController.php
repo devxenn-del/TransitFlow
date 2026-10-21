@@ -23,6 +23,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Thermal Printer Management — the platform-wide printer inventory, across
@@ -33,27 +34,79 @@ use Illuminate\Validation\Rule;
  */
 class ThermalPrinterController extends Controller
 {
+    /** The most labels one print job may produce. */
+    public const MAX_LABELS = 500;
+
     public function index(Request $request): AnonymousResourceCollection
     {
+        $request->validate([...$this->filterRules(), 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+
+        return ThermalPrinterResource::collection(
+            $this->filtered($request)->orderByDesc('id')->paginate($request->integer('per_page', 20))
+        );
+    }
+
+    /**
+     * Inventory totals for the page's summary cards: the count per status,
+     * and how many Assigned printers are on a bus vs. still waiting for one.
+     */
+    public function summary(): JsonResponse
+    {
+        $byStatus = ThermalPrinter::query()->withoutCompanyScope()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $statuses = collect(ThermalPrinterStatus::cases())
+            ->mapWithKeys(fn (ThermalPrinterStatus $status) => [$status->value => (int) ($byStatus[$status->value] ?? 0)]);
+
+        $onBus = ThermalPrinter::query()->withoutCompanyScope()
+            ->where('status', ThermalPrinterStatus::Assigned)
+            ->whereNotNull('bus_id')
+            ->count();
+
+        return response()->json(['data' => [
+            'total' => $statuses->sum(),
+            'by_status' => $statuses,
+            'on_bus' => $onBus,
+            'awaiting_bus' => $statuses[ThermalPrinterStatus::Assigned->value] - $onBus,
+        ]]);
+    }
+
+    /**
+     * The printers to print asset labels for — either the given `ids`, or
+     * (`all=1`) every printer matching the same filters as index(). Capped
+     * at MAX_LABELS per print job.
+     */
+    public function labels(Request $request): AnonymousResourceCollection
+    {
         $request->validate([
-            'q' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::enum(ThermalPrinterStatus::class)],
-            'company_id' => ['nullable', 'integer'],
-            'bus_id' => ['nullable', 'integer'],
-            'assignment' => ['nullable', Rule::in(['assigned', 'unassigned', 'no_bus'])],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            ...$this->filterRules(),
+            'all' => ['boolean'],
+            'ids' => ['required_without:all', 'prohibited_if:all,1,true', 'array', 'min:1', 'max:'.self::MAX_LABELS],
+            'ids.*' => ['integer', 'distinct'],
         ]);
 
-        $printers = $this->printers()
-            ->when($request->filled('q'), fn (Builder $q) => $q->search($request->string('q')->trim()->value()))
-            ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->string('status')->value()))
-            ->when($request->filled('company_id'), fn (Builder $q) => $q->where('company_id', $request->integer('company_id')))
-            ->when($request->filled('bus_id'), fn (Builder $q) => $q->where('bus_id', $request->integer('bus_id')))
-            ->when($request->input('assignment') === 'assigned', fn (Builder $q) => $q->whereNotNull('company_id'))
-            ->when($request->input('assignment') === 'unassigned', fn (Builder $q) => $q->whereNull('company_id'))
-            ->when($request->input('assignment') === 'no_bus', fn (Builder $q) => $q->whereNotNull('company_id')->whereNull('bus_id'))
-            ->orderByDesc('id')
-            ->paginate($request->integer('per_page', 20));
+        $query = $request->boolean('all')
+            ? $this->filtered($request)
+            : $this->printers()->whereKey($request->collect('ids')->map(fn ($id) => (int) $id)->all());
+
+        $printers = $query->orderBy('thermal_id')->limit(self::MAX_LABELS + 1)->get();
+
+        if ($printers->isEmpty()) {
+            throw ValidationException::withMessages(['ids' => 'None of the selected printers were found.']);
+        }
+
+        if ($printers->count() > self::MAX_LABELS) {
+            throw ValidationException::withMessages([
+                'all' => 'Up to '.self::MAX_LABELS.' labels can be printed at once. Narrow the filters and print in batches.',
+            ]);
+        }
+
+        Audit::record('thermal_printer.labels_printed', null, [
+            'count' => $printers->count(),
+            'thermal_ids' => $printers->take(50)->pluck('thermal_id')->all(),
+        ]);
 
         return ThermalPrinterResource::collection($printers);
     }
@@ -138,6 +191,39 @@ class ThermalPrinterController extends Controller
             ]);
 
         return response()->json(['data' => $buses]);
+    }
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    private function filterRules(): array
+    {
+        return [
+            'q' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::enum(ThermalPrinterStatus::class)],
+            'company_id' => ['nullable', 'integer'],
+            'bus_id' => ['nullable', 'integer'],
+            'assignment' => ['nullable', Rule::in(['assigned', 'unassigned', 'on_bus', 'no_bus'])],
+        ];
+    }
+
+    /**
+     * The inventory filters shared by index() and labels(), so a label run
+     * always picks exactly the printers the list shows.
+     *
+     * @return Builder<ThermalPrinter>
+     */
+    private function filtered(Request $request): Builder
+    {
+        return $this->printers()
+            ->when($request->filled('q'), fn (Builder $q) => $q->search($request->string('q')->trim()->value()))
+            ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->string('status')->value()))
+            ->when($request->filled('company_id'), fn (Builder $q) => $q->where('company_id', $request->integer('company_id')))
+            ->when($request->filled('bus_id'), fn (Builder $q) => $q->where('bus_id', $request->integer('bus_id')))
+            ->when($request->input('assignment') === 'assigned', fn (Builder $q) => $q->whereNotNull('company_id'))
+            ->when($request->input('assignment') === 'unassigned', fn (Builder $q) => $q->whereNull('company_id'))
+            ->when($request->input('assignment') === 'on_bus', fn (Builder $q) => $q->whereNotNull('bus_id'))
+            ->when($request->input('assignment') === 'no_bus', fn (Builder $q) => $q->where('status', ThermalPrinterStatus::Assigned)->whereNull('bus_id'));
     }
 
     /**

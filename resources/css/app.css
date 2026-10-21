@@ -3231,3 +3231,530 @@ a.tf-stat:hover {
     border-radius: var(--tf-radius-sm);
     box-shadow: var(--tf-shadow);
 }
+
+
+/* ==========================================================================
+   Thermal printer asset labels (pages/PrinterLabels.jsx) — 58 × 40 mm
+   direct-thermal labels, one per page. Pure black on white (no greys, which
+   a thermal head dithers). Each label uses the named page `tf-label`, so its
+   size can't be overridden by any other @page rule in this file, and it
+   re-enables its own visibility because the driver ID card's print rule
+   hides `body *`.
+   ========================================================================== */
+
+.tf-label-page {
+    min-height: 100vh;
+    background: #e9ecef;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.tf-label-toolbar {
+    max-width: 760px;
+    margin: 0 auto 1.5rem;
+    padding: 1rem 1.25rem;
+    background: #fff;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1);
+}
+
+.tf-label-sheet {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.25rem;
+}
+
+.tf-label {
+    page: tf-label;
+    box-sizing: border-box;
+    width: 58mm;
+    height: 40mm;
+    padding: 1mm;
+    background: #fff;
+    color: #000;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+@media screen {
+    /* True size is tiny on a monitor — preview it larger, with a soft edge. */
+    .tf-label {
+        zoom: 1.6;
+        box-shadow: 0 1px 4px rgba(16, 24, 40, 0.18);
+        border-radius: 1.2mm;
+    }
+}
+
+.tf-label__frame {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+    border: 0.25mm solid #000;
+    border-radius: 1mm;
+    overflow: hidden;
+}
+
+.tf-label__body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    padding: 1mm;
+}
+
+/* The QR fills the body's full height, so its top and bottom edges line up
+   with the first and last data lines beside it. */
+.tf-label__qr {
+    flex: none;
+    height: 100%;
+    aspect-ratio: 1;
+}
+
+.tf-label__qr svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    shape-rendering: crispEdges;
+}
+
+.tf-label__qr--missing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1mm;
+    box-sizing: border-box;
+    border: 0.3mm dashed #000;
+    border-radius: 0.8mm;
+    font: 700 5.5pt/1.15 Arial, Helvetica, sans-serif;
+    letter-spacing: 0.06em;
+    text-align: center;
+}
+
+.tf-label__qr--missing .bi {
+    font-size: 9pt;
+}
+
+.tf-label__divider {
+    flex: none;
+    width: 0;
+    margin: 0 1.2mm;
+    border-left: 0.2mm solid #000;
+}
+
+/* Five values, spread over exactly the QR's height. */
+.tf-label__data {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 0;
+}
+
+.tf-label__data > div {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+}
+
+.tf-label__tid {
+    padding-bottom: 0.7mm;
+    border-bottom: 0.2mm solid #000;
+    font-family: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+    font-stretch: condensed;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.tf-label__mono {
+    font-family: Consolas, "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.tf-label__company,
+.tf-label__bus {
+    font-family: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+    font-stretch: condensed;
+}
+
+.tf-label__company {
+    font-weight: 700;
+}
+
+.tf-label__footer {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2mm;
+    height: 5mm;
+    background: #000;
+    color: #fff;
+    font: 700 5.5pt/1 Arial, Helvetica, sans-serif;
+    letter-spacing: 0.2em;
+}
+
+/* Crops the square TransitFlow logo (resources/images/transitflow-logo.png,
+   500 × 500 with padding and a wordmark) down to its "T" mark, as a white
+   silhouette — the wordmark is already spelled out beside it. */
+.tf-label__mark {
+    flex: none;
+    width: 5.4mm;
+    height: 3.1mm;
+    overflow: hidden;
+}
+
+.tf-label__mark img {
+    display: block;
+    width: 12.8mm;
+    height: 12.8mm;
+    margin: -3.95mm 0 0 -3.45mm;
+    filter: brightness(0) invert(1);
+}
+
+@page tf-label {
+    size: 58mm 40mm;
+    margin: 0;
+}
+
+@media print {
+    .tf-label-page {
+        min-height: 0;
+        padding: 0;
+        background: #fff;
+    }
+    .tf-label-sheet {
+        display: block;
+    }
+    .tf-label-sheet,
+    .tf-label-sheet * {
+        visibility: visible;
+    }
+    .tf-label {
+        break-after: page;
+    }
+    .tf-label:last-child {
+        break-after: auto;
+    }
+}
+
+/* Row-selection checkbox column (Thermal Printer Management) */
+.tf-check-col {
+    width: 2.25rem;
+    padding-right: 0 !important;
+}
+
+/* A value whose full meaning is in its tooltip (e.g. a company code → its name). */
+.tf-hint {
+    cursor: help;
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+}
+
+
+/* ==========================================================================
+   Thermal Printer Management (pages/superadmin/ThermalPrinters.jsx)
+   ========================================================================== */
+
+/* Summary cards that double as filters */
+button.tf-stat--filter {
+    padding: 0.85rem 0.9rem 0.85rem calc(0.9rem + var(--stub));
+    gap: 0.7rem;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+
+button.tf-stat--filter .tf-stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+}
+
+button.tf-stat--filter:hover {
+    transform: translateY(-2px);
+    border-color: var(--tf-route-blue);
+}
+
+button.tf-stat--filter:focus-visible {
+    outline: 2px solid var(--tf-route-blue);
+    outline-offset: 2px;
+}
+
+.tf-stat--filter.is-active {
+    border-color: var(--tf-route-blue);
+    box-shadow: 0 0 0 2px rgba(59, 91, 169, 0.22), var(--tf-shadow);
+}
+
+.tf-stat--filter.is-active .tf-stat-icon {
+    background: var(--tf-route-blue);
+    color: #fff;
+}
+
+.tf-stat--filter.is-warn .tf-stat-value {
+    color: #b6392f;
+}
+
+.tf-stat-hint {
+    font-size: 0.72rem;
+    color: var(--tf-muted);
+    margin-top: 0.1rem;
+}
+
+/* Inventory table card */
+.tf-inventory-card {
+    overflow: hidden;
+    border: 1px solid var(--tf-line);
+    box-shadow: var(--tf-shadow);
+}
+
+.tf-inventory-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--tf-line);
+    background: var(--tf-surface);
+}
+
+.tf-inventory-toolbar .form-select {
+    width: auto;
+    min-width: 0;
+    flex: 0 1 11rem;
+}
+
+.tf-inventory-search {
+    position: relative;
+    flex: 1 1 18rem;
+    min-width: 14rem;
+}
+
+.tf-inventory-search .bi {
+    position: absolute;
+    left: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tf-muted);
+    pointer-events: none;
+}
+
+.tf-inventory-search .form-control {
+    padding-left: 2.2rem;
+}
+
+.tf-inventory-table thead th {
+    background: var(--tf-paper);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--tf-muted);
+    white-space: nowrap;
+    border-bottom-width: 1px;
+}
+
+.tf-inventory-table tbody tr.is-selected > td {
+    background: rgba(59, 91, 169, 0.07);
+}
+
+.tf-inventory-table tbody tr.is-selected > td:first-child {
+    box-shadow: inset 3px 0 0 var(--tf-route-blue);
+}
+
+.tf-device-id {
+    font-family: var(--tf-font-mono);
+    font-weight: 600;
+    color: var(--tf-navy);
+    background: none;
+    padding: 0;
+}
+
+.tf-code-chip {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: var(--tf-paper);
+    border: 1px solid var(--tf-line);
+    font-family: var(--tf-font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--tf-navy);
+    text-decoration: none;
+}
+
+.tf-row-actions .btn {
+    padding: 0.2rem 0.45rem;
+}
+
+.tf-inventory-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border-top: 1px solid var(--tf-line);
+    background: var(--tf-paper);
+}
+
+.tf-inventory-foot nav {
+    margin-top: 0 !important;
+    gap: 0.75rem;
+}
+
+.tf-inventory-foot nav > span {
+    display: none;
+}
+
+.tf-inventory-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 1rem 0;
+}
+
+.tf-inventory-empty__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 0.5rem;
+    border-radius: 50%;
+    background: var(--tf-paper);
+    border: 1px solid var(--tf-line);
+    font-size: 1.4rem;
+    color: var(--tf-route-blue);
+}
+
+/* Floating bar for the ticked printers */
+.tf-bulkbar {
+    position: sticky;
+    bottom: 1rem;
+    z-index: 1020;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    max-width: 720px;
+    margin: 1rem auto 0;
+    padding: 0.6rem 0.75rem 0.6rem 0.9rem;
+    border-radius: var(--tf-radius);
+    background: var(--tf-navy);
+    color: #fff;
+    box-shadow: 0 14px 34px -12px rgba(20, 33, 59, 0.55);
+    animation: tf-fade-in 0.15s ease;
+}
+
+.tf-bulkbar__count {
+    min-width: 2rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: var(--tf-accent);
+    color: var(--tf-navy);
+    font-weight: 700;
+    text-align: center;
+}
+
+.tf-bulkbar__link {
+    color: var(--tf-accent);
+    padding: 0;
+}
+
+.tf-bulkbar__link:hover {
+    color: #fff;
+}
+
+/* Printer details drawer */
+.tf-printer-drawer {
+    width: min(480px, 100vw);
+}
+
+.tf-printer-tile {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--tf-radius-sm);
+    background: var(--tf-navy);
+    color: var(--tf-accent);
+    font-size: 1.25rem;
+}
+
+.tf-drawer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.tf-timeline {
+    list-style: none;
+    margin: 0.4rem 0 0;
+    padding: 0 0 0 1.1rem;
+    border-left: 2px solid var(--tf-line);
+}
+
+.tf-timeline__item {
+    position: relative;
+    padding: 0 0 1rem 0.4rem;
+    font-size: 0.84rem;
+}
+
+.tf-timeline__item::before {
+    content: '';
+    position: absolute;
+    left: calc(-1.1rem - 6px);
+    top: 0.3rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--tf-surface);
+    border: 2px solid var(--tf-route-blue);
+}
+
+.tf-timeline__item:first-child::before {
+    background: var(--tf-route-blue);
+}
+
+.tf-timeline__title {
+    font-weight: 600;
+    color: var(--tf-ink);
+}
+
+.tf-timeline__change {
+    color: var(--tf-ink-soft);
+}
+
+.tf-timeline__remarks {
+    margin-top: 0.15rem;
+    font-style: italic;
+    color: var(--tf-ink-soft);
+}
+
+.tf-timeline__meta {
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    color: var(--tf-muted);
+}
+
+@media (max-width: 767.98px) {
+    .tf-inventory-toolbar .form-select {
+        flex: 1 1 45%;
+    }
+    .tf-bulkbar {
+        bottom: 0.5rem;
+    }
+}
+
+.tf-printer-drawer code {
+    color: var(--tf-navy);
+    font-family: var(--tf-font-mono);
+}

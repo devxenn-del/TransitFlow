@@ -10,6 +10,7 @@ import ForcePasswordChange from './pages/ForcePasswordChange.jsx';
 import Login from './pages/Login.jsx';
 import MyProfile from './pages/MyProfile.jsx';
 import NotFound from './pages/NotFound.jsx';
+import PrinterLabels from './pages/PrinterLabels.jsx';
 import ReceiptView from './pages/ReceiptView.jsx';
 import LegalDocumentPage from './pages/public/LegalDocumentPage.jsx';
 import Attendance from './pages/company/Attendance.jsx';
@@ -126,6 +127,16 @@ export default function Root() {
                         element={(
                             <ProtectedRoute>
                                 <ReceiptView />
+                            </ProtectedRoute>
+                        )}
+                    />
+
+                    {/* Thermal printer asset labels (58 × 40 mm) — no app chrome, opens in its own tab */}
+                    <Route
+                        path="/thermal-printer-labels"
+                        element={(
+                            <ProtectedRoute permission="printers.inventory.view">
+                                <PrinterLabels />
                             </ProtectedRoute>
                         )}
                     />

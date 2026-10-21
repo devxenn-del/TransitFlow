@@ -169,6 +169,7 @@ export const thermalPrinters = {
 // IDs are generated server-side; company / bus / status each have their own endpoint.
 export const platformThermalPrinters = {
     list: (params) => api.get('/super-admin/thermal-printers', { params }).then((r) => r.data),
+    summary: () => api.get('/super-admin/thermal-printers/summary').then((r) => r.data.data),
     get: (id) => api.get(`/super-admin/thermal-printers/${id}`).then((r) => r.data.data),
     create: (payload) => api.post('/super-admin/thermal-printers', payload).then((r) => r.data.data),
     update: (id, payload) => api.put(`/super-admin/thermal-printers/${id}`, payload).then((r) => r.data.data),
@@ -176,6 +177,8 @@ export const platformThermalPrinters = {
     assignBus: (id, payload) => api.put(`/super-admin/thermal-printers/${id}/bus`, payload).then((r) => r.data.data),
     setStatus: (id, payload) => api.patch(`/super-admin/thermal-printers/${id}/status`, payload).then((r) => r.data.data),
     buses: (companyId) => api.get('/super-admin/thermal-printers/buses', { params: { company_id: companyId } }).then((r) => r.data.data),
+    // Asset-label data: `{ ids: [...] }`, or `{ all: 1, ...filters }` for every matching printer.
+    labels: (params) => api.get('/super-admin/thermal-printers/labels', { params }).then((r) => r.data.data),
 };
 
 export const terminals = {
