@@ -8,7 +8,9 @@ use App\Mail\CompanyAdminWelcome;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\SeedsRbac;
 use Tests\TestCase;
@@ -105,6 +107,44 @@ class CompanyManagementTest extends TestCase
             ->assertJsonPath('data.name', 'New Name');
 
         $this->assertSame('New Name', $company->fresh()->name);
+    }
+
+    public function test_a_company_admin_cannot_change_the_company_email_through_the_profile(): void
+    {
+        $company = Company::factory()->create(['email' => 'office@original.test']);
+        Sanctum::actingAs(User::factory()->companyAdmin($company)->create());
+
+        $this->patchJson('/api/company/profile', ['name' => 'Renamed', 'email' => 'hijack@evil.test'])
+            ->assertOk()
+            ->assertJsonPath('data.email', 'office@original.test');
+
+        $this->assertSame('office@original.test', $company->fresh()->email);
+    }
+
+    public function test_a_company_admin_can_upload_and_remove_the_company_logo_from_the_profile(): void
+    {
+        Storage::fake('public');
+        $company = Company::factory()->create();
+        Sanctum::actingAs(User::factory()->companyAdmin($company)->create());
+
+        $path = $this->postJson('/api/company/profile/logo', ['image' => UploadedFile::fake()->image('logo.png', 200, 200)])
+            ->assertOk()
+            ->json('data.logo_path');
+
+        Storage::disk('public')->assertExists($path);
+        $this->getJson('/api/auth/me')->assertJsonPath('data.company.logo_url', fn (?string $url) => str_ends_with((string) $url, $path));
+
+        $this->deleteJson('/api/company/profile/logo')->assertOk()->assertJsonPath('data.logo_path', null);
+        Storage::disk('public')->assertMissing($path);
+    }
+
+    public function test_a_plain_company_user_cannot_upload_the_company_logo(): void
+    {
+        Storage::fake('public');
+        Sanctum::actingAs(User::factory()->forCompany(Company::factory()->create())->create());
+
+        $this->postJson('/api/company/profile/logo', ['image' => UploadedFile::fake()->image('logo.png')])
+            ->assertForbidden();
     }
 
     public function test_a_company_admin_cannot_edit_another_company_via_the_super_admin_endpoint(): void

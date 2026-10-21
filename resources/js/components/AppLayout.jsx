@@ -212,7 +212,9 @@ export default function AppLayout() {
                         <i className="bi bi-list fs-4" />
                     </button>
                     <span className="tf-brand">
-                        <span className="tf-brand-mark"><img src={transitFlowLogo} alt="" /></span>
+                        <span className={`tf-brand-mark${auth.user?.company?.logo_url ? ' tf-brand-mark--company' : ''}`}>
+                            <img src={auth.user?.company?.logo_url ?? transitFlowLogo} alt="" />
+                        </span>
                         <span>
                             {auth.user?.company?.name ?? 'TransitFlow'}
                             <small>{auth.user?.company ? 'Powered by TransitFlow' : 'Smart Transport Mgmt'}</small>

@@ -9,6 +9,9 @@ use Illuminate\Foundation\Http\FormRequest;
  * Editing the bound company's profile (App\Support\CompanyContext): a
  * Company Admin's own company, or the one a Super Admin has scoped into. The
  * company is never taken from the request body.
+ *
+ * The company email is not editable here: it has no rule, so an `email` in
+ * the body is dropped from `validated()`. Only the Super Admin changes it.
  */
 class UpdateCompanyProfileRequest extends FormRequest
 {
@@ -31,7 +34,6 @@ class UpdateCompanyProfileRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:150'],
-            'email' => ['nullable', 'email', 'max:150'],
             'phone' => ['nullable', 'string', 'max:32'],
             'address_line' => ['nullable', 'string', 'max:255'],
             'address_barangay' => ['nullable', 'string', 'max:120'],

@@ -221,6 +221,10 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
     Route::prefix('company')->name('company.')->middleware(RequireCompanyContext::class)->group(function () use ($companyCrud) {
         Route::get('profile', [CompanyProfileController::class, 'show'])->middleware('permission:company.profile.view')->name('profile.show');
         Route::match(['put', 'patch'], 'profile', [CompanyProfileController::class, 'update'])->middleware('permission:company.profile.edit')->name('profile.update');
+        // The same branding logo as `settings/logo`, editable by whoever may edit
+        // the profile — it is what the top-bar brand mark shows.
+        Route::post('profile/logo', [CompanySettingController::class, 'uploadImage'])->defaults('type', 'logo')->middleware('permission:company.profile.edit')->name('profile.logo.upload');
+        Route::delete('profile/logo', [CompanySettingController::class, 'deleteImage'])->defaults('type', 'logo')->middleware('permission:company.profile.edit')->name('profile.logo.delete');
 
         // Per-company branding / receipt / organization-identity settings (BITS system_settings → §K)
         Route::get('settings', [CompanySettingController::class, 'show'])->middleware('permission:company.settings.view,company.settings.manage')->name('settings.show');

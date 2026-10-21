@@ -95,6 +95,12 @@ export const legalDocuments = {
 export const companyProfile = {
     get: () => api.get('/company/profile').then((r) => r.data.data),
     update: (payload) => api.put('/company/profile', payload).then((r) => r.data.data),
+    uploadLogo: (file) => {
+        const fd = new FormData();
+        fd.append('image', file);
+        return api.post('/company/profile/logo', fd).then((r) => r.data.data);
+    },
+    deleteLogo: () => api.delete('/company/profile/logo').then((r) => r.data.data),
 };
 
 export const companySettings = {
