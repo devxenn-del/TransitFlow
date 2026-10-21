@@ -2,8 +2,11 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Enums\UserRole;
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
@@ -21,6 +24,27 @@ class DatabaseSeederTest extends TestCase
         $this->seed();
 
         $this->assertDatabaseCount('fees', 3);
+    }
+
+    /**
+     * The deploy-time re-seed must never put the bootstrap Super Admin's
+     * default password (or email/status) back once it has been changed.
+     */
+    public function test_reseeding_leaves_an_existing_super_admin_untouched(): void
+    {
+        $this->seed();
+
+        $superAdmin = User::query()->where('role', UserRole::SuperAdmin->value)->sole();
+        $superAdmin->update([
+            'email' => 'owner@perjoda.com',
+            'password' => Hash::make('a-real-secret'),
+        ]);
+
+        $this->seed();
+
+        $this->assertSame(1, User::query()->where('role', UserRole::SuperAdmin->value)->count());
+        $this->assertDatabaseMissing('users', ['email' => 'superadmin@transitflow.test']);
+        $this->assertTrue(Hash::check('a-real-secret', $superAdmin->fresh()->password));
     }
 
     /**
