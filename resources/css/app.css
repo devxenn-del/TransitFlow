@@ -180,11 +180,12 @@ a:hover {
     object-fit: contain;
 }
 
-/* An uploaded company logo fills the circle instead of the oversized TF mark. */
-.tf-brand-mark--company img {
+/* An uploaded company logo shows whole inside the circle, not the oversized TF mark. */
+.tf-brand-mark.tf-brand-mark--company img,
+.tf-signage-mark.tf-signage-mark--company img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .tf-topbar .tf-brand small {

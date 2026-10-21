@@ -271,8 +271,8 @@ export default function AppLayout() {
                 <aside className={`tf-sidebar ${open ? 'open' : ''}`}>
                     <div className="tf-signage">
                         <div className="tf-signage-row">
-                            <span className="tf-signage-mark">
-                                <img src={transitFlowLogo} alt="TransitFlow" />
+                            <span className={`tf-signage-mark${auth.user?.company?.logo_url ? ' tf-signage-mark--company' : ''}`}>
+                                <img src={auth.user?.company?.logo_url ?? transitFlowLogo} alt={auth.user?.company?.name ?? 'TransitFlow'} />
                             </span>
                             <div className="tf-signage-text">
                                 <p className="tf-signage-title">TransitFlow</p>

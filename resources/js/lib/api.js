@@ -1,4 +1,5 @@
 import api from './axios.js';
+import { squareLogo } from './image.js';
 
 /** Grouped API calls, so components don't hand-write URLs. */
 
@@ -95,9 +96,9 @@ export const legalDocuments = {
 export const companyProfile = {
     get: () => api.get('/company/profile').then((r) => r.data.data),
     update: (payload) => api.put('/company/profile', payload).then((r) => r.data.data),
-    uploadLogo: (file) => {
+    uploadLogo: async (file) => {
         const fd = new FormData();
-        fd.append('image', file);
+        fd.append('image', await squareLogo(file));
         return api.post('/company/profile/logo', fd).then((r) => r.data.data);
     },
     deleteLogo: () => api.delete('/company/profile/logo').then((r) => r.data.data),
@@ -108,9 +109,9 @@ export const companySettings = {
     update: (payload) => api.put('/company/settings', payload).then((r) => r.data.data),
     configuration: () => api.get('/company/configuration').then((r) => r.data.data),
     // `type` is 'logo' | 'qr-payment'
-    uploadImage: (type, file) => {
+    uploadImage: async (type, file) => {
         const fd = new FormData();
-        fd.append('image', file);
+        fd.append('image', type === 'logo' ? await squareLogo(file) : file);
         return api.post(`/company/settings/${type}`, fd).then((r) => r.data.data);
     },
     deleteImage: (type) => api.delete(`/company/settings/${type}`).then((r) => r.data.data),

@@ -17,12 +17,12 @@ function LogoField({ url, editable, busy, onUpload, onClear }) {
                 style={{ width: 96, height: 96, overflow: 'hidden' }}
             >
                 {url
-                    ? <img src={url} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ? <img src={url} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     : <i className="bi bi-buildings text-muted fs-3" />}
             </div>
             <div>
                 <label className="form-label mb-1">Company logo</label>
-                <div className="text-muted small mb-2">PNG / JPG / WEBP, max 2 MB. A square image works best. Shown in the top bar.</div>
+                <div className="text-muted small mb-2">PNG / JPG / WEBP. Resized to fit a 512×512 square on upload. Shown in the top bar and sidebar.</div>
                 {editable && (
                     <div className="d-flex gap-2">
                         <input
