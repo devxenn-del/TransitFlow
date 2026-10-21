@@ -345,6 +345,9 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         // Attendance oversight (BITS admin/attendance)
         Route::get('attendance', [CompanyAttendanceController::class, 'index'])->middleware('permission:attendance.view');
         Route::post('attendance/{attendance}/close', [CompanyAttendanceController::class, 'close'])->middleware('permission:attendance.manage');
+        // Drivers clock in with their conductor (AppSupportDriverAttendanceSync).
+        Route::get('driver-attendance', [CompanyAttendanceController::class, 'drivers'])->middleware('permission:attendance.view');
+        Route::post('driver-attendance/{driverAttendance}/close', [CompanyAttendanceController::class, 'closeDriver'])->middleware('permission:attendance.manage');
 
         // Live monitoring — office board polled every ~3s (BITS office/dashboard + fleet map)
         Route::get('live', LiveMonitorController::class)->middleware('permission:tracking.view');

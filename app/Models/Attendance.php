@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A conductor's clock-in period. Open while `clock_out_at` is null.
@@ -57,6 +58,16 @@ class Attendance extends Model
     public function closedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    /**
+     * The driver(s) clocked in with this shift (App\Support\DriverAttendanceSync).
+     *
+     * @return HasMany<DriverAttendance, $this>
+     */
+    public function driverPeriods(): HasMany
+    {
+        return $this->hasMany(DriverAttendance::class, 'conductor_attendance_id');
     }
 
     public function isOpen(): bool

@@ -32,6 +32,11 @@ class AttendanceResource extends JsonResource
             'duration_minutes' => $this->clock_in_at ? $this->clock_in_at->diffInMinutes($end) : null,
             'closed_by' => $this->whenLoaded('closedBy', fn () => $this->closedBy?->name),
             'closed_note' => $this->closed_note,
+            // Who drove during this shift (clocked in with the conductor — App\Support\DriverAttendanceSync).
+            'drivers' => $this->whenLoaded('driverPeriods', fn () => $this->driverPeriods
+                ->sortBy('clock_in_at')
+                ->map(fn ($p) => ['id' => $p->driver_id, 'name' => $p->driver?->name, 'is_open' => $p->isOpen()])
+                ->values()),
         ];
     }
 }

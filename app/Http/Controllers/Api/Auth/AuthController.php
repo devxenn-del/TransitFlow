@@ -16,6 +16,7 @@ use App\Models\Driver;
 use App\Models\User;
 use App\Support\AccountLock;
 use App\Support\Audit;
+use App\Support\DriverAttendanceSync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -73,6 +74,12 @@ class AuthController extends Controller
 
         $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($user, $driver))->plainTextToken;
 
+        // Signed in again with a (different) driver while on shift: that driver
+        // is now the one clocked in with this conductor (see DriverAttendanceSync).
+        if ($driver !== null) {
+            DriverAttendanceSync::switchDriver($user, $driver);
+        }
+
         return response()->json([
             'token' => $token,
             'user' => UserResource::make($user->loadMissing('company.settings', 'accessRole'))->includePermissions(),
@@ -119,6 +126,12 @@ class AuthController extends Controller
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
         $token = $user->createToken($request->deviceName(), $this->tokenAbilitiesFor($user, $driver))->plainTextToken;
+
+        // Signed in again with a (different) driver while on shift: that driver
+        // is now the one clocked in with this conductor (see DriverAttendanceSync).
+        if ($driver !== null) {
+            DriverAttendanceSync::switchDriver($user, $driver);
+        }
 
         return response()->json([
             'token' => $token,

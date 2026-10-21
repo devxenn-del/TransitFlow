@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Trip;
 use App\Models\User;
 use App\Support\AccountLock;
+use App\Support\DriverAttendanceSync;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -36,7 +37,10 @@ class ConfirmShiftEnd
         $open = Attendance::query()->forUser($conductor->id)->open()->lockForUpdate()->first();
 
         if ($open !== null) {
-            $open->update(['clock_out_at' => now(), 'clock_out_source' => 'app']);
+            $now = now();
+            $open->update(['clock_out_at' => $now, 'clock_out_source' => 'app']);
+            // The driver on this shift goes home with the conductor.
+            DriverAttendanceSync::closeFor($open, $now, 'app');
         }
     }
 }

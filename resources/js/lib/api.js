@@ -212,6 +212,12 @@ export const attendance = {
     close: (id, payload) => api.post(`/company/attendance/${id}/close`, payload).then((r) => r.data.data),
 };
 
+/** Driver clock-in periods — opened/closed with their conductor's shift. Same filters as `attendance`. */
+export const driverAttendance = {
+    list: (params) => api.get('/company/driver-attendance', { params }).then((r) => r.data),
+    close: (id, payload) => api.post(`/company/driver-attendance/${id}/close`, payload).then((r) => r.data.data),
+};
+
 export const fuel = {
     list: (params) => api.get('/company/fuel', { params }).then((r) => r.data),
     create: (payload) => api.post('/company/fuel', payload).then((r) => r.data.data),
