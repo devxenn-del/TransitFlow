@@ -22,6 +22,8 @@ export const COMPANY_MODULES = [
     // Conductors clock in from My Trips; this is the office's oversight page.
     { path: 'attendance', label: 'Attendance', icon: 'bi-clock-history', group: 'Operations', visible: (a) => a.can('attendance.view') && !isConductor(a) },
     { path: 'fuel', label: 'Fuel & Energy', icon: 'bi-fuel-pump', group: 'Operations', visible: (a) => a.can('fuel.view') },
+    // Special trips (charter / hire) — booking, crew, approval and their own money.
+    { path: 'charters', label: 'Charter Bookings', icon: 'bi-calendar2-check', group: 'Operations', primary: true, visible: (a) => a.can('charters.view') },
 
     // Fleet
     { path: 'buses', label: 'Buses', icon: 'bi-bus-front', group: 'Fleet', primary: true, visible: (a) => a.can('buses.view') },

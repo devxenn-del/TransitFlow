@@ -29,6 +29,7 @@ class Trip extends Model
         'bus_id',
         'driver_id',
         'franchise_id',
+        'charter_booking_id',
         'bus_number',
         'reference',
         'origin',
@@ -93,6 +94,24 @@ class Trip extends Model
                 $trip->reference = self::makeReference($trip->bus_number, $trip->started_at ?? $trip->op_date);
             }
         });
+
+        // A charter's booking follows its trip, however the trip ends (the
+        // conductor's End Trip, or an office force-end): Arrived → the booking
+        // is Completed; Cancelled → back to Approved so it can be run again.
+        static::updated(function (Trip $trip): void {
+            if ($trip->charter_booking_id === null || ! $trip->wasChanged('status')) {
+                return;
+            }
+            $booking = CharterBooking::query()->withoutGlobalScopes()->find($trip->charter_booking_id);
+            if ($booking === null || $booking->status !== 'InProgress') {
+                return;
+            }
+            if ($trip->status === 'Arrived') {
+                $booking->update(['status' => 'Completed']);
+            } elseif ($trip->status === 'Cancelled') {
+                $booking->update(['status' => 'Approved', 'trip_id' => null]);
+            }
+        });
     }
 
     /**
@@ -137,6 +156,16 @@ class Trip extends Model
     public function bus(): BelongsTo
     {
         return $this->belongsTo(Bus::class);
+    }
+
+    /**
+     * The charter this Special trip runs (App\Models\CharterBooking) — null for Regular trips.
+     *
+     * @return BelongsTo<CharterBooking, $this>
+     */
+    public function charterBooking(): BelongsTo
+    {
+        return $this->belongsTo(CharterBooking::class);
     }
 
     /**

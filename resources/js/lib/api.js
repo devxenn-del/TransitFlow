@@ -141,6 +141,23 @@ export const buses = {
     remove: (id) => api.delete(`/company/buses/${id}`),
 };
 
+/** Charter Bookings — Special trips (charter / hire) and their own money ledger. */
+export const charters = {
+    list: (params) => api.get('/company/charters', { params }).then((r) => r.data),
+    get: (id) => api.get(`/company/charters/${id}`).then((r) => r.data.data),
+    create: (payload) => api.post('/company/charters', payload).then((r) => r.data.data),
+    update: (id, payload) => api.put(`/company/charters/${id}`, payload).then((r) => r.data.data),
+    availability: (params) => api.get('/company/charters/availability', { params }).then((r) => r.data),
+    approve: (id) => api.post(`/company/charters/${id}/approve`).then((r) => r.data.data),
+    reject: (id, reason) => api.post(`/company/charters/${id}/reject`, { reason }).then((r) => r.data.data),
+    cancel: (id, reason) => api.post(`/company/charters/${id}/cancel`, { reason }).then((r) => r.data.data),
+    addPayment: (id, payload) => api.post(`/company/charters/${id}/payments`, payload).then((r) => r.data.data),
+    removePayment: (id, paymentId) => api.delete(`/company/charters/${id}/payments/${paymentId}`).then((r) => r.data.data),
+    addCharge: (id, payload) => api.post(`/company/charters/${id}/charges`, payload).then((r) => r.data.data),
+    removeCharge: (id, chargeId) => api.delete(`/company/charters/${id}/charges/${chargeId}`).then((r) => r.data.data),
+    settle: (id) => api.post(`/company/charters/${id}/settle`).then((r) => r.data.data),
+};
+
 export const thermalPrinters = {
     list: (params) => api.get('/company/thermal-printers', { params }).then((r) => r.data),
     create: (payload) => api.post('/company/thermal-printers', payload).then((r) => r.data.data),

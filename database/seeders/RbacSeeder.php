@@ -136,6 +136,13 @@ class RbacSeeder extends Seeder
             ['tripmonitoring.view', 'View Trip Monitoring', 'Trip Monitoring', '/company/trip-monitor', 'bi-clipboard-data'],
             ['tripmonitoring.forceend', 'Force-End a Trip', null, null, null],
         ],
+        'Charters' => [
+            ['charters.view', 'View Charter Bookings', 'Charter Bookings', '/company/charters', 'bi-calendar2-check'],
+            ['charters.create', 'Create Charter Booking', null, null, null],
+            ['charters.edit', 'Edit / Cancel Charter Booking', null, null, null],
+            ['charters.approve', 'Approve / Reject Charter Booking', null, null, null],
+            ['charters.payments', 'Record Charter Payments, Charges, Expenses & Settlement', null, null, null],
+        ],
         'Tickets' => [
             ['tickets.issue', 'Issue Tickets', null, null, null],
             ['tickets.view', 'View Trip Tickets', null, null, null],
@@ -214,6 +221,7 @@ class RbacSeeder extends Seeder
             'devices.view', 'devices.delete',
             'attendance.view', 'attendance.manage',
             'fuel.view', 'fuel.record', 'fuel.delete', 'charging.view', 'charging.record',
+            'charters.view', 'charters.create', 'charters.edit', 'charters.approve', 'charters.payments',
         ],
         'manager' => [
             'dashboard.view',
@@ -229,6 +237,7 @@ class RbacSeeder extends Seeder
             'devices.view', 'devices.delete',
             'attendance.view', 'attendance.manage',
             'fuel.view', 'fuel.record', 'fuel.delete', 'charging.view', 'charging.record',
+            'charters.view', 'charters.create', 'charters.edit', 'charters.approve', 'charters.payments',
         ],
         'chairman' => [
             'dashboard.view',
@@ -244,6 +253,7 @@ class RbacSeeder extends Seeder
             'devices.view',
             'attendance.view',
             'fuel.view', 'charging.view',
+            'charters.view',
         ],
         'office' => [
             'dashboard.view',
@@ -257,6 +267,7 @@ class RbacSeeder extends Seeder
             'devices.view',
             'attendance.view',
             'fuel.view', 'fuel.record', 'fuel.delete', 'charging.view', 'charging.record',
+            'charters.view', 'charters.create', 'charters.edit', 'charters.payments',
         ],
         'conductor' => [
             'dashboard.view',

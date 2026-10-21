@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Company\AttendanceController as CompanyAttendanceCo
 use App\Http\Controllers\Api\Company\AuditLogController;
 use App\Http\Controllers\Api\Company\BillingController;
 use App\Http\Controllers\Api\Company\BusController;
+use App\Http\Controllers\Api\Company\CharterBookingController;
 use App\Http\Controllers\Api\Company\CompanyDocumentController;
 use App\Http\Controllers\Api\Company\CompanyProfileController;
 use App\Http\Controllers\Api\Company\CompanySettingController;
@@ -236,6 +237,22 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('configuration', ConfigurationController::class)->middleware('permission:company.settings.view,company.settings.manage')->name('configuration.show');
 
         // Registered conductor devices — read + deregister (BITS admin/deviceMonitoring → §K)
+        // Charter Bookings — Special trips (charter / hire): booking, crew,
+        // approval, and their money kept apart from ticket sales.
+        Route::get('charters', [CharterBookingController::class, 'index'])->middleware('permission:charters.view')->name('charters.index');
+        Route::post('charters', [CharterBookingController::class, 'store'])->middleware('permission:charters.create')->name('charters.store');
+        Route::get('charters/availability', [CharterBookingController::class, 'availability'])->middleware('permission:charters.create,charters.edit')->name('charters.availability');
+        Route::get('charters/{charter}', [CharterBookingController::class, 'show'])->middleware('permission:charters.view')->name('charters.show');
+        Route::match(['put', 'patch'], 'charters/{charter}', [CharterBookingController::class, 'update'])->middleware('permission:charters.edit')->name('charters.update');
+        Route::post('charters/{charter}/approve', [CharterBookingController::class, 'approve'])->middleware('permission:charters.approve')->name('charters.approve');
+        Route::post('charters/{charter}/reject', [CharterBookingController::class, 'reject'])->middleware('permission:charters.approve')->name('charters.reject');
+        Route::post('charters/{charter}/cancel', [CharterBookingController::class, 'cancel'])->middleware('permission:charters.edit')->name('charters.cancel');
+        Route::post('charters/{charter}/payments', [CharterBookingController::class, 'storePayment'])->middleware('permission:charters.payments')->name('charters.payments.store');
+        Route::delete('charters/{charter}/payments/{payment}', [CharterBookingController::class, 'destroyPayment'])->middleware('permission:charters.payments')->name('charters.payments.destroy');
+        Route::post('charters/{charter}/charges', [CharterBookingController::class, 'storeCharge'])->middleware('permission:charters.payments')->name('charters.charges.store');
+        Route::delete('charters/{charter}/charges/{charge}', [CharterBookingController::class, 'destroyCharge'])->middleware('permission:charters.payments')->name('charters.charges.destroy');
+        Route::post('charters/{charter}/settle', [CharterBookingController::class, 'settle'])->middleware('permission:charters.payments')->name('charters.settle');
+
         Route::get('devices', [DeviceController::class, 'index'])->middleware('permission:devices.view')->name('devices.index');
         Route::delete('devices/{device}', [DeviceController::class, 'destroy'])->middleware('permission:devices.delete')->name('devices.destroy');
 
@@ -388,6 +405,9 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('lookup/passenger-types', [LookupController::class, 'passengerTypes'])->middleware('permission:tickets.issue');
         Route::get('trips/{trip}/fares', [LookupController::class, 'tripFares'])->middleware('permission:tickets.issue');
         Route::get('trips/{trip}/stops', [LookupController::class, 'stops'])->middleware('permission:tickets.issue');
+
+        // The conductor's approved charter bookings — what a Special trip starts from.
+        Route::get('charters', [TripController::class, 'charters'])->middleware('permission:trips.start');
 
         Route::get('trips/active', [TripController::class, 'active'])->middleware('permission:trips.view');
         Route::get('trips/history', [TripController::class, 'history'])->middleware('permission:trips.view');

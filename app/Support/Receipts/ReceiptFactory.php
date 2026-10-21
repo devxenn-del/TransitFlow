@@ -180,8 +180,18 @@ class ReceiptFactory
             ReceiptLine::row('Bus #', $trip->bus_number ?: '—'),
         );
         if ($trip->trip_type === 'Special') {
-            // A Special trip (charter / hire) has no route or terminal.
+            // A Special trip (charter / hire) has no route or terminal — it
+            // runs a charter booking. Its money is the charter's (office), not here.
+            $charter = $trip->charterBooking()->withoutGlobalScopes()->first();
             $lines[] = ReceiptLine::row('Trip Type', 'SPECIAL');
+            if ($charter !== null) {
+                array_push($lines,
+                    ReceiptLine::row('Charter #', (string) $charter->reference),
+                    ReceiptLine::plain('Client: '.$charter->client_name),
+                    ReceiptLine::plain('Pickup: '.$charter->pickup_point),
+                    ReceiptLine::plain('Destination: '.$charter->destination),
+                );
+            }
         } else {
             array_push($lines,
                 // Coverage can run past one 32-column line, so it wraps as plain text.

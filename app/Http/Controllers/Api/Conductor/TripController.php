@@ -7,7 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Conductor\CancelTripRequest;
 use App\Http\Requests\Conductor\EndTripRequest;
 use App\Http\Requests\Conductor\StartTripRequest;
+use App\Http\Resources\CharterBookingResource;
 use App\Http\Resources\TripResource;
+use App\Models\CharterBooking;
 use App\Models\Trip;
 use App\Support\TripRemittance;
 use Illuminate\Http\JsonResponse;
@@ -28,15 +30,35 @@ class TripController extends Controller
         $trip = $this->liveTripFor($request);
 
         return $trip
-            ? TripResource::make($trip->loadCount('tickets')->load(['driver', 'bus']))
+            ? TripResource::make($trip->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']))
             : response()->json(['data' => null]);
+    }
+
+    /**
+     * GET /api/conductor/charters — this conductor's Approved charter bookings
+     * still ahead (or under way), soonest first: what a Special trip starts
+     * from. Trip details only — never the charter's money.
+     */
+    public function charters(Request $request): JsonResponse
+    {
+        $bookings = CharterBooking::query()
+            ->where('conductor_id', $request->user()->id)
+            ->where('status', 'Approved')
+            ->where('return_at', '>', now())
+            ->with(['bus', 'driver'])
+            ->orderBy('departure_at')
+            ->get();
+
+        return response()->json([
+            'data' => $bookings->map(fn (CharterBooking $b) => CharterBookingResource::make($b)->withoutLedger()->resolve($request))->values(),
+        ]);
     }
 
     public function start(StartTripRequest $request, StartTrip $action): JsonResponse
     {
         $trip = $action->handle($request->user(), $request->validated());
 
-        return TripResource::make($trip->loadCount('tickets')->load(['driver', 'bus']))
+        return TripResource::make($trip->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']))
             ->response()
             ->setStatusCode(JsonResponse::HTTP_CREATED);
     }
@@ -51,7 +73,7 @@ class TripController extends Controller
 
         $trip->update(['status' => 'OnTrip', 'marked_on_trip_at' => now()]);
 
-        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus']));
+        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']));
     }
 
     public function end(EndTripRequest $request): TripResource
@@ -70,7 +92,7 @@ class TripController extends Controller
             'remitted_amount' => $remitted,
         ]);
 
-        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus']));
+        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']));
     }
 
     public function cancel(CancelTripRequest $request): TripResource
@@ -85,7 +107,7 @@ class TripController extends Controller
             'cancellation_reason' => $request->string('reason')->value(),
         ]);
 
-        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus']));
+        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']));
     }
 
     public function history(Request $request): AnonymousResourceCollection
@@ -95,7 +117,7 @@ class TripController extends Controller
                 ->where('conductor_id', $request->user()->id)
                 ->whereIn('status', ['Arrived', 'Cancelled'])
                 ->withCount('tickets')
-                ->with(['driver', 'bus'])
+                ->with(['driver', 'bus', 'charterBooking'])
                 ->orderByDesc('started_at')
                 ->paginate($request->integer('per_page', 20))
         );

@@ -14,6 +14,8 @@ import ReceiptView from './pages/ReceiptView.jsx';
 import LegalDocumentPage from './pages/public/LegalDocumentPage.jsx';
 import Attendance from './pages/company/Attendance.jsx';
 import Buses from './pages/company/Buses.jsx';
+import CharterDetail from './pages/company/CharterDetail.jsx';
+import Charters from './pages/company/Charters.jsx';
 import ThermalPrinters from './pages/company/ThermalPrinters.jsx';
 import CompanyProfile from './pages/company/CompanyProfile.jsx';
 import CompanySettings from './pages/company/CompanySettings.jsx';
@@ -62,6 +64,8 @@ const COMPANY_PAGES = [
     ['tickets', 'tripmonitoring.view', <CompanyTickets />],
     ['attendance', 'attendance.view', <Attendance />],
     ['fuel', 'fuel.view', <FuelEnergy />],
+    ['charters', 'charters.view', <Charters />],
+    ['charters/:charterId', 'charters.view', <CharterDetail />],
     ['buses', 'buses.view', <Buses />],
     ['drivers', 'drivers.view', <Drivers />],
     ['conductors', 'conductors.view', <Conductors />],

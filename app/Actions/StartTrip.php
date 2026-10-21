@@ -3,12 +3,16 @@
 namespace App\Actions;
 
 use App\Models\Attendance;
+use App\Models\CharterBooking;
 use App\Models\Driver;
 use App\Models\Franchise;
 use App\Models\Route;
 use App\Models\Terminal;
 use App\Models\Trip;
 use App\Models\User;
+use App\Support\CharterConflicts;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -41,6 +45,10 @@ class StartTrip
             throw ValidationException::withMessages(['trip' => 'You already have a trip in progress.']);
         }
 
+        if (($input['trip_type'] ?? 'Regular') === 'Special') {
+            return $this->startCharter($conductor, (int) $input['charter_booking_id'], (int) $input['driver_id']);
+        }
+
         $bus = $conductor->buses()->where('buses.id', $input['bus_id'])->where('status', 'Active')->first();
         if ($bus === null) {
             throw ValidationException::withMessages(['bus_id' => 'Pick one of your assigned, active buses.']);
@@ -65,8 +73,14 @@ class StartTrip
             throw ValidationException::withMessages(['driver_id' => 'This trip must use the driver you verified at sign-in.']);
         }
 
-        if (($input['trip_type'] ?? 'Regular') === 'Special') {
-            return $this->startSpecial($conductor, $bus->id, $bus->bus_number, $driver->id);
+        // A Regular trip can't take a bus / driver / conductor that's booked
+        // for a charter under way right now (App\Support\CharterConflicts).
+        $charter = CharterConflicts::activeCharterFor($bus->id, $driver->id, $conductor->id);
+        if ($charter !== null) {
+            $field = $charter->bus_id === $bus->id ? 'bus_id' : ($charter->driver_id === $driver->id ? 'driver_id' : 'trip');
+            $who = $charter->bus_id === $bus->id ? 'This bus' : ($charter->driver_id === $driver->id ? 'This driver' : 'You');
+            throw ValidationException::withMessages([$field => sprintf('%s %s booked for charter %s until %s — start it as a Special trip instead.',
+                $who, $who === 'You' ? 'are' : 'is', $charter->reference, $charter->return_at->format('h:i A'))]);
         }
 
         // No settings row yet for this company (lazily created elsewhere) ->
@@ -134,33 +148,78 @@ class StartTrip
         ]);
     }
 
-    /**
-     * A Special trip (charter / hire): just the bus and the verified driver —
-     * no route, terminal or coverage, and no passenger ticketing
-     * (App\Actions\IssueTicket refuses it). There's no terminal boarding
-     * phase, so it's OnTrip from the start; dispatches and End Trip (with its
-     * Trip Remittance Report) work as on any trip.
-     */
-    private function startSpecial(User $conductor, int $busId, ?string $busNumber, int $driverId): Trip
-    {
-        $now = now();
+    /** How early before its departure time a charter can be started. */
+    private const CHARTER_EARLY_START_HOURS = 2;
 
-        return Trip::query()->create([
-            'conductor_id' => $conductor->id,
-            'bus_id' => $busId,
-            'bus_number' => $busNumber,
-            'driver_id' => $driverId,
-            'franchise_id' => null,
-            'origin' => null,
-            'coverage_origin' => null,
-            'coverage_destination' => null,
-            'trip_type' => 'Special',
-            'at_terminal' => false,
-            'op_date' => $now->toDateString(),
-            'shift' => Trip::shiftForHour($now->hour),
-            'status' => 'OnTrip',
-            'started_at' => $now,
-            'marked_on_trip_at' => $now,
-        ]);
+    /**
+     * A Special trip (charter / hire) runs an Approved charter booking
+     * (App\Models\CharterBooking) assigned to this conductor: its bus, its
+     * driver — who must be the one verified at sign-in — its pickup point and
+     * destination. No route, fares or passenger tickets (App\Actions\IssueTicket
+     * refuses them). It starts at `Departure` (waiting at the pickup point);
+     * the conductor records leaving with mark-on-trip and arriving with End
+     * Trip, and the booking follows (InProgress → Completed — see Trip::booted()).
+     */
+    private function startCharter(User $conductor, int $bookingId, int $driverId): Trip
+    {
+        return DB::transaction(function () use ($conductor, $bookingId, $driverId): Trip {
+            $booking = CharterBooking::query()->whereKey($bookingId)->lockForUpdate()->first();
+
+            if ($booking === null || $booking->conductor_id !== $conductor->id) {
+                throw ValidationException::withMessages(['charter_booking_id' => 'That charter booking is not assigned to you.']);
+            }
+            if ($booking->status !== 'Approved') {
+                throw ValidationException::withMessages(['charter_booking_id' => $booking->status === 'InProgress'
+                    ? 'That charter has already been started.'
+                    : 'That charter booking is not approved yet.']);
+            }
+            if (now()->lessThan($booking->departure_at->copy()->subHours(self::CHARTER_EARLY_START_HOURS))) {
+                throw ValidationException::withMessages(['charter_booking_id' => sprintf(
+                    'Charter %s departs %s — it can be started from %d hours before.',
+                    $booking->reference, $booking->departure_at->format('M d, h:i A'), self::CHARTER_EARLY_START_HOURS)]);
+            }
+
+            $bus = $booking->bus()->where('status', 'Active')->first();
+            if ($bus === null) {
+                throw ValidationException::withMessages(['bus_id' => 'The bus booked for this charter is not active. Ask the office to change it.']);
+            }
+            if (Trip::query()->where('bus_id', $bus->id)->live()->exists()) {
+                throw ValidationException::withMessages(['bus_id' => "Bus {$bus->bus_number} is already out on a trip."]);
+            }
+
+            $driver = $booking->driver()->where('status', 'Active')->first();
+            if ($driver === null) {
+                throw ValidationException::withMessages(['driver_id' => 'The driver booked for this charter is not active. Ask the office to change it.']);
+            }
+            // Every trip on this session uses the driver verified at sign-in.
+            $lockedDriverId = Driver::verifiedIdForToken($conductor) ?? $driverId;
+            if ($lockedDriverId !== $driver->id) {
+                throw ValidationException::withMessages(['driver_id' => "This charter is assigned to driver {$driver->name} — sign out and sign in with that driver's code."]);
+            }
+
+            $now = now();
+            $trip = Trip::query()->create([
+                'conductor_id' => $conductor->id,
+                'bus_id' => $bus->id,
+                'bus_number' => $bus->bus_number,
+                'driver_id' => $driver->id,
+                'franchise_id' => null,
+                'charter_booking_id' => $booking->id,
+                // Shown as "pickup → destination" on the live board / trip monitor.
+                'origin' => null,
+                'coverage_origin' => Str::limit($booking->pickup_point, 150, ''),
+                'coverage_destination' => Str::limit($booking->destination, 150, ''),
+                'trip_type' => 'Special',
+                'at_terminal' => false,
+                'op_date' => $now->toDateString(),
+                'shift' => Trip::shiftForHour($now->hour),
+                'status' => 'Departure',
+                'started_at' => $now,
+            ]);
+
+            $booking->update(['status' => 'InProgress', 'trip_id' => $trip->id]);
+
+            return $trip;
+        });
     }
 }
