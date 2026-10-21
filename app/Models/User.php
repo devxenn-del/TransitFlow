@@ -65,14 +65,6 @@ class User extends Authenticatable
     }
 
     /**
-     * @return BelongsTo<ThermalPrinter, $this>
-     */
-    public function thermalPrinter(): BelongsTo
-    {
-        return $this->belongsTo(ThermalPrinter::class);
-    }
-
-    /**
      * @return BelongsTo<Company, $this>
      */
     public function company(): BelongsTo

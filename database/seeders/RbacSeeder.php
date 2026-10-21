@@ -47,6 +47,10 @@ class RbacSeeder extends Seeder
             ['fees.view', 'View Fees & Company Pricing', 'Fee Management', '/super-admin/fees', 'bi-cash-stack'],
             ['fees.manage', 'Create / Edit Fees, Assign Standard & Special Pricing, Generate Billing', null, null, null],
         ],
+        'Thermal Printer Management' => [
+            ['printers.inventory.view', 'View Thermal Printer Inventory (all companies)', 'Thermal Printer Management', '/super-admin/thermal-printers', 'bi-printer'],
+            ['printers.inventory.manage', 'Register / Edit / Assign / Change Status of Thermal Printers', null, null, null],
+        ],
         'Company Profile' => [
             ['company.profile.view', 'View Company Profile', 'Company Profile', '/company/profile', 'bi-building'],
             ['company.profile.edit', 'Edit Company Profile', null, null, null],
@@ -122,10 +126,8 @@ class RbacSeeder extends Seeder
             ['buses.delete', 'Delete Bus', null, null, null],
         ],
         'Thermal Printers' => [
+            // View only — the inventory itself is managed by the Super Admin (Thermal Printer Management).
             ['thermalprinters.view', 'View Thermal Printers', 'Thermal Printers', '/company/thermal-printers', 'bi-printer-fill'],
-            ['thermalprinters.create', 'Add Thermal Printer', null, null, null],
-            ['thermalprinters.edit', 'Edit / Assign Thermal Printer', null, null, null],
-            ['thermalprinters.delete', 'Delete Thermal Printer', null, null, null],
         ],
         'Trips' => [
             ['trips.view', 'View Own Trips', 'My Trips', '/conductor/trips', 'bi-bus-front-fill'],
@@ -215,7 +217,7 @@ class RbacSeeder extends Seeder
             'farematrix.view', 'farematrix.edit',
             'routes.view', 'routes.create', 'routes.edit', 'routes.delete',
             'buses.view', 'buses.create', 'buses.edit', 'buses.delete',
-            'thermalprinters.view', 'thermalprinters.create', 'thermalprinters.edit', 'thermalprinters.delete',
+            'thermalprinters.view',
             'tripmonitoring.view', 'tripmonitoring.forceend',
             'tracking.view', 'dispatch.view',
             'devices.view', 'devices.delete',
@@ -229,7 +231,7 @@ class RbacSeeder extends Seeder
             'company.profile.view', 'accounts.view', 'permissions.view', 'roles.view',
             'documents.view',
             'terminals.view', 'buses.view', 'routes.view', 'drivers.view', 'conductors.view', 'passengertypes.view',
-            'thermalprinters.view', 'thermalprinters.edit',
+            'thermalprinters.view',
             'franchises.view', 'franchises.create', 'franchises.edit', 'franchises.delete',
             'farematrix.view', 'farematrix.edit',
             'tripmonitoring.view', 'tripmonitoring.forceend',

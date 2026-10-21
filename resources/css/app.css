@@ -791,6 +791,16 @@ a.tf-stat:hover {
     color: #9a6812;
 }
 
+.tf-badge-info {
+    background: rgba(51, 122, 204, 0.14);
+    color: #24609f;
+}
+
+.tf-badge-retired {
+    background: #5d6470;
+    color: #fff;
+}
+
 
 /* Empty / loading rows */
 

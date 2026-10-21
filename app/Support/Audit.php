@@ -96,7 +96,7 @@ class Audit
      */
     private static function label(Model $subject): string
     {
-        foreach (['name', 'title', 'reference', 'code', 'bus_number'] as $attribute) {
+        foreach (['name', 'title', 'reference', 'code', 'bus_number', 'thermal_id'] as $attribute) {
             $value = $subject->getAttribute($attribute);
             if (is_string($value) && $value !== '') {
                 return $value;

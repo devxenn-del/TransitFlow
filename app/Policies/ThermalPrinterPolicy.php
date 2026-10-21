@@ -6,11 +6,12 @@ use App\Models\ThermalPrinter;
 use App\Models\User;
 
 /**
- * Company-boundary-only authorization for thermal printers — capability is
- * gated separately by `permission:thermalprinters.*` middleware on the
- * routes. Mirrors BusPolicy/TerminalPolicy. CompanyScope already makes a
- * printer from another company un-fetchable; these checks are
- * defence-in-depth.
+ * Company-side authorization for thermal printers: a company may only
+ * view the printers issued to it. There are deliberately no create /
+ * update / delete abilities — the inventory is the Super Admin's
+ * (`permission:printers.inventory.*`), and the Gate::before bypass covers
+ * them. CompanyScope already makes another company's printer
+ * un-fetchable; these checks are defence-in-depth.
  */
 class ThermalPrinterPolicy
 {
@@ -20,21 +21,6 @@ class ThermalPrinterPolicy
     }
 
     public function view(User $user, ThermalPrinter $printer): bool
-    {
-        return $user->company_id !== null && $user->company_id === $printer->company_id;
-    }
-
-    public function create(User $user): bool
-    {
-        return $user->company_id !== null;
-    }
-
-    public function update(User $user, ThermalPrinter $printer): bool
-    {
-        return $user->company_id !== null && $user->company_id === $printer->company_id;
-    }
-
-    public function delete(User $user, ThermalPrinter $printer): bool
     {
         return $user->company_id !== null && $user->company_id === $printer->company_id;
     }

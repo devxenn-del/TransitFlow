@@ -92,6 +92,7 @@ const NAV = [
         items: [
             { to: '/companies', label: 'Companies', icon: 'bi-buildings', visible: (a) => a.can('companies.view') },
             { to: '/super-admin/fees', label: 'Fee Management', icon: 'bi-cash-stack', visible: (a) => a.can('fees.view') },
+            { to: '/super-admin/thermal-printers', label: 'Thermal Printer Management', icon: 'bi-printer', visible: (a) => a.can('printers.inventory.view') },
         ],
     },
     {

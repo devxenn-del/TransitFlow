@@ -1,109 +1,54 @@
 import { useEffect, useState } from 'react';
 
-import { useAuth } from '../../auth/AuthContext.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import Modal from '../../components/Modal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
-import StatusBadge from '../../components/StatusBadge.jsx';
-import { companyUsers, thermalPrinters } from '../../lib/api.js';
+import PrinterStatusBadge, { PRINTER_STATUSES } from '../../components/PrinterStatusBadge.jsx';
+import { thermalPrinters } from '../../lib/api.js';
 import { LIST_PAGE_SIZE, useList } from '../../lib/useList.js';
-import { confirmAction, notifyError, notifySuccess } from '../../lib/ui.js';
 
-const BLANK = { device_id: '', mac_address: '', model: '', status: 'Active' };
+const EMPTY = 'No thermal printers have been assigned to your company yet. Please contact your system administrator for assistance.';
+const fmtDate = (v) => (v ? new Date(`${v}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
+const muted = (text) => <span className="text-body-secondary">{text}</span>;
+const busLabel = (bus) => (bus ? `${bus.bus_number}${bus.plate_number ? ` · ${bus.plate_number}` : ''}` : null);
 
+/**
+ * The thermal printers the platform issued to this company, and the bus
+ * each one is on. View only — the inventory, company and bus assignments
+ * are all managed by the Super Admin, and the API has no write routes here.
+ */
 export default function ThermalPrinters() {
-    const { can } = useAuth();
-    const { rows, meta, loading, page, setPage, reload } = useList(thermalPrinters.list, { perPage: LIST_PAGE_SIZE });
-    const [editing, setEditing] = useState(null);
-    const [form, setForm] = useState(BLANK);
-    const [saving, setSaving] = useState(false);
+    const [search, setSearch] = useState('');
+    const [q, setQ] = useState('');
+    const [status, setStatus] = useState('');
+    const [viewing, setViewing] = useState(null);
+    const { rows, meta, loading, page, setPage } = useList(
+        (params) => thermalPrinters.list({ ...params, q: q || undefined, status: status || undefined }),
+        { perPage: LIST_PAGE_SIZE, deps: [q, status] },
+    );
 
-    const [assigning, setAssigning] = useState(null); // printer being assigned
-    const [conductors, setConductors] = useState([]);
-    const [assignTo, setAssignTo] = useState('');
+    useEffect(() => {
+        const t = setTimeout(() => setQ(search.trim()), 300);
+        return () => clearTimeout(t);
+    }, [search]);
 
-    const openNew = () => { setForm(BLANK); setEditing({}); };
-    const openEdit = (p) => {
-        setForm({ device_id: p.device_id, mac_address: p.mac_address ?? '', model: p.model, status: p.status });
-        setEditing(p);
-    };
-
-    const save = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        try {
-            if (editing.id) {
-                await thermalPrinters.update(editing.id, form);
-                notifySuccess('Printer updated.');
-            } else {
-                await thermalPrinters.create(form);
-                notifySuccess('Printer added.');
-            }
-            setEditing(null);
-            reload();
-        } catch (err) {
-            notifyError(err);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const remove = async (p) => {
-        if (!(await confirmAction({ title: `Delete printer ${p.device_id}?`, danger: true, confirmText: 'Delete' }))) return;
-        try {
-            await thermalPrinters.remove(p.id);
-            notifySuccess('Printer deleted.');
-            reload();
-        } catch (err) {
-            notifyError(err);
-        }
-    };
-
-    const openAssign = async (p) => {
-        setAssigning(p);
-        setAssignTo(p.holder?.id ?? '');
-        const list = await companyUsers.list({ role: 'conductor', per_page: 200 });
-        setConductors(list.data ?? []);
-    };
-
-    const saveAssign = async () => {
-        try {
-            await thermalPrinters.assign(assigning.id, assignTo || null);
-            notifySuccess('Printer assignment saved.');
-            setAssigning(null);
-            reload();
-        } catch (err) {
-            notifyError(err);
-        }
-    };
+    const filtered = !!(q || status);
 
     const columns = [
-        { key: 'device_id', header: 'Device ID', className: 'fw-semibold', render: (p) => <code>{p.device_id}</code> },
+        { key: 'thermal_id', header: 'Thermal ID', className: 'text-nowrap', render: (p) => <code className="fw-semibold">{p.thermal_id}</code> },
+        { key: 'device_id', header: 'Device ID', className: 'text-nowrap', render: (p) => <code>{p.device_id}</code> },
+        { key: 'mac_address', header: 'MAC address', className: 'text-nowrap', render: (p) => p.mac_address ? <code>{p.mac_address}</code> : muted('—') },
         { key: 'model', header: 'Model' },
-        { key: 'mac_address', header: 'MAC address', render: (p) => p.mac_address || <span className="text-muted">—</span> },
-        { key: 'holder', header: 'Assigned to', render: (p) => p.holder?.name ?? <span className="text-muted">Unassigned</span> },
-        { key: 'status', header: 'Status', render: (p) => <StatusBadge value={p.status.toLowerCase()} /> },
+        { key: 'bus', header: 'Assigned bus', className: 'text-nowrap', render: (p) => busLabel(p.bus) ?? muted('Not Assigned') },
+        { key: 'status', header: 'Status', render: (p) => <PrinterStatusBadge value={p.status} /> },
+        { key: 'date_issued', header: 'Date issued', className: 'text-nowrap small', render: (p) => fmtDate(p.date_issued) },
         {
-            key: 'actions', header: '', className: 'text-end text-nowrap',
+            key: 'actions', header: <span className="visually-hidden">Actions</span>, className: 'text-end',
             render: (p) => (
-                <>
-                    {can('thermalprinters.edit') && (
-                        <button className="btn btn-sm btn-outline-secondary me-1" title="Assign to conductor" onClick={() => openAssign(p)}>
-                            <i className="bi bi-person-check" />
-                        </button>
-                    )}
-                    {can('thermalprinters.edit') && (
-                        <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => openEdit(p)}>
-                            <i className="bi bi-pencil" />
-                        </button>
-                    )}
-                    {can('thermalprinters.delete') && (
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)}>
-                            <i className="bi bi-trash" />
-                        </button>
-                    )}
-                </>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => setViewing(p)} aria-label={`View ${p.thermal_id}`}>
+                    <i className="bi bi-eye" />
+                </button>
             ),
         },
     ];
@@ -113,69 +58,47 @@ export default function ThermalPrinters() {
             <PageHeader
                 eyebrow="Fleet"
                 title="Thermal Printers"
-                subtitle="Printer inventory — each printer can be assigned to one conductor at a time."
-                actions={can('thermalprinters.create') && (
-                    <button className="btn btn-accent" onClick={openNew}>
-                        <i className="bi bi-plus-lg me-1" /> Add printer
-                    </button>
-                )}
+                subtitle="Printers issued to your company and the bus each one is assigned to."
+                actions={<span className="badge tf-badge-inactive align-self-center"><i className="bi bi-eye me-1" />View only</span>}
             />
 
-            <DataTable columns={columns} rows={rows} loading={loading} empty="No thermal printers yet." />
+            <div className="d-flex flex-wrap gap-2 mb-3">
+                <div className="input-group flex-grow-1" style={{ maxWidth: 420 }}>
+                    <span className="input-group-text bg-body"><i className="bi bi-search" /></span>
+                    <input
+                        className="form-control"
+                        placeholder="Search Thermal ID, Device ID, MAC, model or bus"
+                        aria-label="Search thermal printers"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+                <select className="form-select w-auto" aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                    <option value="">All statuses</option>
+                    {PRINTER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                {meta && <span className="align-self-center small text-body-secondary ms-auto">{meta.total} {meta.total === 1 ? 'printer' : 'printers'}</span>}
+            </div>
+
+            <DataTable columns={columns} rows={rows} loading={loading} empty={filtered ? 'No printers match these filters.' : EMPTY} />
             <Pagination meta={meta} page={page} onPage={setPage} />
 
-            <Modal
-                open={!!editing}
-                title={editing?.id ? `Edit ${editing.device_id}` : 'Add printer'}
-                onClose={() => setEditing(null)}
-                footer={
-                    <>
-                        <button className="btn btn-light" onClick={() => setEditing(null)}>Cancel</button>
-                        <button className="btn btn-primary" form="printer-form" disabled={saving}>
-                            {saving && <span className="spinner-border spinner-border-sm me-2" />}Save
-                        </button>
-                    </>
-                }
-            >
-                <form id="printer-form" onSubmit={save} className="vstack gap-3">
-                    <div>
-                        <label className="form-label">Device ID *</label>
-                        <input className="form-control" required value={form.device_id} onChange={(e) => setForm({ ...form, device_id: e.target.value })} />
-                    </div>
-                    <div>
-                        <label className="form-label">Model *</label>
-                        <input className="form-control" required value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-                    </div>
-                    <div>
-                        <label className="form-label">MAC address</label>
-                        <input className="form-control" value={form.mac_address} onChange={(e) => setForm({ ...form, mac_address: e.target.value })} />
-                    </div>
-                    <div>
-                        <label className="form-label">Status</label>
-                        <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                    </div>
-                </form>
-            </Modal>
-
-            <Modal
-                open={!!assigning}
-                title={assigning ? `Assign ${assigning.device_id}` : ''}
-                onClose={() => setAssigning(null)}
-                footer={
-                    <>
-                        <button className="btn btn-light" onClick={() => setAssigning(null)}>Cancel</button>
-                        <button className="btn btn-primary" onClick={saveAssign}>Save</button>
-                    </>
-                }
-            >
-                <label className="form-label">Conductor</label>
-                <select className="form-select" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
-                    <option value="">Unassigned</option>
-                    {conductors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+            <Modal open={!!viewing} title={viewing?.thermal_id ?? ''} onClose={() => setViewing(null)}>
+                {viewing && (
+                    <dl className="row mb-0">
+                        <dt className="col-5">Thermal ID</dt><dd className="col-7"><code>{viewing.thermal_id}</code></dd>
+                        <dt className="col-5">Device ID</dt><dd className="col-7"><code>{viewing.device_id}</code></dd>
+                        <dt className="col-5">MAC address</dt><dd className="col-7">{viewing.mac_address ? <code>{viewing.mac_address}</code> : muted('—')}</dd>
+                        <dt className="col-5">Model</dt><dd className="col-7">{viewing.model}</dd>
+                        {viewing.serial_number && (<><dt className="col-5">Serial no.</dt><dd className="col-7">{viewing.serial_number}</dd></>)}
+                        <dt className="col-5">Assigned bus</dt><dd className="col-7">{busLabel(viewing.bus) ?? muted('Not Assigned')}</dd>
+                        <dt className="col-5">Status</dt><dd className="col-7"><PrinterStatusBadge value={viewing.status} /></dd>
+                        <dt className="col-5">Date issued</dt><dd className="col-7">{fmtDate(viewing.date_issued)}</dd>
+                    </dl>
+                )}
+                <p className="small text-body-secondary mt-3 mb-0">
+                    <i className="bi bi-info-circle me-1" />Changes to printers or their bus assignments are made by your system administrator.
+                </p>
             </Modal>
         </>
     );

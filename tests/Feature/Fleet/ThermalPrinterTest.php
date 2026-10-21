@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Fleet;
 
+use App\Models\Bus;
 use App\Models\Company;
 use App\Models\ThermalPrinter;
 use App\Models\User;
@@ -10,6 +11,10 @@ use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\SeedsRbac;
 use Tests\TestCase;
 
+/**
+ * The company's Thermal Printers page — a strictly read-only view of the
+ * printers the Super Admin issued to it, isolated per company.
+ */
 class ThermalPrinterTest extends TestCase
 {
     use RefreshDatabase, SeedsRbac;
@@ -23,62 +28,84 @@ class ThermalPrinterTest extends TestCase
         Sanctum::actingAs(User::factory()->companyAdmin($this->company)->create());
     }
 
-    public function test_a_printer_is_created_and_listed(): void
+    public function test_only_the_companys_own_printers_are_listed_with_their_bus(): void
     {
-        $this->postJson('/api/company/thermal-printers', ['device_id' => 'TP-001', 'model' => 'Epson TM-P20'])
-            ->assertCreated()
-            ->assertJsonPath('data.device_id', 'TP-001')
-            ->assertJsonPath('data.status', 'Active');
+        $bus = Bus::factory()->create(['company_id' => $this->company->id]);
+        $onBus = ThermalPrinter::factory()->onBus($bus)->create();
+        $noBus = ThermalPrinter::factory()->assignedTo($this->company)->create();
+        ThermalPrinter::factory()->assignedTo(Company::factory()->create())->create();
+        ThermalPrinter::factory()->create(); // unissued inventory
 
-        $this->getJson('/api/company/thermal-printers')->assertOk()->assertJsonCount(1, 'data');
+        $rows = collect($this->getJson('/api/company/thermal-printers')->assertOk()->assertJsonCount(2, 'data')->json('data'))->keyBy('id');
+
+        $this->assertSame($bus->bus_number, $rows[$onBus->id]['bus']['bus_number']);
+        $this->assertNull($rows[$noBus->id]['bus']);
+        $this->assertSame($onBus->thermal_id, $rows[$onBus->id]['thermal_id']);
+        $this->assertArrayNotHasKey('remarks', $rows[$onBus->id]);
+        $this->assertArrayNotHasKey('history', $rows[$onBus->id]);
     }
 
-    public function test_device_id_is_unique_per_company_only(): void
+    public function test_search_never_returns_another_companys_printers(): void
     {
-        ThermalPrinter::query()->create(['company_id' => $this->company->id, 'device_id' => 'TP-DUP', 'model' => 'X']);
-
-        $this->postJson('/api/company/thermal-printers', ['device_id' => 'TP-DUP', 'model' => 'Y'])
-            ->assertJsonValidationErrorFor('device_id');
-
-        // Same device_id, different company — fine.
         $other = Company::factory()->create();
-        ThermalPrinter::query()->create(['company_id' => $other->id, 'device_id' => 'TP-DUP', 'model' => 'Z']);
-        $this->assertDatabaseCount('thermal_printers', 2);
+        $foreign = ThermalPrinter::factory()->assignedTo($other)->create(['model' => 'Shared Model']);
+        ThermalPrinter::factory()->assignedTo($this->company)->create(['model' => 'Shared Model']);
+
+        $this->getJson('/api/company/thermal-printers?q=Shared')->assertJsonCount(1, 'data');
+        $this->getJson('/api/company/thermal-printers?q='.$foreign->thermal_id)->assertJsonCount(0, 'data');
+        $this->getJson('/api/company/thermal-printers?q='.urlencode($other->name))->assertJsonCount(0, 'data');
     }
 
-    public function test_a_printer_is_assigned_to_a_conductor_and_reassigning_frees_the_previous_holder(): void
+    public function test_another_companys_printer_cannot_be_opened_by_id(): void
     {
-        $printer = ThermalPrinter::query()->create(['company_id' => $this->company->id, 'device_id' => 'TP-002', 'model' => 'Star SM-L200']);
-        $conductorA = User::factory()->forCompany($this->company)->withRole('conductor')->create();
-        $conductorB = User::factory()->forCompany($this->company)->withRole('conductor')->create();
+        $own = ThermalPrinter::factory()->assignedTo($this->company)->create();
+        $foreign = ThermalPrinter::factory()->assignedTo(Company::factory()->create())->create();
+        $unissued = ThermalPrinter::factory()->create();
 
-        $this->putJson("/api/company/thermal-printers/{$printer->id}/assign", ['user_id' => $conductorA->id])
-            ->assertOk()
-            ->assertJsonPath('data.holder.id', $conductorA->id);
+        $this->getJson("/api/company/thermal-printers/{$own->id}")->assertOk()->assertJsonPath('data.thermal_id', $own->thermal_id);
+        $this->getJson("/api/company/thermal-printers/{$foreign->id}")->assertNotFound();
+        $this->getJson("/api/company/thermal-printers/{$unissued->id}")->assertNotFound();
 
-        $this->assertSame($printer->id, $conductorA->fresh()->thermal_printer_id);
-
-        // Reassigning to B frees A.
-        $this->putJson("/api/company/thermal-printers/{$printer->id}/assign", ['user_id' => $conductorB->id])
-            ->assertOk()
-            ->assertJsonPath('data.holder.id', $conductorB->id);
-
-        $this->assertNull($conductorA->fresh()->thermal_printer_id);
-        $this->assertSame($printer->id, $conductorB->fresh()->thermal_printer_id);
-
-        // Clearing.
-        $this->putJson("/api/company/thermal-printers/{$printer->id}/assign", [])
-            ->assertOk()
-            ->assertJsonPath('data.holder', null);
-
-        $this->assertNull($conductorB->fresh()->thermal_printer_id);
+        // Naming another company in the header is refused outright.
+        $this->withHeader('X-Company-Id', (string) $foreign->company_id)
+            ->getJson('/api/company/thermal-printers')->assertForbidden();
     }
 
-    public function test_a_conductor_cannot_manage_thermal_printers(): void
+    public function test_the_list_is_empty_when_nothing_was_issued(): void
+    {
+        ThermalPrinter::factory()->assignedTo(Company::factory()->create())->create();
+
+        $this->getJson('/api/company/thermal-printers')->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_there_are_no_company_side_write_endpoints(): void
+    {
+        $printer = ThermalPrinter::factory()->assignedTo($this->company)->create();
+        $bus = Bus::factory()->create(['company_id' => $this->company->id]);
+
+        $this->postJson('/api/company/thermal-printers', ['model' => 'X'])->assertMethodNotAllowed();
+        $this->putJson("/api/company/thermal-printers/{$printer->id}", ['model' => 'X'])->assertMethodNotAllowed();
+        $this->deleteJson("/api/company/thermal-printers/{$printer->id}")->assertMethodNotAllowed();
+        $this->putJson("/api/company/thermal-printers/{$printer->id}/assign", ['bus_id' => $bus->id])->assertNotFound();
+
+        $printer->refresh();
+        $this->assertNull($printer->bus_id);
+        $this->assertNotSame('X', $printer->model);
+    }
+
+    public function test_company_roles_hold_no_printer_write_permission(): void
+    {
+        $admin = User::factory()->companyAdmin($this->company)->create();
+
+        $this->assertTrue($admin->hasPermissionTo('thermalprinters.view'));
+        $this->assertFalse($admin->hasPermissionTo('printers.inventory.view'));
+        $this->assertFalse($admin->hasPermissionTo('printers.inventory.manage'));
+    }
+
+    public function test_a_conductor_cannot_view_thermal_printers(): void
     {
         Sanctum::actingAs(User::factory()->forCompany($this->company)->withRole('conductor')->create());
 
         $this->getJson('/api/company/thermal-printers')->assertForbidden();
-        $this->postJson('/api/company/thermal-printers', ['device_id' => 'X', 'model' => 'Y'])->assertForbidden();
     }
 }

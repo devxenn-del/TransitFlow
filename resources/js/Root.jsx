@@ -52,6 +52,7 @@ import LegalDocuments from './pages/superadmin/LegalDocuments.jsx';
 import SuperAdminMobileApp from './pages/superadmin/MobileApp.jsx';
 import PlatformUsers from './pages/superadmin/PlatformUsers.jsx';
 import SystemConfiguration from './pages/superadmin/SystemConfiguration.jsx';
+import PlatformThermalPrinters from './pages/superadmin/ThermalPrinters.jsx';
 
 /**
  * Every company module page as `[path, permission(s), element]` — rendered
@@ -149,6 +150,7 @@ export default function Root() {
                         {/* Platform (Super Admin) */}
                         <Route path="companies" element={<ProtectedRoute permission="companies.view"><Companies /></ProtectedRoute>} />
                         <Route path="super-admin/fees" element={<ProtectedRoute permission="fees.view"><Fees /></ProtectedRoute>} />
+                        <Route path="super-admin/thermal-printers" element={<ProtectedRoute permission="printers.inventory.view"><PlatformThermalPrinters /></ProtectedRoute>} />
                         <Route path="platform-users" element={<ProtectedRoute permission="platform.users.view"><PlatformUsers /></ProtectedRoute>} />
                         <Route path="super-admin/system-configuration" element={<ProtectedRoute permission="system.configuration.view"><SystemConfiguration /></ProtectedRoute>} />
                         <Route path="super-admin/legal-documents" element={<ProtectedRoute permission="legal.view"><LegalDocuments /></ProtectedRoute>} />

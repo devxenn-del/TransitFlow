@@ -13,7 +13,7 @@ class Permission extends Model
      * Permission groups only the Super Admin holds — no company role can be
      * granted them (Mobile App, Data Tools and the Audit Trail included).
      */
-    public const PLATFORM_GROUPS = ['Companies', 'Platform Users', 'System Configuration', 'Legal Documents', 'Fee Management', 'Mobile App', 'Data Tools', 'Audit Trail'];
+    public const PLATFORM_GROUPS = ['Companies', 'Platform Users', 'System Configuration', 'Legal Documents', 'Fee Management', 'Thermal Printer Management', 'Mobile App', 'Data Tools', 'Audit Trail'];
 
     protected $fillable = [
         'permission_group_id',

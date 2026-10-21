@@ -7,9 +7,11 @@ use App\Http\Requests\Company\StoreBusRequest;
 use App\Http\Requests\Company\UpdateBusRequest;
 use App\Http\Resources\BusResource;
 use App\Models\Bus;
+use App\Models\ThermalPrinter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Buses for the current company. Every query runs through CompanyScope, so
@@ -70,7 +72,22 @@ class BusController extends Controller
     {
         $this->authorize('delete', $bus);
 
-        $bus->delete();
+        DB::transaction(function () use ($bus): void {
+            // The FK would quietly null these; take each printer off the bus
+            // explicitly so its assignment history records why.
+            ThermalPrinter::query()->where('bus_id', $bus->id)->lockForUpdate()->get()
+                ->each(function (ThermalPrinter $printer) use ($bus): void {
+                    $printer->forceFill(['bus_id' => null])->save();
+                    $printer->recordHistory(
+                        'bus_removed',
+                        ['company_id' => $printer->company_id, 'bus' => $bus, 'status' => $printer->status],
+                        ['company_id' => $printer->company_id, 'status' => $printer->status],
+                        "Bus {$bus->bus_number} was deleted.",
+                    );
+                });
+
+            $bus->delete();
+        });
 
         return response()->json(status: JsonResponse::HTTP_NO_CONTENT);
     }

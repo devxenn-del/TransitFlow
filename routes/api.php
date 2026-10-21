@@ -60,10 +60,12 @@ use App\Http\Controllers\Api\SuperAdmin\FeeController;
 use App\Http\Controllers\Api\SuperAdmin\LegalDocumentAdminController;
 use App\Http\Controllers\Api\SuperAdmin\MobileAppController as SuperAdminMobileAppController;
 use App\Http\Controllers\Api\SuperAdmin\SystemConfigurationController;
+use App\Http\Controllers\Api\SuperAdmin\ThermalPrinterController as PlatformThermalPrinterController;
 use App\Http\Controllers\Api\SuperAdmin\UserController as PlatformUserController;
 use App\Http\Middleware\EnsureAccountNotLocked;
 use App\Http\Middleware\RequireCompanyContext;
 use App\Http\Middleware\RequirePasswordChange;
+use App\Models\ThermalPrinter;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 
@@ -79,6 +81,11 @@ $companyCrud = function (string $uri, string $controller, string $permPrefix, st
     Route::match(['put', 'patch'], "{$uri}/{{$param}}", [$controller, 'update'])->middleware("permission:{$permPrefix}.edit");
     Route::delete("{$uri}/{{$param}}", [$controller, 'destroy'])->middleware("permission:{$permPrefix}.delete");
 };
+
+// The Super Admin's printer inventory spans every company, so its binding
+// lifts CompanyScope — an open company workspace must not hide a printer.
+// (The company-side `{printer}` binding stays scoped.)
+Route::bind('inventoryPrinter', fn (string $value) => ThermalPrinter::query()->withoutCompanyScope()->findOrFail((int) $value));
 
 /*
 |--------------------------------------------------------------------------
@@ -213,6 +220,16 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::match(['put', 'patch'], 'mobile-app', [SuperAdminMobileAppController::class, 'update'])->middleware('permission:mobileapp.manage')->name('mobile-app.update');
         Route::post('mobile-app/apk', [SuperAdminMobileAppController::class, 'uploadApk'])->middleware('permission:mobileapp.manage')->name('mobile-app.apk.upload');
         Route::delete('mobile-app/apk', [SuperAdminMobileAppController::class, 'deleteApk'])->middleware('permission:mobileapp.manage')->name('mobile-app.apk.delete');
+
+        // Thermal Printer Management — the platform-wide printer inventory, issued to companies and then to buses.
+        Route::get('thermal-printers', [PlatformThermalPrinterController::class, 'index'])->middleware('permission:printers.inventory.view')->name('thermal-printers.index');
+        Route::get('thermal-printers/buses', [PlatformThermalPrinterController::class, 'buses'])->middleware('permission:printers.inventory.view')->name('thermal-printers.buses');
+        Route::post('thermal-printers', [PlatformThermalPrinterController::class, 'store'])->middleware(['permission:printers.inventory.manage', 'throttle:60,1'])->name('thermal-printers.store');
+        Route::get('thermal-printers/{inventoryPrinter}', [PlatformThermalPrinterController::class, 'show'])->middleware('permission:printers.inventory.view')->name('thermal-printers.show');
+        Route::match(['put', 'patch'], 'thermal-printers/{inventoryPrinter}', [PlatformThermalPrinterController::class, 'update'])->middleware('permission:printers.inventory.manage')->name('thermal-printers.update');
+        Route::put('thermal-printers/{inventoryPrinter}/company', [PlatformThermalPrinterController::class, 'assignCompany'])->middleware('permission:printers.inventory.manage')->name('thermal-printers.company');
+        Route::put('thermal-printers/{inventoryPrinter}/bus', [PlatformThermalPrinterController::class, 'assignBus'])->middleware('permission:printers.inventory.manage')->name('thermal-printers.bus');
+        Route::patch('thermal-printers/{inventoryPrinter}/status', [PlatformThermalPrinterController::class, 'updateStatus'])->middleware('permission:printers.inventory.manage')->name('thermal-printers.status');
     });
 
     /*
@@ -302,9 +319,10 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('conductors/{user}/buses', [ConductorBusController::class, 'show'])->middleware('permission:conductors.view');
         Route::put('conductors/{user}/buses', [ConductorBusController::class, 'sync'])->middleware('permission:conductors.edit');
 
-        // Thermal printer inventory, assigned to a conductor (BITS admin/thermalprinters)
-        $companyCrud('thermal-printers', ThermalPrinterController::class, 'thermalprinters', 'printer');
-        Route::put('thermal-printers/{printer}/assign', [ThermalPrinterController::class, 'assign'])->middleware('permission:thermalprinters.edit');
+        // Thermal printers issued to this company — view only; the Super Admin
+        // manages the inventory (super-admin/thermal-printers).
+        Route::get('thermal-printers', [ThermalPrinterController::class, 'index'])->middleware('permission:thermalprinters.view')->name('thermal-printers.index');
+        Route::get('thermal-printers/{printer}', [ThermalPrinterController::class, 'show'])->middleware('permission:thermalprinters.view')->name('thermal-printers.show');
 
         // Passenger types + their Manual-Amount article presets
         $companyCrud('passenger-types', PassengerTypeController::class, 'passengertypes', 'passenger_type');

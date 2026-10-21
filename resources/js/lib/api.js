@@ -158,12 +158,24 @@ export const charters = {
     settle: (id) => api.post(`/company/charters/${id}/settle`).then((r) => r.data.data),
 };
 
+// The printers issued to the caller's company — read-only (the inventory
+// is managed under `platformThermalPrinters`).
 export const thermalPrinters = {
     list: (params) => api.get('/company/thermal-printers', { params }).then((r) => r.data),
-    create: (payload) => api.post('/company/thermal-printers', payload).then((r) => r.data.data),
-    update: (id, payload) => api.put(`/company/thermal-printers/${id}`, payload).then((r) => r.data.data),
-    remove: (id) => api.delete(`/company/thermal-printers/${id}`),
-    assign: (id, userId) => api.put(`/company/thermal-printers/${id}/assign`, { user_id: userId }).then((r) => r.data.data),
+    get: (id) => api.get(`/company/thermal-printers/${id}`).then((r) => r.data.data),
+};
+
+// Thermal Printer Management — the Super Admin's platform-wide inventory.
+// IDs are generated server-side; company / bus / status each have their own endpoint.
+export const platformThermalPrinters = {
+    list: (params) => api.get('/super-admin/thermal-printers', { params }).then((r) => r.data),
+    get: (id) => api.get(`/super-admin/thermal-printers/${id}`).then((r) => r.data.data),
+    create: (payload) => api.post('/super-admin/thermal-printers', payload).then((r) => r.data.data),
+    update: (id, payload) => api.put(`/super-admin/thermal-printers/${id}`, payload).then((r) => r.data.data),
+    assignCompany: (id, payload) => api.put(`/super-admin/thermal-printers/${id}/company`, payload).then((r) => r.data.data),
+    assignBus: (id, payload) => api.put(`/super-admin/thermal-printers/${id}/bus`, payload).then((r) => r.data.data),
+    setStatus: (id, payload) => api.patch(`/super-admin/thermal-printers/${id}/status`, payload).then((r) => r.data.data),
+    buses: (companyId) => api.get('/super-admin/thermal-printers/buses', { params: { company_id: companyId } }).then((r) => r.data.data),
 };
 
 export const terminals = {
