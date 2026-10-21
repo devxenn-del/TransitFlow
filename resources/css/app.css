@@ -167,20 +167,25 @@ a:hover {
     flex: none;
     width: 34px;
     height: 34px;
-    border-radius: 50%;
-    background: #fff;
+    border-radius: 9px;
     display: grid;
     place-items: center;
     overflow: hidden;
 }
 
+/* The TransitFlow logo is its own rounded tile — shown whole. */
 .tf-brand-mark img {
-    width: 128%;
-    height: 128%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
 }
 
-/* An uploaded company logo shows whole inside the circle, not the oversized TF mark. */
+/* An uploaded company logo shows whole inside a circle. */
+.tf-brand-mark.tf-brand-mark--company,
+.tf-signage-mark.tf-signage-mark--company {
+    border-radius: 50%;
+}
+
 .tf-brand-mark.tf-brand-mark--company,
 .tf-signage-mark.tf-signage-mark--company {
     background: transparent;
@@ -298,8 +303,7 @@ a:hover {
     flex: none;
     width: 42px;
     height: 42px;
-    border-radius: 50%;
-    background: #fff;
+    border-radius: 11px;
     display: grid;
     place-items: center;
     overflow: hidden;
@@ -307,8 +311,8 @@ a:hover {
 }
 
 .tf-signage-mark img {
-    width: 128%;
-    height: 128%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
 }
 
@@ -996,8 +1000,10 @@ a.tf-stat:hover {
 
 .tf-login-logo .tf-login-logo-mark {
     flex: none;
-    width: clamp(130px, 9vw, 170px);
+    width: clamp(64px, 4.5vw, 80px);
     height: auto;
+    border-radius: 22%;
+    box-shadow: 0 6px 18px rgba(20, 33, 59, 0.22);
     object-fit: contain;
 }
 
@@ -1232,7 +1238,9 @@ a.tf-stat:hover {
 
 .tf-login-mobile-mark {
     display: block;
-    width: 120px;
+    width: 72px;
+    border-radius: 22%;
+    box-shadow: 0 6px 18px rgba(20, 33, 59, 0.22);
     height: auto;
     margin: 0 auto 0.75rem;
     object-fit: contain;
@@ -3015,12 +3023,9 @@ a.tf-stat:hover {
     position: relative;
     width: 74%;
     height: 74%;
-    border-radius: 50%;
-    background: #fff;
-    object-fit: cover;
-    object-position: center 42%;
-    padding: 2px;
-    box-shadow: 0 4px 14px rgba(20, 33, 59, 0.14);
+    border-radius: 22%;
+    object-fit: contain;
+    box-shadow: 0 4px 14px rgba(20, 33, 59, 0.22);
     animation: tf-loader-breathe 1.8s ease-in-out infinite;
 }
 
@@ -3398,22 +3403,21 @@ a.tf-stat:hover {
     letter-spacing: 0.2em;
 }
 
-/* Crops the square TransitFlow logo (resources/images/transitflow-logo.png,
-   500 × 500 with padding and a wordmark) down to its "T" mark, as a white
-   silhouette — the wordmark is already spelled out beside it. */
+/* The TransitFlow "TF" tile (resources/images/transitflow-logo.png), with a
+   white hairline so its own black edge reads against the black band. */
 .tf-label__mark {
     flex: none;
-    width: 5.4mm;
-    height: 3.1mm;
+    width: 3.6mm;
+    height: 3.6mm;
+    border: 0.15mm solid #fff;
+    border-radius: 0.8mm;
     overflow: hidden;
 }
 
 .tf-label__mark img {
     display: block;
-    width: 12.8mm;
-    height: 12.8mm;
-    margin: -3.95mm 0 0 -3.45mm;
-    filter: brightness(0) invert(1);
+    width: 100%;
+    height: 100%;
 }
 
 @page tf-label {
@@ -3757,4 +3761,37 @@ button.tf-stat--filter:focus-visible {
 .tf-printer-drawer code {
     color: var(--tf-navy);
     font-family: var(--tf-font-mono);
+}
+
+.tf-bulk-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--tf-radius-sm);
+    background: var(--tf-paper);
+    border: 1px solid var(--tf-line);
+    font-size: 0.9rem;
+}
+
+.tf-bulk-summary .bi {
+    color: var(--tf-route-blue);
+}
+
+.tf-bulk-failures {
+    max-height: 10rem;
+    overflow-y: auto;
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.85rem;
+}
+
+/* The new logo is a tile without a wordmark, so the name is set beside it. */
+.tf-login-wordmark {
+    font-family: var(--tf-font-display);
+    font-size: clamp(1.9rem, 1.4rem + 1.2vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    color: var(--tf-navy);
 }

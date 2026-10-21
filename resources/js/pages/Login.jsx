@@ -157,6 +157,7 @@ export default function Login() {
                             <div className="tf-login-logo">
                                 <img src={transitFlowLogo} alt="TransitFlow" className="tf-login-logo-mark" />
                                 <div>
+                                    <div className="tf-login-wordmark">TRANSITFLOW</div>
                                     <p className="tf-eyebrow mb-0">Smart Transport Management Platform</p>
                                 </div>
                             </div>

@@ -18,10 +18,13 @@ use App\Models\Bus;
 use App\Models\Company;
 use App\Models\ThermalPrinter;
 use App\Support\Audit;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -42,7 +45,7 @@ class ThermalPrinterController extends Controller
         $request->validate([...$this->filterRules(), 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
 
         return ThermalPrinterResource::collection(
-            $this->filtered($request)->orderByDesc('id')->paginate($request->integer('per_page', 20))
+            $this->filtered($request->all())->orderByDesc('id')->paginate($request->integer('per_page', 20))
         );
     }
 
@@ -80,28 +83,7 @@ class ThermalPrinterController extends Controller
      */
     public function labels(Request $request): AnonymousResourceCollection
     {
-        $request->validate([
-            ...$this->filterRules(),
-            'all' => ['boolean'],
-            'ids' => ['required_without:all', 'prohibited_if:all,1,true', 'array', 'min:1', 'max:'.self::MAX_LABELS],
-            'ids.*' => ['integer', 'distinct'],
-        ]);
-
-        $query = $request->boolean('all')
-            ? $this->filtered($request)
-            : $this->printers()->whereKey($request->collect('ids')->map(fn ($id) => (int) $id)->all());
-
-        $printers = $query->orderBy('thermal_id')->limit(self::MAX_LABELS + 1)->get();
-
-        if ($printers->isEmpty()) {
-            throw ValidationException::withMessages(['ids' => 'None of the selected printers were found.']);
-        }
-
-        if ($printers->count() > self::MAX_LABELS) {
-            throw ValidationException::withMessages([
-                'all' => 'Up to '.self::MAX_LABELS.' labels can be printed at once. Narrow the filters and print in batches.',
-            ]);
-        }
+        $printers = $this->selection($request, 'labels can be printed');
 
         Audit::record('thermal_printer.labels_printed', null, [
             'count' => $printers->count(),
@@ -109,6 +91,49 @@ class ThermalPrinterController extends Controller
         ]);
 
         return ThermalPrinterResource::collection($printers);
+    }
+
+    /**
+     * Issue every selected printer to one company. Printers already in that
+     * company are skipped; if any other printer can't be issued (e.g. it is
+     * Retired), nothing is saved and each blocked printer is reported.
+     */
+    public function bulkAssignCompany(Request $request, AssignThermalPrinterCompany $assign): JsonResponse
+    {
+        $data = $request->validate([
+            'company_id' => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],
+            'date_issued' => ['nullable', 'date', 'before_or_equal:today'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $company = Company::query()->findOrFail($data['company_id']);
+        $printers = $this->selection($request, 'printers can be updated', nested: true);
+
+        return $this->applyToEach(
+            $printers,
+            fn (ThermalPrinter $printer) => $printer->company_id === $company->id,
+            fn (ThermalPrinter $printer) => $assign->handle($printer, $company, $request->date('date_issued'), $data['remarks'] ?? null),
+        );
+    }
+
+    /**
+     * Move every selected printer to one status. Printers already in it are
+     * skipped; if the change isn't allowed for any other printer, nothing is
+     * saved and each blocked printer is reported.
+     */
+    public function bulkUpdateStatus(Request $request, ChangeThermalPrinterStatus $change): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', Rule::enum(ThermalPrinterStatus::class)],
+            'remarks' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $target = ThermalPrinterStatus::from($data['status']);
+        $printers = $this->selection($request, 'printers can be updated', nested: true);
+
+        return $this->applyToEach(
+            $printers,
+            fn (ThermalPrinter $printer) => $printer->status === $target,
+            fn (ThermalPrinter $printer) => $change->handle($printer, $target, $data['remarks'] ?? null),
+        );
     }
 
     public function store(StoreThermalPrinterRequest $request, RegisterThermalPrinter $register): JsonResponse
@@ -194,36 +219,131 @@ class ThermalPrinterController extends Controller
     }
 
     /**
+     * The printers a bulk request is about: either `ids`, or (`all=1`) every
+     * printer matching the same filters as index() — given at the top level
+     * (label printing) or under `filter` (`$nested`, for bulk updates). At
+     * most MAX_LABELS.
+     *
+     * @return Collection<int, ThermalPrinter>
+     */
+    private function selection(Request $request, string $limitNoun, bool $nested = false): Collection
+    {
+        $request->validate([
+            ...$this->filterRules($nested ? 'filter.' : ''),
+            'filter' => [$nested ? 'nullable' : 'prohibited', 'array'],
+            'all' => ['boolean'],
+            'ids' => ['required_without:all', 'prohibited_if:all,1,true', 'array', 'min:1', 'max:'.self::MAX_LABELS],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $query = $request->boolean('all')
+            ? $this->filtered($nested ? (array) $request->input('filter', []) : $request->all())
+            : $this->printers()->whereKey($request->collect('ids')->map(fn ($id) => (int) $id)->all());
+
+        $printers = $query->orderBy('thermal_id')->limit(self::MAX_LABELS + 1)->get();
+
+        if ($printers->isEmpty()) {
+            throw ValidationException::withMessages(['ids' => 'None of the selected printers were found.']);
+        }
+
+        if ($printers->count() > self::MAX_LABELS) {
+            throw ValidationException::withMessages([
+                'all' => 'Up to '.self::MAX_LABELS." {$limitNoun} at once. Narrow the filters and work in batches.",
+            ]);
+        }
+
+        return $printers;
+    }
+
+    /**
+     * Run `$apply` on each printer inside one transaction, skipping those
+     * `$alreadyDone` says need no change. Every failure is collected; if
+     * there are any, the whole batch is rolled back and they are returned
+     * per printer (422), so a batch is either fully applied or not at all.
+     *
+     * @param  Collection<int, ThermalPrinter>  $printers
+     */
+    private function applyToEach(Collection $printers, Closure $alreadyDone, Closure $apply): JsonResponse
+    {
+        $failures = [];
+        $updated = 0;
+        $skipped = 0;
+
+        try {
+            DB::transaction(function () use ($printers, $alreadyDone, $apply, &$failures, &$updated, &$skipped): void {
+                foreach ($printers as $printer) {
+                    if ($alreadyDone($printer)) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    try {
+                        $apply($printer);
+                        $updated++;
+                    } catch (ValidationException $e) {
+                        $failures[] = [
+                            'id' => $printer->id,
+                            'device_id' => $printer->device_id,
+                            'message' => collect($e->errors())->flatten()->first(),
+                        ];
+                    }
+                }
+
+                if ($failures) {
+                    throw ValidationException::withMessages(['printers' => 'Nothing was saved: '.count($failures).' of the selected printers can\'t take this change.']);
+                }
+            });
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+                'failures' => $failures,
+            ], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return response()->json(['data' => ['updated' => $updated, 'skipped' => $skipped]]);
+    }
+
+    /**
+     * Validation for the inventory filters, optionally nested under a key
+     * (bulk updates send them as `filter[...]`, because their own `status`
+     * field is the new status, not a filter).
+     *
      * @return array<string, list<mixed>>
      */
-    private function filterRules(): array
+    private function filterRules(string $prefix = ''): array
     {
         return [
-            'q' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::enum(ThermalPrinterStatus::class)],
-            'company_id' => ['nullable', 'integer'],
-            'bus_id' => ['nullable', 'integer'],
-            'assignment' => ['nullable', Rule::in(['assigned', 'unassigned', 'on_bus', 'no_bus'])],
+            "{$prefix}q" => ['nullable', 'string', 'max:100'],
+            "{$prefix}status" => ['nullable', Rule::enum(ThermalPrinterStatus::class)],
+            "{$prefix}company_id" => ['nullable', 'integer'],
+            "{$prefix}bus_id" => ['nullable', 'integer'],
+            "{$prefix}assignment" => ['nullable', Rule::in(['assigned', 'unassigned', 'on_bus', 'no_bus'])],
         ];
     }
 
     /**
-     * The inventory filters shared by index() and labels(), so a label run
-     * always picks exactly the printers the list shows.
+     * The inventory filters shared by the list, label printing and bulk
+     * updates, so "all matching" always means exactly what the list shows.
      *
+     * @param  array<string, mixed>  $filters
      * @return Builder<ThermalPrinter>
      */
-    private function filtered(Request $request): Builder
+    private function filtered(array $filters): Builder
     {
+        $value = fn (string $key): ?string => filled($filters[$key] ?? null) ? trim((string) $filters[$key]) : null;
+        $assignment = $value('assignment');
+
         return $this->printers()
-            ->when($request->filled('q'), fn (Builder $q) => $q->search($request->string('q')->trim()->value()))
-            ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->string('status')->value()))
-            ->when($request->filled('company_id'), fn (Builder $q) => $q->where('company_id', $request->integer('company_id')))
-            ->when($request->filled('bus_id'), fn (Builder $q) => $q->where('bus_id', $request->integer('bus_id')))
-            ->when($request->input('assignment') === 'assigned', fn (Builder $q) => $q->whereNotNull('company_id'))
-            ->when($request->input('assignment') === 'unassigned', fn (Builder $q) => $q->whereNull('company_id'))
-            ->when($request->input('assignment') === 'on_bus', fn (Builder $q) => $q->whereNotNull('bus_id'))
-            ->when($request->input('assignment') === 'no_bus', fn (Builder $q) => $q->where('status', ThermalPrinterStatus::Assigned)->whereNull('bus_id'));
+            ->when($value('q'), fn (Builder $q, string $term) => $q->search($term))
+            ->when($value('status'), fn (Builder $q, string $status) => $q->where('status', $status))
+            ->when($value('company_id'), fn (Builder $q, string $id) => $q->where('company_id', (int) $id))
+            ->when($value('bus_id'), fn (Builder $q, string $id) => $q->where('bus_id', (int) $id))
+            ->when($assignment === 'assigned', fn (Builder $q) => $q->whereNotNull('company_id'))
+            ->when($assignment === 'unassigned', fn (Builder $q) => $q->whereNull('company_id'))
+            ->when($assignment === 'on_bus', fn (Builder $q) => $q->whereNotNull('bus_id'))
+            ->when($assignment === 'no_bus', fn (Builder $q) => $q->where('status', ThermalPrinterStatus::Assigned)->whereNull('bus_id'));
     }
 
     /**

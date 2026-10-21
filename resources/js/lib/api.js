@@ -177,6 +177,9 @@ export const platformThermalPrinters = {
     assignBus: (id, payload) => api.put(`/super-admin/thermal-printers/${id}/bus`, payload).then((r) => r.data.data),
     setStatus: (id, payload) => api.patch(`/super-admin/thermal-printers/${id}/status`, payload).then((r) => r.data.data),
     buses: (companyId) => api.get('/super-admin/thermal-printers/buses', { params: { company_id: companyId } }).then((r) => r.data.data),
+    // Bulk updates — `selection` is `{ ids: [...] }` or `{ all: 1, filter: {...} }`.
+    bulkAssignCompany: (selection, payload) => api.put('/super-admin/thermal-printers/bulk/company', { ...selection, ...payload }).then((r) => r.data.data),
+    bulkSetStatus: (selection, payload) => api.patch('/super-admin/thermal-printers/bulk/status', { ...selection, ...payload }).then((r) => r.data.data),
     // Asset-label data: `{ ids: [...] }`, or `{ all: 1, ...filters }` for every matching printer.
     labels: (params) => api.get('/super-admin/thermal-printers/labels', { params }).then((r) => r.data.data),
 };

@@ -54,6 +54,17 @@ const muted = (text) => <span className="text-body-secondary">{text}</span>;
 const busLabel = (bus) => (bus ? `${bus.bus_number}${bus.plate_number ? ` · ${bus.plate_number}` : ''}` : null);
 const notAssigned = muted('Not Assigned');
 
+/**
+ * Format MAC-address input as the user types or pastes: keep hex digits
+ * only (any separator — "-", ".", spaces — is dropped), upper-case them,
+ * cap at 12, and put a colon between each pair: "001a2b" → "00:1A:2B".
+ * No trailing colon, so backspace deletes a digit instead of fighting a separator.
+ */
+function formatMac(value) {
+    const hex = value.replace(/[^0-9a-f]/gi, '').toUpperCase().slice(0, 12);
+    return hex.match(/.{1,2}/g)?.join(':') ?? '';
+}
+
 /** One "label — value" row in the details drawer. */
 function DrawerRow({ label, children }) {
     return (
@@ -221,6 +232,74 @@ export default function ThermalPrinters() {
         }
         if (allMatching) openPrinterLabels({ filters: currentFilters });
         else openPrinterLabels({ ids: [...selected] });
+    };
+
+    // --- Bulk assign company / update status ---------------------------------
+    const [bulk, setBulk] = useState(null); // null | 'company' | 'status'
+    const [bulkForm, setBulkForm] = useState({});
+    const [bulkFailures, setBulkFailures] = useState([]);
+    const bulkCompanies = useCompanyOptions(bulk === 'company');
+
+    const openBulk = (kind) => {
+        if (selectionCount > MAX_LABELS) {
+            notifyError(null, `Up to ${MAX_LABELS} printers can be updated at once. Narrow the filters and work in batches.`);
+            return;
+        }
+        setBulkFailures([]);
+        setBulkForm(kind === 'company' ? { company_id: '', date_issued: today(), remarks: '' } : { status: '', remarks: '' });
+        setBulk(kind);
+    };
+
+    const saveBulk = async (e) => {
+        e.preventDefault();
+        const scope = allMatching
+            ? { all: 1, filter: Object.fromEntries(Object.entries(currentFilters).filter(([, v]) => v)) }
+            : { ids: [...selected] };
+        const companyName = bulkCompanies.options.find((o) => o.value === bulkForm.company_id)?.label;
+        const ok = await confirmAction(bulk === 'company'
+            ? {
+                title: `Assign ${selectionCount} ${selectionCount === 1 ? 'printer' : 'printers'} to ${companyName}?`,
+                text: 'Printers moving from another company are taken off their current bus. Printers already in this company are left as they are.',
+                confirmText: 'Assign company',
+            }
+            : {
+                title: `Mark ${selectionCount} ${selectionCount === 1 ? 'printer' : 'printers'} as ${bulkForm.status}?`,
+                text: STATUS_EFFECT[bulkForm.status] ?? '',
+                confirmText: 'Change status',
+                danger: ['Retired', 'Defective'].includes(bulkForm.status),
+            });
+        if (!ok) return;
+
+        setSaving(true);
+        setBulkFailures([]);
+        try {
+            const result = bulk === 'company'
+                ? await printersApi.bulkAssignCompany(scope, { company_id: Number(bulkForm.company_id), date_issued: bulkForm.date_issued || null, remarks: bulkForm.remarks || null })
+                : await printersApi.bulkSetStatus(scope, { status: bulkForm.status, remarks: bulkForm.remarks || null });
+            const skippedNote = result.skipped ? ` ${result.skipped} already ${bulk === 'company' ? 'in that company' : `${bulkForm.status}`} — left unchanged.` : '';
+            notifySuccess(`${result.updated} ${result.updated === 1 ? 'printer' : 'printers'} updated.${skippedNote}`);
+            setBulk(null);
+            clearSelection();
+            reload();
+        } catch (err) {
+            const failures = err?.response?.data?.failures;
+            if (failures?.length) setBulkFailures(failures);
+            else notifyError(err);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    /** Untick the printers the server refused, so the rest can be applied. */
+    const dropFailures = () => {
+        const failedIds = new Set(bulkFailures.map((f) => f.id));
+        if (allMatching) {
+            notifyError(null, 'These printers are part of “all matching”. Narrow the filters (e.g. by status) to leave them out.');
+            return;
+        }
+        setSelected((prev) => new Set([...prev].filter((id) => !failedIds.has(id))));
+        setBulkFailures([]);
+        if (selected.size - failedIds.size <= 0) setBulk(null);
     };
 
     // --- Register / edit ---------------------------------------------------
@@ -651,14 +730,112 @@ export default function ThermalPrinters() {
                             Select all {meta.total.toLocaleString()}
                         </button>
                     )}
-                    <span className="ms-auto d-flex gap-2">
+                    <span className="ms-auto d-flex flex-wrap gap-2">
+                        {canManage && (
+                            <>
+                                <button type="button" className="btn btn-sm btn-outline-light" onClick={() => openBulk('company')}>
+                                    <i className="bi bi-buildings me-1" />Assign company
+                                </button>
+                                <button type="button" className="btn btn-sm btn-outline-light" onClick={() => openBulk('status')}>
+                                    <i className="bi bi-arrow-repeat me-1" />Update status
+                                </button>
+                            </>
+                        )}
                         <button type="button" className="btn btn-sm btn-accent" onClick={printSelected}>
                             <i className="bi bi-qr-code me-1" />Print {selectionCount === 1 ? 'label' : 'labels'}
                         </button>
-                        <button type="button" className="btn btn-sm btn-outline-light" onClick={clearSelection}>Clear</button>
+                        <button type="button" className="btn btn-sm btn-link text-white-50" onClick={clearSelection}>Clear</button>
                     </span>
                 </div>
             )}
+
+            {/* Bulk assign company / update status */}
+            <Modal
+                open={!!bulk}
+                title={bulk === 'company' ? `Assign company · ${selectionCount} ${selectionCount === 1 ? 'printer' : 'printers'}` : `Update status · ${selectionCount} ${selectionCount === 1 ? 'printer' : 'printers'}`}
+                onClose={() => setBulk(null)}
+                footer={(
+                    <>
+                        <button className="btn btn-light" onClick={() => setBulk(null)}>Cancel</button>
+                        <SaveButton
+                            form="tp-bulk-form"
+                            saving={saving}
+                            disabled={bulk === 'company' ? !bulkForm.company_id : !bulkForm.status}
+                        >
+                            {bulk === 'company' ? 'Assign company' : 'Change status'}
+                        </SaveButton>
+                    </>
+                )}
+            >
+                {bulk && (
+                    <form id="tp-bulk-form" onSubmit={saveBulk} className="vstack gap-3">
+                        <div className="tf-bulk-summary">
+                            <i className="bi bi-check2-square" aria-hidden="true" />
+                            <span>
+                                <strong>{selectionCount.toLocaleString()}</strong> {selectionCount === 1 ? 'printer' : 'printers'} selected
+                                {allMatching && (filtered ? ' — all matching the current filters' : ' — the whole inventory')}
+                            </span>
+                        </div>
+
+                        {bulk === 'company' ? (
+                            <>
+                                <SearchableSelect
+                                    id="tp-bulk-company"
+                                    label="Company"
+                                    required
+                                    options={bulkCompanies.options}
+                                    onSearch={bulkCompanies.search}
+                                    value={bulkForm.company_id}
+                                    onChange={(v) => setBulkForm({ ...bulkForm, company_id: v })}
+                                    placeholder="Select a company…"
+                                />
+                                <div>
+                                    <label className="form-label" htmlFor="tp-bulk-date">Date issued</label>
+                                    <input id="tp-bulk-date" type="date" className="form-control" max={today()} value={bulkForm.date_issued} onChange={(e) => setBulkForm({ ...bulkForm, date_issued: e.target.value })} />
+                                </div>
+                                <div className="form-text mt-0">
+                                    Each printer becomes <strong>Assigned</strong>. Printers coming from another company are taken off their bus; assign buses afterwards per printer.
+                                    Only Available, Returned or Assigned printers can be issued.
+                                </div>
+                            </>
+                        ) : (
+                            <div>
+                                <label className="form-label" htmlFor="tp-bulk-status">New status</label>
+                                <select id="tp-bulk-status" className="form-select" required value={bulkForm.status} onChange={(e) => setBulkForm({ ...bulkForm, status: e.target.value })}>
+                                    <option value="">Select a status…</option>
+                                    {PRINTER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                {bulkForm.status && <div className="form-text">{STATUS_EFFECT[bulkForm.status]}</div>}
+                                <div className="form-text">Every printer must be allowed to make this change — e.g. a printer still issued to a company must be marked Returned before it can be Retired.</div>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="form-label" htmlFor="tp-bulk-remarks">Remarks</label>
+                            <textarea id="tp-bulk-remarks" className="form-control" rows={2} maxLength={1000} value={bulkForm.remarks} onChange={(e) => setBulkForm({ ...bulkForm, remarks: e.target.value })} />
+                            <div className="form-text">Recorded in each printer’s history.</div>
+                        </div>
+
+                        {bulkFailures.length > 0 && (
+                            <div className="alert alert-danger mb-0" role="alert">
+                                <div className="fw-semibold mb-1">
+                                    <i className="bi bi-x-octagon me-1" />Nothing was saved — {bulkFailures.length} {bulkFailures.length === 1 ? 'printer' : 'printers'} can’t take this change:
+                                </div>
+                                <ul className="tf-bulk-failures">
+                                    {bulkFailures.map((f) => (
+                                        <li key={f.id}><code>{f.device_id}</code> — {f.message}</li>
+                                    ))}
+                                </ul>
+                                {!allMatching && (
+                                    <button type="button" className="btn btn-sm btn-outline-danger mt-2" onClick={dropFailures}>
+                                        Untick {bulkFailures.length === 1 ? 'this printer' : 'these printers'} and try again
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </form>
+                )}
+            </Modal>
 
             {/* Register / edit */}
             <Modal
@@ -685,8 +862,18 @@ export default function ThermalPrinters() {
                     </div>
                     <div>
                         <label className="form-label" htmlFor="tp-form-mac">MAC address</label>
-                        <input id="tp-form-mac" className="form-control font-monospace" placeholder="00:1A:2B:3C:4D:5E" value={form.mac_address ?? ''} onChange={(e) => setForm({ ...form, mac_address: e.target.value })} />
-                        <div className="form-text">Optional. Used to stop the same physical printer being registered twice.</div>
+                        <input
+                            id="tp-form-mac"
+                            className="form-control font-monospace"
+                            placeholder="00:1A:2B:3C:4D:5E"
+                            maxLength={17}
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            spellCheck={false}
+                            value={form.mac_address ?? ''}
+                            onChange={(e) => setForm({ ...form, mac_address: formatMac(e.target.value) })}
+                        />
+                        <div className="form-text">Optional. Type or paste the 12 hex digits — colons are added for you. Used to stop the same physical printer being registered twice.</div>
                     </div>
                     <div>
                         <label className="form-label" htmlFor="tp-form-serial">Manufacturer serial no.</label>

@@ -402,6 +402,71 @@ class ThermalPrinterInventoryTest extends TestCase
         $this->getJson(self::BASE.'/labels?'.http_build_query(['ids' => [999999]]))->assertJsonValidationErrorFor('ids');
     }
 
+    public function test_selected_printers_are_assigned_to_a_company_in_bulk(): void
+    {
+        $other = Company::factory()->create();
+        $bus = Bus::factory()->create(['company_id' => $other->id]);
+        $fresh = ThermalPrinter::factory()->count(2)->create();
+        $moving = ThermalPrinter::factory()->onBus($bus)->create();
+        $already = ThermalPrinter::factory()->assignedTo($this->company)->create();
+
+        $this->putJson(self::BASE.'/bulk/company', [
+            'ids' => [...$fresh->pluck('id'), $moving->id, $already->id],
+            'company_id' => $this->company->id,
+            'remarks' => 'Batch delivery',
+        ])->assertOk()->assertJsonPath('data.updated', 3)->assertJsonPath('data.skipped', 1);
+
+        foreach ([...$fresh, $moving] as $printer) {
+            $printer->refresh();
+            $this->assertSame($this->company->id, $printer->company_id);
+            $this->assertSame(ThermalPrinterStatus::Assigned, $printer->status);
+            $this->assertNull($printer->bus_id);
+        }
+        $this->assertDatabaseHas('thermal_printer_assignments', ['thermal_printer_id' => $moving->id, 'action' => 'company_changed', 'remarks' => 'Batch delivery']);
+    }
+
+    public function test_a_bulk_change_is_all_or_nothing(): void
+    {
+        $ok = ThermalPrinter::factory()->create();
+        $retired = ThermalPrinter::factory()->withStatus(ThermalPrinterStatus::Retired)->create();
+
+        $this->putJson(self::BASE.'/bulk/company', ['ids' => [$ok->id, $retired->id], 'company_id' => $this->company->id])
+            ->assertUnprocessable()
+            ->assertJsonPath('failures.0.id', $retired->id)
+            ->assertJsonCount(1, 'failures');
+
+        $this->assertNull($ok->fresh()->company_id);
+        $this->assertSame(ThermalPrinterStatus::Available, $ok->fresh()->status);
+        $this->assertDatabaseMissing('thermal_printer_assignments', ['thermal_printer_id' => $ok->id, 'action' => 'company_assigned']);
+    }
+
+    public function test_statuses_are_updated_in_bulk_for_all_matching_printers(): void
+    {
+        ThermalPrinter::factory()->count(2)->assignedTo($this->company)->create();
+        $elsewhere = ThermalPrinter::factory()->assignedTo(Company::factory()->create())->create();
+        $alreadyThere = ThermalPrinter::factory()->assignedTo($this->company)->withStatus(ThermalPrinterStatus::UnderMaintenance)->create();
+
+        $this->patchJson(self::BASE.'/bulk/status', [
+            'all' => true,
+            'filter' => ['company_id' => $this->company->id],
+            'status' => 'Under Maintenance',
+        ])->assertOk()->assertJsonPath('data.updated', 2)->assertJsonPath('data.skipped', 1);
+
+        $this->assertSame(3, ThermalPrinter::query()->where('company_id', $this->company->id)->where('status', 'Under Maintenance')->count());
+        $this->assertSame(ThermalPrinterStatus::Assigned, $elsewhere->fresh()->status);
+        $this->assertSame(ThermalPrinterStatus::UnderMaintenance, $alreadyThere->fresh()->status);
+    }
+
+    public function test_company_admins_cannot_bulk_update(): void
+    {
+        $printer = ThermalPrinter::factory()->create();
+        Sanctum::actingAs(User::factory()->companyAdmin($this->company)->create());
+
+        $this->putJson(self::BASE.'/bulk/company', ['ids' => [$printer->id], 'company_id' => $this->company->id])->assertForbidden();
+        $this->patchJson(self::BASE.'/bulk/status', ['ids' => [$printer->id], 'status' => 'Retired'])->assertForbidden();
+        $this->assertNull($printer->fresh()->company_id);
+    }
+
     public function test_the_summary_counts_the_whole_inventory(): void
     {
         $bus = Bus::factory()->create(['company_id' => $this->company->id]);
