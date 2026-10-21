@@ -11,7 +11,7 @@ import { errorMessage, notifySuccess } from '../lib/ui.js';
  */
 export default function ForcePasswordChange() {
     const { user, refreshUser, logout } = useAuth();
-    const [form, setForm] = useState({ current_password: '', password: '', password_confirmation: '' });
+    const [form, setForm] = useState({ password: '', password_confirmation: '' });
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
 
@@ -48,20 +48,14 @@ export default function ForcePasswordChange() {
 
                     <form onSubmit={submit} className="vstack gap-3">
                         <div>
-                            <label className="form-label">Temporary password</label>
-                            <input type="password" className="form-control" required autoFocus
-                                value={form.current_password}
-                                onChange={(e) => setForm({ ...form, current_password: e.target.value })} />
-                        </div>
-                        <div>
                             <label className="form-label">New password</label>
-                            <input type="password" className="form-control" required minLength={8}
+                            <input type="password" className="form-control" required minLength={8} autoFocus autoComplete="new-password"
                                 value={form.password}
                                 onChange={(e) => setForm({ ...form, password: e.target.value })} />
                         </div>
                         <div>
                             <label className="form-label">Confirm new password</label>
-                            <input type="password" className="form-control" required minLength={8}
+                            <input type="password" className="form-control" required minLength={8} autoComplete="new-password"
                                 value={form.password_confirmation}
                                 onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })} />
                         </div>

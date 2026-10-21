@@ -58,21 +58,28 @@ class ForcedPasswordChangeTest extends TestCase
         $this->getJson('/api/company/terminals')->assertStatus(423);
     }
 
-    public function test_wrong_current_password_is_rejected(): void
+    /**
+     * Outside the forced change, the current password is still required.
+     */
+    public function test_a_normal_password_change_still_requires_the_current_password(): void
     {
-        Sanctum::actingAs($this->user);
+        $normal = User::factory()->companyAdmin($this->user->company)->create(['password' => Hash::make('old-password')]);
+        Sanctum::actingAs($normal);
+
+        $this->postJson('/api/auth/password', [
+            'password' => 'a-brand-new-one', 'password_confirmation' => 'a-brand-new-one',
+        ])->assertJsonValidationErrorFor('current_password');
 
         $this->postJson('/api/auth/password', [
             'current_password' => 'nope', 'password' => 'a-brand-new-one', 'password_confirmation' => 'a-brand-new-one',
         ])->assertJsonValidationErrorFor('current_password');
     }
 
-    public function test_setting_a_new_password_clears_the_flag_and_unlocks_the_api(): void
+    public function test_setting_a_new_password_without_retyping_the_temporary_one_clears_the_flag(): void
     {
         Sanctum::actingAs($this->user);
 
         $this->postJson('/api/auth/password', [
-            'current_password' => 'temp-password',
             'password' => 'a-brand-new-one',
             'password_confirmation' => 'a-brand-new-one',
         ])->assertOk()->assertJsonPath('user.must_change_password', false);
@@ -90,8 +97,10 @@ class ForcedPasswordChangeTest extends TestCase
         Sanctum::actingAs($this->user);
 
         $this->postJson('/api/auth/password', [
-            'current_password' => 'temp-password', 'password' => 'temp-password', 'password_confirmation' => 'temp-password',
+            'password' => 'temp-password', 'password_confirmation' => 'temp-password',
         ])->assertJsonValidationErrorFor('password');
+
+        $this->assertTrue($this->user->fresh()->must_change_password);
     }
 
     public function test_a_normal_user_without_the_flag_is_not_locked(): void
