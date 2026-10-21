@@ -1684,6 +1684,40 @@ a.tf-stat:hover {
     margin-top: 8px;
 }
 
+/* BITS-layout receipts (ReceiptView's BitsLines — passenger ticket, terminal
+   receipt, dispatch receipt, trip remittance report): drawn like the paper
+   slip — no heavy box, "---- LABEL ----" sections, a framed TOTAL VALUE. */
+.tf-receipt__center {
+    text-align: center;
+}
+.tf-receipt__plain {
+    white-space: pre-wrap;
+}
+.tf-receipt__flank {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 2px;
+    font-weight: 700;
+}
+.tf-receipt__flank::before,
+.tf-receipt__flank::after {
+    content: "";
+    flex: 1;
+    border-top: 1px dashed #000;
+}
+.tf-receipt__highlight {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 6px 0 2px;
+    padding: 3px 0;
+    border-top: 3px double #000;
+    border-bottom: 3px double #000;
+    font-size: 15px;
+    font-weight: 700;
+}
+
 @media print {
     .tf-receipt-page {
         background: #fff;

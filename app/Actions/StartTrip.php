@@ -65,6 +65,10 @@ class StartTrip
             throw ValidationException::withMessages(['driver_id' => 'This trip must use the driver you verified at sign-in.']);
         }
 
+        if (($input['trip_type'] ?? 'Regular') === 'Special') {
+            return $this->startSpecial($conductor, $bus->id, $bus->bus_number, $driver->id);
+        }
+
         // No settings row yet for this company (lazily created elsewhere) ->
         // default to the column's own default (terminals in use), same as
         // every company before this flag existed.
@@ -127,6 +131,36 @@ class StartTrip
             'status' => $terminal->skipsTerminalBoarding() ? 'OnTrip' : 'Departure',
             'started_at' => $now,
             'marked_on_trip_at' => $terminal->skipsTerminalBoarding() ? $now : null,
+        ]);
+    }
+
+    /**
+     * A Special trip (charter / hire): just the bus and the verified driver —
+     * no route, terminal or coverage, and no passenger ticketing
+     * (App\Actions\IssueTicket refuses it). There's no terminal boarding
+     * phase, so it's OnTrip from the start; dispatches and End Trip (with its
+     * Trip Remittance Report) work as on any trip.
+     */
+    private function startSpecial(User $conductor, int $busId, ?string $busNumber, int $driverId): Trip
+    {
+        $now = now();
+
+        return Trip::query()->create([
+            'conductor_id' => $conductor->id,
+            'bus_id' => $busId,
+            'bus_number' => $busNumber,
+            'driver_id' => $driverId,
+            'franchise_id' => null,
+            'origin' => null,
+            'coverage_origin' => null,
+            'coverage_destination' => null,
+            'trip_type' => 'Special',
+            'at_terminal' => false,
+            'op_date' => $now->toDateString(),
+            'shift' => Trip::shiftForHour($now->hour),
+            'status' => 'OnTrip',
+            'started_at' => $now,
+            'marked_on_trip_at' => $now,
         ]);
     }
 }

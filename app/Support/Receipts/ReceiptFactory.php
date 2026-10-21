@@ -25,11 +25,13 @@ class ReceiptFactory
         $trip->loadMissing(['driver', 'conductor']);
 
         // A "TERMINAL RECEIPT" is the reprint taken when the bus leaves the
-        // terminal — it carries the terminal-phase totals. Before that it is
-        // just the plain opening slip.
-        $isTerminalReceipt = $trip->marked_on_trip_at !== null;
+        // terminal — it carries the terminal-phase totals, in BITS's layout.
+        // Before that it is just the plain opening slip.
+        if ($trip->marked_on_trip_at !== null) {
+            return $this->terminalReceipt($trip);
+        }
 
-        $doc = ReceiptDocument::make('departure', $isTerminalReceipt ? 'TERMINAL RECEIPT' : 'DEPARTURE SUCCESSFULLY OPENED', $this->brand($trip->company_id), $this->width($trip->company_id))
+        return ReceiptDocument::make('departure', 'DEPARTURE SUCCESSFULLY OPENED', $this->brand($trip->company_id), $this->width($trip->company_id))
             ->reference($trip->reference)
             ->section('TRIP INFO', [
                 'Trip #' => $trip->reference,
@@ -40,27 +42,54 @@ class ReceiptFactory
                 'Driver' => $trip->driver?->name ?: '—',
                 'Conductor' => $trip->conductor?->name ?: '—',
                 'Bus Number' => $trip->bus_number ?: '—',
+            ])
+            ->section('OPENING SALE DATE/TIME', [
+                'Printed' => $this->dateTime($trip->started_at),
             ]);
+    }
 
-        if ($isTerminalReceipt) {
-            $byMethod = $this->byPaymentMethod($trip);
-            $passengerCount = $trip->tickets()
-                ->whereNull('refunded_at')
-                ->whereNull('article_label')
-                ->count();
-            $totalValue = $byMethod['Cash'] + $byMethod['QR'] + $byMethod['E-Wallet'];
+    /**
+     * BITS Conductor's Terminal Receipt (TicketingActivity::buildTerminalReceipt),
+     * line for line. E-Wallet isn't a BITS payment method, so its row only
+     * appears when there is some — it's always part of Total Value.
+     */
+    private function terminalReceipt(Trip $trip): ReceiptDocument
+    {
+        $byMethod = $this->byPaymentMethod($trip);
+        $passengerCount = $trip->tickets()
+            ->whereNull('refunded_at')
+            ->whereNull('article_label')
+            ->count();
+        $totalValue = $byMethod['Cash'] + $byMethod['QR'] + $byMethod['E-Wallet'];
 
-            $doc->section(null, [
-                'Total Passenger' => (string) $passengerCount,
-                'Total Cash' => $this->money($byMethod['Cash']),
-                'Total QR' => $this->money($byMethod['QR']),
-                'Total Value' => [$this->money($totalValue), 'strong' => true, 'total' => true],
-            ]);
+        $lines = [ReceiptLine::title('TERMINAL RECEIPT')];
+        array_push($lines, ...$this->orgHeader($trip->company_id));
+        array_push($lines,
+            ReceiptLine::section('TRIP INFO'),
+            ReceiptLine::row('Trip #', (string) $trip->reference),
+            ReceiptLine::row('Origin', $trip->coverage_origin ?: '—'),
+            ReceiptLine::row('Destination', $trip->coverage_destination ?: '—'),
+            ReceiptLine::row('Date', now()->format('m-d-Y')),
+            ReceiptLine::row('Time', now()->format('h:iA')),
+            ReceiptLine::row('Driver', $trip->driver?->name ?: '—'),
+            ReceiptLine::row('Conductor', $trip->conductor?->name ?: '—'),
+            ReceiptLine::row('Bus Number', $trip->bus_number ?: '—'),
+            ReceiptLine::row('Total Passenger', (string) $passengerCount),
+            ReceiptLine::row('Total Cash', $this->peso($byMethod['Cash'])),
+            ReceiptLine::row('Total QR', $this->peso($byMethod['QR'])),
+        );
+        if ($byMethod['E-Wallet'] > 0) {
+            $lines[] = ReceiptLine::row('Total E-Wallet', $this->peso($byMethod['E-Wallet']));
         }
+        array_push($lines,
+            ReceiptLine::boldRow('Total Value', $this->peso($totalValue)),
+            ReceiptLine::section('OPENING SALE DATE/TIME'),
+            ReceiptLine::center($this->dateTime($trip->started_at)),
+        );
 
-        return $doc->section('OPENING SALE DATE/TIME', [
-            'Printed' => $this->dateTime($trip->started_at),
-        ]);
+        return ReceiptDocument::make('departure', 'TERMINAL RECEIPT', $this->brand($trip->company_id), $this->width($trip->company_id))
+            ->reference($trip->reference)
+            ->lines($lines);
     }
 
     public function arrival(Trip $trip): ReceiptDocument
@@ -129,106 +158,195 @@ class ReceiptFactory
             ]);
     }
 
+    /**
+     * BITS Conductor's TRIP REMITTANCE REPORT (RemittanceActivity), line for
+     * line: BUS INFO, REMITTANCE INFO, BREAKDOWN, then TOTAL VALUE as the
+     * highlighted figure. Cash in BREAKDOWN is cash on hand — the dispatch
+     * is paid out of cash sales — while TOTAL VALUE stays every sale.
+     * Once a cashier has counted/approved it (web), those blocks follow too.
+     */
     public function remittance(Trip $trip): ReceiptDocument
     {
         $trip->loadMissing(['driver', 'conductor', 'remittanceReceivedBy']);
         $r = TripRemittance::for($trip)->toArray();
-
         $counts = $this->countsByBoarding($trip);
 
-        $doc = ReceiptDocument::make('remittance', 'TRIP REMITTANCE REPORT', $this->brand($trip->company_id), $this->width($trip->company_id))
-            ->reference($trip->reference)
-            ->section('BUS INFO', [
-                'Bus #' => $trip->bus_number ?: '—',
-                'Coverage' => trim(($trip->coverage_origin ?: '?').' - '.($trip->coverage_destination ?: '?')),
-                'Driver' => $trip->driver?->name ?: '—',
-                'Conductor' => $trip->conductor?->name ?: '—',
-                'Cashier' => $trip->remittanceReceivedBy?->name ?: '—',
-            ])
-            ->section('REMITTANCE INFO', [
-                'Total articles' => $this->money($r['by_fare_mode']['article']),
-                'Total Passengers' => (string) $r['ticket_count'],
-                'Terminal Passenger(s)' => (string) $counts['Terminal'],
-                'Pick-up Passenger(s)' => (string) $counts['Pickup'],
-                'Via Terminal' => $this->money($r['by_boarding_type']['Terminal']),
-                'Via Pick-up' => $this->money($r['by_boarding_type']['Pickup']),
-                'Total Cash' => $this->money($r['by_payment_method']['Cash']),
-                'Total QR Payments' => $this->money($r['by_payment_method']['QR']),
-                'Total E-wallet payment' => $this->money($r['by_payment_method']['E-Wallet']),
-                'Total Dispatch' => $this->money($r['total_dispatch']),
-                'Remitted Amount' => $r['remitted_amount'] !== null ? $this->money($r['remitted_amount']) : 'Pending',
-                'Total balance' => $r['balance'] !== null ? $this->money($r['balance']) : '—',
-                'Total ticket' => (string) ($r['ticket_count'] + $r['refunded_count']),
-            ]);
+        $lines = [ReceiptLine::title('TRIP REMITTANCE REPORT')];
+        array_push($lines, ...$this->orgHeader($trip->company_id));
+        array_push($lines,
+            ReceiptLine::center($this->stamp(now())),
+
+            ReceiptLine::section('BUS INFO'),
+            ReceiptLine::row('Bus #', $trip->bus_number ?: '—'),
+        );
+        if ($trip->trip_type === 'Special') {
+            // A Special trip (charter / hire) has no route or terminal.
+            $lines[] = ReceiptLine::row('Trip Type', 'SPECIAL');
+        } else {
+            array_push($lines,
+                // Coverage can run past one 32-column line, so it wraps as plain text.
+                ReceiptLine::plain('Coverage: '.trim(($trip->coverage_origin ?: '?').' - '.($trip->coverage_destination ?: '?'))),
+                ReceiptLine::plain('Terminal: '.($trip->origin ?: ($trip->coverage_origin ?: '—'))),
+            );
+        }
+        array_push($lines,
+            ReceiptLine::row('Driver', $trip->driver?->name ?: '—'),
+            ReceiptLine::row('Conductor', $trip->conductor?->name ?: '—'),
+            // Departure = when the bus left the terminal (Terminal Receipt).
+            ReceiptLine::row('Departure Time', $trip->marked_on_trip_at ? $this->clock($trip->marked_on_trip_at) : '—'),
+            ReceiptLine::row('Arrival Time', $trip->ended_at ? $this->clock($trip->ended_at) : '—'),
+
+            ReceiptLine::section('REMITTANCE INFO'),
+            ReceiptLine::row('Total Passengers', (string) ($counts['Terminal'] + $counts['Pickup'])),
+            ReceiptLine::row('Terminal Passenger(s)', (string) $counts['Terminal']),
+            ReceiptLine::row('Pick-up Passenger(s)', (string) $counts['Pickup']),
+            ReceiptLine::row('Via Terminal', $this->money($r['by_boarding_type']['Terminal'])),
+            ReceiptLine::row('Via Pick-up', $this->money($r['by_boarding_type']['Pickup'])),
+            ReceiptLine::row('Total Articles', $this->money($r['by_fare_mode']['article'])),
+            ReceiptLine::row('Total Dispatch', $this->money($r['total_dispatch'])),
+
+            ReceiptLine::section('BREAKDOWN'),
+            ReceiptLine::row('Total Cash', $this->money(max(0.0, $r['by_payment_method']['Cash'] - $r['total_dispatch']))),
+            ReceiptLine::row('Total QR Payments', $this->money($r['by_payment_method']['QR'])),
+        );
+        if ($r['by_payment_method']['E-Wallet'] > 0) {
+            $lines[] = ReceiptLine::row('Total E-Wallet', $this->money($r['by_payment_method']['E-Wallet']));
+        }
+        array_push($lines,
+            ReceiptLine::row('Total Tickets', (string) ($r['ticket_count'] + $r['refunded_count'])),
+            ReceiptLine::row('Remitted Amount', $r['remitted_amount'] !== null ? $this->money($r['remitted_amount']) : 'Pending'),
+        );
 
         if ($r['stage'] !== 'pending' && $r['counted_total'] !== null) {
-            $doc->section('CASH COUNT', [
-                'Counted' => $this->money($r['counted_total']),
-                'Count variance' => $this->signedMoney($r['count_variance'] ?? 0),
-            ]);
+            array_push($lines,
+                ReceiptLine::section('CASH COUNT'),
+                ReceiptLine::row('Cashier', $trip->remittanceReceivedBy?->name ?: '—'),
+                ReceiptLine::row('Counted', $this->money($r['counted_total'])),
+                ReceiptLine::row('Count variance', $this->signedMoney($r['count_variance'] ?? 0)),
+            );
         }
 
         if ($trip->remittance_approved_at !== null) {
-            $doc->section('APPROVAL', [
-                'Approved by' => $r['approved_by'] ?: '—',
-                'Approved at' => $this->dateTime($trip->remittance_approved_at),
-                'Excess' => $trip->remittance_excess_amount > 0 ? $this->money($trip->remittance_excess_amount) : null,
-                'Short' => $trip->remittance_short_amount > 0 ? $this->money($trip->remittance_short_amount) : null,
-            ]);
+            array_push($lines,
+                ReceiptLine::section('APPROVAL'),
+                ReceiptLine::row('Approved by', $r['approved_by'] ?: '—'),
+                ReceiptLine::row('Approved at', $this->dateTime($trip->remittance_approved_at)),
+            );
+            if ($trip->remittance_excess_amount > 0) {
+                $lines[] = ReceiptLine::row('Excess', $this->money($trip->remittance_excess_amount));
+            }
+            if ($trip->remittance_short_amount > 0) {
+                $lines[] = ReceiptLine::row('Short', $this->money($trip->remittance_short_amount));
+            }
         }
 
-        return $doc->section(null, [
-            'Total Value' => [$this->money($r['collected']), 'strong' => true, 'total' => true],
-        ])->note($this->brand($trip->company_id)['footer']);
+        $lines[] = ReceiptLine::highlightRow('TOTAL VALUE', $this->peso($r['collected']));
+
+        return ReceiptDocument::make('remittance', 'TRIP REMITTANCE REPORT', $this->brand($trip->company_id), $this->width($trip->company_id))
+            ->reference($trip->reference)
+            ->lines($lines);
     }
 
+    /**
+     * BITS Conductor's passenger ticket (PassengerTicketReceipt), laid out to
+     * the cooperative's sample:
+     *
+     *   ORG NAME / OCT 12, 2026 10:54PM / ---
+     *   Ticket ID · Bus # · Conductor / ---
+     *   ORIGIN TO DESTINATION / TYPE • PICK UP • CASH
+     *   (Article, Ref #, Qty x fare — only when they apply) / ---
+     *   FARE (or TOTAL) / --- / footer
+     */
     public function ticket(Ticket $ticket, int $qty = 1): ReceiptDocument
     {
         $qty = max(1, min(50, $qty));
         $ticket->loadMissing(['route', 'passengerType', 'trip.conductor']);
 
-        $boarding = $ticket->boarding_type === 'Pickup' ? 'Via Pick-up' : 'Via Terminal';
         $fare = (float) $ticket->fare;
+        $number = 'TKT-'.str_pad((string) $ticket->id, 6, '0', STR_PAD_LEFT);
+        $brand = $this->brand($ticket->company_id);
 
-        $doc = ReceiptDocument::make('ticket', 'PASSENGER TICKET', $this->brand($ticket->company_id), $this->width($ticket->company_id))
-            ->reference('TKT-'.str_pad((string) $ticket->id, 6, '0', STR_PAD_LEFT))
-            ->section(null, [
-                'Ticket #' => 'TKT-'.str_pad((string) $ticket->id, 6, '0', STR_PAD_LEFT),
-                'Bus #' => $ticket->trip?->bus_number ?: '—',
-                'Conductor' => $ticket->trip?->conductor?->name ?: '—',
-                'Issued' => $this->dateTime($ticket->issued_at),
-                '---1' => true,
-                'Type' => $ticket->passengerType?->name ?: '—',
-                'Article' => $ticket->article_label ?: null,
-                'From' => $ticket->route?->origin ?: null,
-                'To' => $ticket->route?->destination ?: null,
-                'Boarded' => $ticket->route ? $boarding : null,
-                'Payment' => $ticket->payment_method,
-                'Ref #' => $ticket->payment_method === 'QR' && $ticket->qr_reference ? $ticket->qr_reference : null,
-                'Qty' => $qty > 1 ? '× '.$qty : null,
-                'Unit Fare' => $qty > 1 ? $this->money($fare) : null,
-                ($qty > 1 ? 'TOTAL' : 'FARE') => [$this->money($fare * $qty), 'strong' => true, 'total' => true],
-            ]);
+        $lines = [
+            ReceiptLine::title($brand['name']),
+            ReceiptLine::center($this->stamp($ticket->issued_at)),
+            ReceiptLine::hr(),
+            ReceiptLine::row('Ticket ID', $number),
+            ReceiptLine::row('Bus #', $ticket->trip?->bus_number ?: '-'),
+            ReceiptLine::row('Conductor', mb_strtoupper($ticket->trip?->conductor?->name ?: '-')),
+            ReceiptLine::hr(),
+        ];
 
-        return $doc->note($this->brand($ticket->company_id)['footer']);
+        // ORIGIN TO DESTINATION, then TYPE • BOARDING • PAYMENT.
+        if ($ticket->route && ($ticket->route->origin || $ticket->route->destination)) {
+            $lines[] = ReceiptLine::center(mb_strtoupper(trim($ticket->route->origin.' TO '.$ticket->route->destination)));
+        }
+        $details = array_filter([
+            $ticket->passengerType?->name,
+            $ticket->route ? ($ticket->boarding_type === 'Pickup' ? 'Pick up' : 'Terminal') : null,
+            $ticket->payment_method,
+        ]);
+        if ($details !== []) {
+            $lines[] = ReceiptLine::center(mb_strtoupper(implode(' • ', $details)));
+        }
+
+        if ($ticket->article_label) {
+            $lines[] = ReceiptLine::row('Article', $ticket->article_label);
+        }
+        // Tied to the payment method, not just a reference being present — a
+        // Cash ticket never shows a Ref # line.
+        if ($ticket->payment_method === 'QR' && $ticket->qr_reference) {
+            $lines[] = ReceiptLine::row('Ref #', $ticket->qr_reference);
+        }
+        if ($qty > 1) {
+            $lines[] = ReceiptLine::row('Qty', $qty.' x '.$this->peso($fare));
+        }
+
+        array_push($lines,
+            ReceiptLine::hr(),
+            ReceiptLine::boldRow($qty > 1 ? 'TOTAL' : 'FARE', $this->peso($fare * $qty)),
+            ReceiptLine::hr(),
+        );
+        if (trim($brand['footer']) !== '') {
+            $lines[] = ReceiptLine::footer(trim($brand['footer']));
+        }
+
+        return ReceiptDocument::make('ticket', 'PASSENGER TICKET', $brand, $this->width($ticket->company_id))
+            ->reference($number)
+            ->lines($lines);
     }
 
+    /**
+     * BITS Conductor's Dispatch Receipt (DispatchReceipt). A dispatch is
+     * recorded by LOCATION — it's stored in the legacy barker_name column.
+     */
     public function dispatch(Dispatch $dispatch): ReceiptDocument
     {
         $dispatch->loadMissing('trip.conductor');
 
-        return ReceiptDocument::make('dispatch', 'BARKER DISPATCH RECEIPT', $this->brand($dispatch->company_id), $this->width($dispatch->company_id))
-            ->reference('DSP-'.str_pad((string) $dispatch->id, 6, '0', STR_PAD_LEFT))
-            ->section(null, [
-                'Dispatch #' => 'DSP-'.str_pad((string) $dispatch->id, 6, '0', STR_PAD_LEFT),
-                'Bus #' => $dispatch->trip?->bus_number ?: '—',
-                'Conductor' => $dispatch->trip?->conductor?->name ?: '—',
-                'Dispatched' => $this->dateTime($dispatch->dispatched_at),
-                '---1' => true,
-                'Barker' => $dispatch->barker_name,
-                'AMOUNT PAID' => [$this->money($dispatch->amount), 'strong' => true, 'total' => true],
-            ])
-            ->note($this->brand($dispatch->company_id)['footer']);
+        $number = 'DSP-'.str_pad((string) $dispatch->id, 6, '0', STR_PAD_LEFT);
+        $brand = $this->brand($dispatch->company_id);
+
+        $lines = [ReceiptLine::title('DISPATCH RECEIPT')];
+        array_push($lines, ...$this->orgHeader($dispatch->company_id));
+        array_push($lines,
+            ReceiptLine::center($this->stamp($dispatch->dispatched_at)),
+            ReceiptLine::hr(),
+            ReceiptLine::row('Dispatch #', $number),
+            ReceiptLine::row('Bus #', $dispatch->trip?->bus_number ?: '-'),
+            ReceiptLine::row('Conductor', $dispatch->trip?->conductor?->name ?: '-'),
+            ReceiptLine::hr(),
+            ReceiptLine::row('Location', $dispatch->barker_name ?: '-'),
+            ReceiptLine::hr(),
+            ReceiptLine::boldRow('AMOUNT PAID', $this->peso($dispatch->amount)),
+            ReceiptLine::hr(),
+        );
+        if (trim($brand['footer']) !== '') {
+            $lines[] = ReceiptLine::footer(trim($brand['footer']));
+        }
+
+        return ReceiptDocument::make('dispatch', 'DISPATCH RECEIPT', $brand, $this->width($dispatch->company_id))
+            ->reference($number)
+            ->lines($lines);
     }
 
     /**
@@ -355,16 +473,44 @@ class ReceiptFactory
     /* ----------------------------- helpers ----------------------------- */
 
     /**
-     * @return array{name: string, logo_path: ?string, registration_number: ?string, otc_accreditation_number: ?string, contact: ?string, email: ?string, footer: string}
+     * BITS Conductor's ReceiptOrgHeader — the company block under every
+     * BITS-layout receipt's title: name, address, then "contact / email"
+     * (whichever exist), so the slip stands on its own as a document.
+     *
+     * @return list<array<string, string>>
+     */
+    private function orgHeader(?int $companyId): array
+    {
+        $brand = $this->brand($companyId);
+        $lines = [ReceiptLine::center($brand['name'])];
+
+        if ($brand['address']) {
+            $lines[] = ReceiptLine::center($brand['address']);
+        }
+        $contact = implode(' / ', array_filter([$brand['contact'], $brand['email']]));
+        if ($contact !== '') {
+            $lines[] = ReceiptLine::center($contact);
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @return array{name: string, address: ?string, logo_path: ?string, registration_number: ?string, otc_accreditation_number: ?string, contact: ?string, email: ?string, footer: string}
      */
     private function brand(?int $companyId): array
     {
         /** @var CompanySetting|null $s */
         $s = $companyId ? CompanySetting::query()->where('company_id', $companyId)->first() : null;
-        $companyName = $companyId ? Company::query()->whereKey($companyId)->value('name') : null;
+        /** @var Company|null $company */
+        $company = $companyId ? Company::query()->find($companyId) : null;
+        $address = $company
+            ? implode(', ', array_filter([$company->address_line, $company->address_barangay, $company->address_city, $company->address_province]))
+            : '';
 
         return [
-            'name' => $s?->receipt_org_name ?: ($companyName ?: 'TransitFlow'),
+            'name' => $s?->receipt_org_name ?: ($company?->name ?: 'TransitFlow'),
+            'address' => $address !== '' ? $address : null,
             'logo_path' => $s?->logo_path,
             'registration_number' => $s?->registration_number,
             'otc_accreditation_number' => $s?->otc_accreditation_number,
@@ -445,6 +591,24 @@ class ReceiptFactory
     private function money(float|int|string $n): string
     {
         return number_format((float) $n, 2);
+    }
+
+    /** "₱1,234.50" — BITS's Formats.currency (printers get "P"; see the ESC/POS formatter). */
+    private function peso(float|int|string $n): string
+    {
+        return '₱'.$this->money($n);
+    }
+
+    /** "OCT 12, 2026 10:54PM" — the stamp under a BITS receipt's header. */
+    private function stamp(?Carbon $c): string
+    {
+        return $c ? mb_strtoupper($c->format('M d, Y h:iA')) : '—';
+    }
+
+    /** "5:00pm" — BITS's Formats.clockTime (the report's own date stamp is printed at the top). */
+    private function clock(Carbon $c): string
+    {
+        return strtolower($c->format('g:iA'));
     }
 
     private function signedMoney(float|int $n): string

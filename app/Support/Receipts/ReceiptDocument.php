@@ -18,6 +18,11 @@ use Illuminate\Contracts\Support\Arrayable;
  *   reference   optional monospace reference line under the header
  *   sections    [{ heading, rows: [{ label, value, strong, total, divider, form }] }]
  *   note        centred footer line (ticket footer / thank-you)
+ *   lines       BITS-layout receipts only (passenger ticket, terminal
+ *               receipt, dispatch receipt, trip remittance report): the
+ *               whole slip as {@see ReceiptLine}s, top to bottom. When
+ *               present, renderers print ONLY these — title/org/reference/
+ *               sections/note are then metadata. Empty for every other kind.
  *
  * @phpstan-type ReceiptRow array{label: string, value: string, strong?: bool, total?: bool, divider?: bool, form?: bool}
  * @phpstan-type ReceiptSection array{heading: ?string, rows: list<ReceiptRow>}
@@ -32,6 +37,9 @@ class ReceiptDocument implements Arrayable
     private ?string $note = null;
 
     private ?string $subtitle = null;
+
+    /** @var list<array<string, string>> */
+    private array $lines = [];
 
     /**
      * @param  array<string, mixed>  $org
@@ -69,6 +77,19 @@ class ReceiptDocument implements Arrayable
     public function note(?string $note): self
     {
         $this->note = $note;
+
+        return $this;
+    }
+
+    /**
+     * The whole slip as BITS-layout lines (see the class doc and
+     * {@see ReceiptLine}).
+     *
+     * @param  list<array<string, string>>  $lines
+     */
+    public function lines(array $lines): self
+    {
+        $this->lines = array_values($lines);
 
         return $this;
     }
@@ -135,6 +156,7 @@ class ReceiptDocument implements Arrayable
             'reference' => $this->reference,
             'sections' => $this->sections,
             'note' => $this->note,
+            'lines' => $this->lines,
             'printed_at' => now()->toIso8601String(),
         ];
     }

@@ -95,6 +95,11 @@ export default function ReceiptView() {
                 <button type="button" className="btn btn-sm btn-light" onClick={() => window.close()}>Close</button>
             </div>
 
+            {doc.lines?.length > 0 ? (
+                <div className="tf-receipt tf-receipt--bits" style={{ '--tf-receipt-w': `${doc.width_mm || 58}mm` }}>
+                    <BitsLines lines={doc.lines} />
+                </div>
+            ) : (
             <div className="tf-receipt" style={{ '--tf-receipt-w': `${doc.width_mm || 58}mm` }}>
                 <div className="tf-receipt__rule--heavy" />
 
@@ -150,6 +155,47 @@ export default function ReceiptView() {
                 )}
                 <div className="tf-receipt__note tf-receipt__muted">Printed {printedAt}</div>
             </div>
+            )}
         </div>
     );
+}
+
+/**
+ * A BITS-layout receipt (passenger ticket, terminal receipt, dispatch
+ * receipt, trip remittance report — see App\Support\Receipts\ReceiptLine):
+ * drawn line for line the way BITS Conductor and the TransitFlow mobile app
+ * print it, so the web slip matches the paper one.
+ */
+function BitsLines({ lines }) {
+    return lines.map((line, i) => {
+        switch (line.type) {
+            case 'title':
+                return <div className="tf-receipt__title" key={i}>{line.text}</div>;
+            case 'center':
+            case 'footer':
+                return <div className="tf-receipt__center" key={i}>{line.text}</div>;
+            case 'plain':
+                return <div className="tf-receipt__plain" key={i}>{line.text}</div>;
+            case 'section':
+                return <div className="tf-receipt__flank" key={i}><span>{line.text}</span></div>;
+            case 'hr':
+                return <div className="tf-receipt__divider" key={i} />;
+            case 'highlight_row':
+                return (
+                    <div className="tf-receipt__highlight" key={i}>
+                        <span className="tf-receipt__label">{line.label}</span>
+                        <span className="tf-receipt__value">{line.value}</span>
+                    </div>
+                );
+            default: {
+                const cls = `tf-receipt__row${line.type === 'bold_row' ? ' tf-receipt__row--strong' : ''}`;
+                return (
+                    <div className={cls} key={i}>
+                        <span className="tf-receipt__label">{line.label}</span>
+                        <span className="tf-receipt__value">{line.value}</span>
+                    </div>
+                );
+            }
+        }
+    });
 }

@@ -34,6 +34,11 @@ class IssueTicket
             throw ValidationException::withMessages(['trip' => 'This trip is not accepting tickets.']);
         }
 
+        // A Special trip (charter / hire) has no route and no passenger tickets.
+        if ($trip->trip_type === 'Special') {
+            throw ValidationException::withMessages(['trip' => 'A special trip does not issue passenger tickets.']);
+        }
+
         $clientUuid = trim((string) ($input['client_uuid'] ?? '')) ?: null;
         if ($clientUuid !== null) {
             $existing = $trip->tickets()->where('client_uuid', $clientUuid)->orderBy('id')->get();
