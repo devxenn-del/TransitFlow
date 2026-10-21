@@ -8,13 +8,20 @@ import { useCompanyScope } from '../../lib/companyScope.jsx';
 import { notifyError, notifySuccess } from '../../lib/ui.js';
 import { SkeletonPage } from '../../components/Skeleton.jsx';
 
+// Shows through a transparent logo, so it's clear the transparency was kept.
+const CHECKERBOARD = {
+    backgroundColor: '#fff',
+    backgroundImage: 'conic-gradient(#e5e7eb 25%, transparent 0 50%, #e5e7eb 0 75%, transparent 0)',
+    backgroundSize: '16px 16px',
+};
+
 function LogoField({ url, editable, busy, onUpload, onClear }) {
     const input = useRef(null);
     return (
         <div className="d-flex gap-3 align-items-center">
             <div
-                className="border rounded-circle d-flex align-items-center justify-content-center bg-body-tertiary flex-shrink-0"
-                style={{ width: 96, height: 96, overflow: 'hidden' }}
+                className={`border rounded-circle d-flex align-items-center justify-content-center flex-shrink-0${url ? '' : ' bg-body-tertiary'}`}
+                style={{ width: 96, height: 96, overflow: 'hidden', ...(url ? CHECKERBOARD : {}) }}
             >
                 {url
                     ? <img src={url} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />

@@ -181,6 +181,11 @@ a:hover {
 }
 
 /* An uploaded company logo shows whole inside the circle, not the oversized TF mark. */
+.tf-brand-mark.tf-brand-mark--company,
+.tf-signage-mark.tf-signage-mark--company {
+    background: transparent;
+}
+
 .tf-brand-mark.tf-brand-mark--company img,
 .tf-signage-mark.tf-signage-mark--company img {
     width: 100%;
