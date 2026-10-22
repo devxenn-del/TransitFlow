@@ -201,6 +201,35 @@ class Trip extends Model
     }
 
     /**
+     * The route stop this trip's terminal sits at — where the bus waits and
+     * where every Via Terminal ticket boards: the terminal's Default Origin
+     * set on the web (Terminals › default_route_origin, else the terminal's
+     * own name), spelled as the route's stop (matched whitespace/case-
+     * insensitively — the two are entered separately). Falls back to the
+     * coverage origin when the terminal isn't on the route.
+     */
+    public function terminalStopName(): string
+    {
+        $fallback = (string) ($this->coverage_origin !== null && $this->coverage_origin !== '' ? $this->coverage_origin : $this->origin);
+
+        $terminal = Terminal::query()->where('name', $this->origin)->first(['name', 'default_route_origin']);
+        $franchiseId = $this->resolvedFranchiseId();
+        if ($terminal === null || $franchiseId === null) {
+            return $fallback;
+        }
+
+        $normalize = fn (?string $s) => strtoupper((string) preg_replace('/\s+/', '', $s ?? ''));
+        $wanted = $normalize($terminal->default_route_origin ?: $terminal->name);
+        foreach (RouteStop::query()->where('franchise_id', $franchiseId)->orderBy('sort_order')->pluck('name') as $stop) {
+            if ($normalize($stop) === $wanted) {
+                return $stop;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
      * @return HasMany<Ticket, $this>
      */
     public function tickets(): HasMany

@@ -139,9 +139,11 @@ class IssueTicket
             ->priced()
             ->with('fareMatrix');
 
-        // A Via-Terminal sale can only start from where the trip originates.
+        // A Via-Terminal sale boards at the trip's terminal — its Default
+        // Origin on the web (Trip::terminalStopName()), the same stop the
+        // app's fare list is built from.
         if ($boardingType === 'Terminal') {
-            $query->where('origin', $trip->coverage_origin !== '' ? $trip->coverage_origin : $trip->origin);
+            $query->where('origin', $trip->terminalStopName());
         }
 
         $route = $query->first();

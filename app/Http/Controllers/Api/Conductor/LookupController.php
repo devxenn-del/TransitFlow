@@ -243,7 +243,9 @@ class LookupController extends Controller
     {
         $this->authorize('view', $trip);
 
-        $origin = $trip->coverage_origin !== '' ? $trip->coverage_origin : $trip->origin;
+        // Via Terminal fares start where the bus waits: the terminal's
+        // Default Origin (Trip::terminalStopName()), not just stop 1.
+        $origin = $trip->terminalStopName();
         $franchiseId = $trip->resolvedFranchiseId();
         $onRoute = fn ($q) => $q->when($franchiseId !== null, fn ($q) => $q->where('franchise_id', $franchiseId));
 
