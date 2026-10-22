@@ -336,7 +336,13 @@ class LookupController extends Controller
         $terminalStop = $terminal !== null ? ($terminal->default_route_origin ?: $terminal->name) : null;
         $terminalIndex = $indexOf($terminalStop);
 
-        $direction = $originIndex !== false && $destinationIndex !== false && $destinationIndex < $originIndex
+        // Which way the bus runs along the route: from where it actually
+        // starts — the terminal's Default Origin (e.g. stop 6) — toward the
+        // destination, so a trip heading to stops 5, 4, … 1 runs backward and
+        // those stops are ahead of it (sellable), not behind. The coverage
+        // origin is only the fallback when the terminal isn't on the route.
+        $startIndex = $terminalIndex !== false ? $terminalIndex : $originIndex;
+        $direction = $startIndex !== false && $destinationIndex !== false && $destinationIndex < $startIndex
             ? 'backward'
             : 'forward';
 

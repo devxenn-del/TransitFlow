@@ -49,9 +49,29 @@ class TripCancellation
             ? RouteStop::query()->where('franchise_id', $franchiseId)->orderBy('sort_order')->pluck('name')->all()
             : [];
 
-        $origin = array_search($this->trip->coverage_origin, $stops, true);
-        $destination = array_search($this->trip->coverage_destination, $stops, true);
-        if ($origin !== false && $destination !== false && $destination < $origin) {
+        // Same direction rule as the conductor app's stop list
+        // (LookupController::stops()): from where the bus actually starts —
+        // the terminal's Default Origin, else the coverage origin — toward
+        // the destination; names matched whitespace/case-insensitively.
+        $normalize = fn (?string $s) => strtoupper((string) preg_replace('/\s+/', '', $s ?? ''));
+        $indexOf = function (?string $name) use ($stops, $normalize) {
+            if ($name === null || $name === '') {
+                return false;
+            }
+            foreach ($stops as $i => $stop) {
+                if ($normalize($stop) === $normalize($name)) {
+                    return $i;
+                }
+            }
+
+            return false;
+        };
+        $start = $indexOf($this->terminalStop($stops));
+        if ($start === false) {
+            $start = $indexOf($this->trip->coverage_origin);
+        }
+        $destination = $indexOf($this->trip->coverage_destination);
+        if ($start !== false && $destination !== false && $destination < $start) {
             $stops = array_reverse($stops);
         }
 
