@@ -436,6 +436,7 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
 
         Route::get('trips/active', [TripController::class, 'active'])->middleware('permission:trips.view');
         Route::get('trips/history', [TripController::class, 'history'])->middleware('permission:trips.view');
+        Route::get('trips/cancel-preview', [TripController::class, 'cancelPreview'])->middleware('permission:trips.cancel');
         Route::get('trips/{trip}/remittance', [TripController::class, 'remittance'])->middleware('permission:trips.view');
         Route::get('trips/{trip}/receipt/{kind}', [ReceiptController::class, 'trip'])->middleware('permission:trips.view');
         Route::get('trips/{trip}', [TripController::class, 'show'])->middleware('permission:trips.view');

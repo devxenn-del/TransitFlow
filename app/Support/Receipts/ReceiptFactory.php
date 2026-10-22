@@ -66,7 +66,8 @@ class ReceiptFactory
         array_push($lines, ...$this->orgHeader($trip->company_id));
         array_push($lines,
             ReceiptLine::section('TRIP INFO'),
-            ReceiptLine::row('Trip #', (string) $trip->reference),
+            // The reference runs up to 30 characters — no room for a label on a 32-column slip.
+            ReceiptLine::plain((string) $trip->reference),
             ReceiptLine::row('Origin', $trip->coverage_origin ?: '—'),
             ReceiptLine::row('Destination', $trip->coverage_destination ?: '—'),
             ReceiptLine::row('Date', now()->format('m-d-Y')),
@@ -98,25 +99,7 @@ class ReceiptFactory
         $r = TripRemittance::for($trip)->toArray();
 
         if ($trip->status === 'Cancelled') {
-            return ReceiptDocument::make('arrival', 'TRIP CANCELLED', $this->brand($trip->company_id), $this->width($trip->company_id))
-                ->reference($trip->reference)
-                ->section('TRIP INFO', [
-                    'Trip #' => $trip->reference,
-                    'Origin' => $trip->coverage_origin,
-                    'Destination' => $trip->coverage_destination,
-                    'Cancelled Date' => $trip->cancelled_at ? $this->date($trip->cancelled_at) : '—',
-                    'Cancelled Time' => $trip->cancelled_at ? $this->time($trip->cancelled_at) : '—',
-                    'Driver' => $trip->driver?->name ?: '—',
-                    'Conductor' => $trip->conductor?->name ?: '—',
-                    'Bus Number' => $trip->bus_number ?: '—',
-                    'Reason' => $trip->cancellation_reason ?: '—',
-                ])
-                ->section('PASSENGERS AFFECTED', [
-                    'Ticket(s) issued' => (string) ($r['ticket_count'] + $r['refunded_count']),
-                    'Passenger(s) affected' => (string) $r['refunded_count'],
-                    'Refunded Amount' => $this->money($r['refunded']),
-                    'Amount To Remit' => [$this->money($r['remitted_amount'] ?? 0), 'strong' => true, 'total' => true],
-                ]);
+            return $this->cancellation($trip, $r);
         }
 
         $counts = $this->countsByBoarding($trip);
@@ -147,7 +130,7 @@ class ReceiptFactory
                 'Remitted Amount' => $r['remitted_amount'] !== null ? $this->money($r['remitted_amount']) : 'Pending',
                 'Total Balance' => $r['balance'] !== null ? $this->money($r['balance']) : '—',
                 '---4' => true,
-                'Total Ticket' => (string) ($r['ticket_count'] + $r['refunded_count']),
+                'Total Ticket' => (string) $r['issued_count'],
                 'Total Articles' => (string) $r['article_count'],
                 '---5' => true,
                 'TOTAL VALUE' => [$this->money($r['collected']), 'strong' => true, 'total' => true],
@@ -156,6 +139,67 @@ class ReceiptFactory
                 'Date & Time' => [$this->dateTime(now()), 'form' => true],
                 'Printed by' => [$trip->conductor?->name ?: '—', 'form' => true],
             ]);
+    }
+
+    /**
+     * BITS Conductor's cancellation record (CancelTripActivity
+     * ::buildCancellationReceipt), line for line — one REFUNDS line per
+     * refunded passenger: fare paid − fare for the part ridden = refund.
+     *
+     * @param  array<string, mixed>  $r  TripRemittance::toArray()
+     */
+    private function cancellation(Trip $trip, array $r): ReceiptDocument
+    {
+        $refunds = $trip->tickets()
+            ->where(fn ($q) => $q->whereNotNull('refunded_at')->orWhereNotNull('refund_amount'))
+            ->orderBy('id')
+            ->get();
+
+        $lines = [ReceiptLine::title('TRIP CANCELLED')];
+        array_push($lines, ...$this->orgHeader($trip->company_id));
+        array_push($lines,
+            ReceiptLine::section('TRIP INFO'),
+            ReceiptLine::plain((string) $trip->reference),
+            ReceiptLine::row('Route', trim(($trip->coverage_origin ?: '?').' → '.($trip->coverage_destination ?: '?'))),
+            ReceiptLine::row('Bus Number', $trip->bus_number ?: '—'),
+        );
+        if ($trip->cancel_stop) {
+            $lines[] = ReceiptLine::row('Stopped At', $trip->cancel_stop);
+        }
+        array_push($lines,
+            ReceiptLine::row('Cancelled At', $trip->cancelled_at ? $this->dateTime($trip->cancelled_at) : '—'),
+            ReceiptLine::row('Driver', $trip->driver?->name ?: '—'),
+            ReceiptLine::row('Conductor', $trip->conductor?->name ?: '—'),
+            ReceiptLine::plain('Reason: '.($trip->cancellation_reason ?: '—')),
+        );
+
+        if ($refunds->isNotEmpty()) {
+            $lines[] = ReceiptLine::section('REFUNDS');
+            foreach ($refunds as $ticket) {
+                $refund = $ticket->refunded_at !== null
+                    ? (float) ($ticket->refund_amount ?? $ticket->fare)
+                    : (float) $ticket->refund_amount;
+                // A partial refund lowered `fare` to the part ridden; a full one left it whole.
+                $paid = $ticket->refunded_at !== null ? (float) $ticket->fare : (float) $ticket->fare + $refund;
+                $lines[] = ReceiptLine::row(
+                    'TKT-'.str_pad((string) $ticket->id, 6, '0', STR_PAD_LEFT),
+                    $this->peso($paid).' - '.$this->peso($paid - $refund).' = '.$this->peso($refund),
+                );
+            }
+        }
+
+        array_push($lines,
+            ReceiptLine::section('PASSENGERS AFFECTED'),
+            ReceiptLine::row('Ticket(s) issued', (string) $r['issued_count']),
+            ReceiptLine::row('Passenger(s) refunded', (string) $r['refunded_count']),
+            ReceiptLine::row('Refunded Amount', $this->peso($r['refunded'])),
+            ReceiptLine::boldRow('Amount To Remit', $this->peso($r['remitted_amount'] ?? 0)),
+            ReceiptLine::plain('Bring this amount to the office for remittance, same as a normal trip.'),
+        );
+
+        return ReceiptDocument::make('arrival', 'TRIP CANCELLED', $this->brand($trip->company_id), $this->width($trip->company_id))
+            ->reference($trip->reference)
+            ->lines($lines);
     }
 
     /**
@@ -177,6 +221,7 @@ class ReceiptFactory
             ReceiptLine::center($this->stamp(now())),
 
             ReceiptLine::section('BUS INFO'),
+            ReceiptLine::plain((string) $trip->reference),
             ReceiptLine::row('Bus #', $trip->bus_number ?: '—'),
         );
         if ($trip->trip_type === 'Special') {
@@ -223,7 +268,7 @@ class ReceiptFactory
             $lines[] = ReceiptLine::row('Total E-Wallet', $this->money($r['by_payment_method']['E-Wallet']));
         }
         array_push($lines,
-            ReceiptLine::row('Total Tickets', (string) ($r['ticket_count'] + $r['refunded_count'])),
+            ReceiptLine::row('Total Tickets', (string) $r['issued_count']),
             ReceiptLine::row('Remitted Amount', $r['remitted_amount'] !== null ? $this->money($r['remitted_amount']) : 'Pending'),
         );
 
@@ -281,6 +326,7 @@ class ReceiptFactory
             ReceiptLine::center($this->stamp($ticket->issued_at)),
             ReceiptLine::hr(),
             ReceiptLine::row('Ticket ID', $number),
+            ReceiptLine::plain($ticket->trip?->reference ?: '-'),
             ReceiptLine::row('Bus #', $ticket->trip?->bus_number ?: '-'),
             ReceiptLine::row('Conductor', mb_strtoupper($ticket->trip?->conductor?->name ?: '-')),
             ReceiptLine::hr(),

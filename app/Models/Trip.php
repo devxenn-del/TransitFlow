@@ -45,6 +45,7 @@ class Trip extends Model
         'ended_at',
         'cancelled_at',
         'cancellation_reason',
+        'cancel_stop',
         'force_ended_by',
         'force_ended_at',
         'force_ended_reason',

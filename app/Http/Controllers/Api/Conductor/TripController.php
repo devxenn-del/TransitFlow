@@ -11,6 +11,7 @@ use App\Http\Resources\CharterBookingResource;
 use App\Http\Resources\TripResource;
 use App\Models\CharterBooking;
 use App\Models\Trip;
+use App\Support\TripCancellation;
 use App\Support\TripRemittance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -95,19 +96,31 @@ class TripController extends Controller
         return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']));
     }
 
+    /**
+     * GET /api/conductor/trips/cancel-preview?stop= — every live ticket's
+     * refund if the trip were cancelled at that stop (App\Support\TripCancellation).
+     */
+    public function cancelPreview(Request $request): JsonResponse
+    {
+        $trip = $this->liveTripFor($request);
+        abort_if($trip === null, 409, 'You have no trip in progress.');
+
+        return response()->json(['data' => TripCancellation::for($trip)->preview($request->query('stop'))]);
+    }
+
     public function cancel(CancelTripRequest $request): TripResource
     {
         $trip = $this->liveTripFor($request);
         abort_if($trip === null, 409, 'You have no trip in progress.');
 
-        $trip->update([
-            'status' => 'Cancelled',
-            'cancelled_at' => now(),
-            'ended_at' => now(),
-            'cancellation_reason' => $request->string('reason')->value(),
-        ]);
+        $summary = TripCancellation::for($trip)->cancel(
+            $request->string('reason')->value(),
+            $request->input('cancel_stop'),
+            (array) $request->input('refund_ticket_ids', []),
+        );
 
-        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']));
+        return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']))
+            ->additional(['meta' => $summary]);
     }
 
     public function history(Request $request): AnonymousResourceCollection

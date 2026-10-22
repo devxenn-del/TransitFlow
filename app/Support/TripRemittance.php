@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Ticket;
 use App\Models\Trip;
 use Illuminate\Support\Facades\DB;
 
@@ -36,7 +37,9 @@ class TripRemittance
         $live = $trip->tickets()->whereNull('refunded_at');
 
         $collected = (float) (clone $live)->sum('fare');
-        $refunded = (float) $trip->tickets()->whereNotNull('refunded_at')->sum('fare');
+        $refunded = (float) $trip->tickets()->selectRaw(Ticket::REFUNDED_SUM_SQL.' as total')->value('total');
+        // Fully refunded tickets, plus partial refunds (still live, fare lowered) — see TripCancellation.
+        $refundedTickets = $trip->tickets()->where(fn ($q) => $q->whereNotNull('refunded_at')->orWhereNotNull('refund_amount'));
 
         $byPayment = (clone $live)
             ->select('payment_method', DB::raw('SUM(fare) as total'))
@@ -70,7 +73,8 @@ class TripRemittance
             'counted_total' => null,
             'count_variance' => null,
             'ticket_count' => (clone $live)->count(),
-            'refunded_count' => $trip->tickets()->whereNotNull('refunded_at')->count(),
+            'refunded_count' => $refundedTickets->count(),
+            'issued_count' => $trip->tickets()->count(),
             'article_count' => (clone $live)->whereNotNull('article_label')->count(),
 
             'collected' => round($collected, 2),

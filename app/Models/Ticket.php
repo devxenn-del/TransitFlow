@@ -30,8 +30,16 @@ class Ticket extends Model
         'fare',
         'issued_at',
         'refunded_at',
+        'refund_amount',
         'client_uuid',
     ];
+
+    /**
+     * SUM() of every refund on a set of tickets: a partial refund's
+     * refund_amount, or a full refund's whole fare (older full refunds
+     * never recorded refund_amount).
+     */
+    public const REFUNDED_SUM_SQL = 'COALESCE(SUM(CASE WHEN refunded_at IS NOT NULL THEN COALESCE(refund_amount, fare) ELSE COALESCE(refund_amount, 0) END), 0)';
 
     /**
      * @return array<string, string>
@@ -42,6 +50,7 @@ class Ticket extends Model
             'fare' => 'decimal:2',
             'issued_at' => 'datetime',
             'refunded_at' => 'datetime',
+            'refund_amount' => 'decimal:2',
         ];
     }
 

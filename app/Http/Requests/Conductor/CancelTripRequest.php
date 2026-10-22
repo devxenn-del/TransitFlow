@@ -18,6 +18,9 @@ class CancelTripRequest extends FormRequest
     {
         return [
             'reason' => ['required', 'string', 'max:500'],
+            'cancel_stop' => ['nullable', 'string', 'max:255'],
+            'refund_ticket_ids' => ['nullable', 'array'],
+            'refund_ticket_ids.*' => ['integer'],
         ];
     }
 }
