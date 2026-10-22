@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Route;
 use App\Models\RouteStop;
+use App\Models\Terminal;
 use App\Models\Ticket;
 use App\Models\Trip;
 use Illuminate\Support\Facades\DB;
@@ -75,7 +76,7 @@ class TripCancellation
         $stops = $this->stops();
         $cancelStop = $stop !== null && in_array($stop, $stops, true)
             ? $stop
-            : ($stops[0] ?? null);
+            : ($this->terminalStop($stops) ?? $stops[0] ?? null);
         $position = array_flip($stops);
         $stopAt = $cancelStop !== null ? $position[$cancelStop] : null;
 
@@ -190,6 +191,30 @@ class TripCancellation
                 'unmatched_ticket_count' => $unmatched,
             ];
         });
+    }
+
+    /**
+     * The route stop the trip's terminal sits at — its Default Origin on the
+     * web (Terminals › default_route_origin, else the terminal's name),
+     * matched whitespace/case-insensitively — or null when it isn't on the route.
+     *
+     * @param  list<string>  $stops
+     */
+    private function terminalStop(array $stops): ?string
+    {
+        $terminal = Terminal::query()->where('name', $this->trip->origin)->first(['name', 'default_route_origin']);
+        if ($terminal === null) {
+            return null;
+        }
+        $normalize = fn (?string $s) => strtoupper((string) preg_replace('/\s+/', '', $s ?? ''));
+        $wanted = $normalize($terminal->default_route_origin ?: $terminal->name);
+        foreach ($stops as $stop) {
+            if ($normalize($stop) === $wanted) {
+                return $stop;
+            }
+        }
+
+        return null;
     }
 
     /** The fare-matrix fare for this ticket's passenger type from $origin to $destination on its route — null when unpriced. */

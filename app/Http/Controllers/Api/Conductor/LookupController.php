@@ -307,8 +307,32 @@ class LookupController extends Controller
                 ->orderBy('sort_order')->pluck('name')->all()
             : [];
 
-        $originIndex = array_search($trip->coverage_origin, $stopNames, true);
-        $destinationIndex = array_search($trip->coverage_destination, $stopNames, true);
+        // Whitespace/case-insensitive, like every other stop lookup here —
+        // terminal names and route_stop names are entered independently.
+        $indexOf = function (?string $name) use ($stopNames) {
+            if ($name === null || $name === '') {
+                return false;
+            }
+            $wanted = $this->normalizeStopName($name);
+            foreach ($stopNames as $i => $stop) {
+                if ($this->normalizeStopName($stop) === $wanted) {
+                    return $i;
+                }
+            }
+
+            return false;
+        };
+
+        $originIndex = $indexOf($trip->coverage_origin);
+        $destinationIndex = $indexOf($trip->coverage_destination);
+
+        // Where the bus actually waits: the trip's terminal (Trip.origin) at
+        // its Default Origin set on the web (Terminals › default_route_origin,
+        // falling back to the terminal's own name) — the conductor app's
+        // current stop while the trip is still at the terminal (Departure).
+        $terminal = Terminal::query()->where('name', $trip->origin)->first(['name', 'default_route_origin']);
+        $terminalStop = $terminal !== null ? ($terminal->default_route_origin ?: $terminal->name) : null;
+        $terminalIndex = $indexOf($terminalStop);
 
         $direction = $originIndex !== false && $destinationIndex !== false && $destinationIndex < $originIndex
             ? 'backward'
@@ -317,6 +341,7 @@ class LookupController extends Controller
         return [
             'origin_index' => $originIndex !== false ? $originIndex : null,
             'destination_index' => $destinationIndex !== false ? $destinationIndex : null,
+            'terminal_index' => $terminalIndex !== false ? $terminalIndex : null,
             'direction' => $direction,
             'stops' => collect($stopNames)->values()
                 ->map(fn (string $name, int $i) => ['name' => $name, 'index' => $i])->all(),
