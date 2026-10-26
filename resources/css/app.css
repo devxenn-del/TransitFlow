@@ -3795,3 +3795,518 @@ button.tf-stat--filter:focus-visible {
     letter-spacing: 0.08em;
     color: var(--tf-navy);
 }
+
+
+/* ==========================================================================
+   Dashboard (index page)
+   ========================================================================== */
+
+.tf-hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    padding: 1.6rem 1.75rem;
+    border-radius: var(--tf-radius);
+    background:
+        radial-gradient(circle at 92% -20%, rgba(245, 166, 35, 0.28), transparent 45%),
+        linear-gradient(135deg, var(--tf-navy) 0%, var(--tf-nav-bg) 100%);
+    color: var(--tf-nav-text);
+    box-shadow: var(--tf-shadow);
+}
+
+/* Route-line motif along the bottom edge */
+.tf-hero::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: repeating-linear-gradient(90deg, var(--tf-accent) 0 28px, transparent 28px 40px);
+    opacity: 0.85;
+}
+
+.tf-hero-eyebrow {
+    font-family: var(--tf-font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tf-accent);
+}
+
+.tf-hero-title {
+    color: #fff;
+    font-size: clamp(1.7rem, 1.3rem + 1.2vw, 2.3rem);
+    margin: 0.15rem 0 0.35rem;
+    line-height: 1.1;
+}
+
+.tf-hero-sub {
+    color: var(--tf-nav-muted);
+    font-size: 0.9rem;
+}
+
+.tf-hero-actions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tf-hero-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--tf-nav-text);
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.tf-hero-link .bi {
+    color: var(--tf-accent);
+}
+
+.tf-hero-link:hover,
+.tf-hero-link:focus-visible {
+    background: var(--tf-accent);
+    border-color: var(--tf-accent);
+    color: #23180a;
+}
+
+.tf-hero-link:hover .bi,
+.tf-hero-link:focus-visible .bi {
+    color: #23180a;
+}
+
+.tf-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.75rem;
+    font-family: var(--tf-font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tf-muted);
+}
+
+.tf-section-title::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed var(--tf-line);
+}
+
+/* KPI cards */
+
+.tf-kpi {
+    --kpi-tone: var(--tf-navy);
+    --kpi-tint: rgba(20, 33, 59, 0.07);
+    height: 100%;
+    padding: 1.15rem 1.3rem;
+    background: var(--tf-surface);
+    border: 1px solid var(--tf-line);
+    border-top: 3px solid var(--kpi-tone);
+    border-radius: var(--tf-radius);
+    box-shadow: var(--tf-shadow);
+    transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.tf-kpi--blue { --kpi-tone: var(--tf-route-blue); --kpi-tint: rgba(59, 91, 169, 0.1); }
+.tf-kpi--accent { --kpi-tone: var(--tf-accent); --kpi-tint: var(--tf-accent-dim); }
+
+.tf-kpi-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.tf-kpi-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--tf-muted);
+}
+
+.tf-kpi-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--tf-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--kpi-tint);
+    color: var(--kpi-tone);
+    font-size: 1.15rem;
+}
+
+.tf-kpi--accent .tf-kpi-icon {
+    color: var(--tf-accent-dark);
+}
+
+.tf-kpi-value {
+    font-family: var(--tf-font-display);
+    font-size: 2.1rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--tf-navy);
+}
+
+.tf-kpi-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+    min-height: 1.4rem;
+}
+
+.tf-kpi-hint {
+    font-size: 0.78rem;
+    color: var(--tf-muted);
+}
+
+.tf-kpi-link:hover .tf-kpi {
+    transform: translateY(-2px);
+    border-color: var(--tf-route-blue);
+}
+
+.tf-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.tf-delta.is-up { color: #1f7a52; background: rgba(47, 158, 110, 0.12); }
+.tf-delta.is-down { color: #b8372d; background: rgba(226, 87, 76, 0.12); }
+
+/* Fleet cards */
+
+.tf-fleet {
+    display: block;
+    height: 100%;
+    padding: 1rem 1.15rem;
+    background: var(--tf-surface);
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius);
+    box-shadow: var(--tf-shadow);
+    transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+a.tf-fleet:hover {
+    transform: translateY(-2px);
+    border-color: var(--tf-route-blue);
+}
+
+.tf-fleet-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--tf-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tf-navy);
+    color: var(--tf-accent);
+    font-size: 0.95rem;
+}
+
+.tf-fleet-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--tf-muted);
+}
+
+.tf-fleet-go {
+    color: var(--tf-muted);
+    transition: transform 0.14s ease, color 0.14s ease;
+}
+
+a.tf-fleet:hover .tf-fleet-go {
+    color: var(--tf-route-blue);
+    transform: translateX(3px);
+}
+
+.tf-fleet-value {
+    font-family: var(--tf-font-display);
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--tf-navy);
+}
+
+.tf-meter {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--tf-paper);
+    overflow: hidden;
+}
+
+.tf-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--tf-green), #45b886);
+    transition: width 0.5s ease;
+}
+
+/* Card headings */
+
+.tf-card-title {
+    font-family: var(--tf-font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tf-muted);
+}
+
+.tf-card-figure {
+    font-family: var(--tf-font-display);
+    font-size: 1.65rem;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--tf-navy);
+}
+
+/* Weekly chart */
+
+.tf-chart {
+    position: relative;
+    height: 190px;
+    padding-left: 3rem;
+}
+
+.tf-chart-grid {
+    position: absolute;
+    inset: 0 0 1.6rem 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+.tf-chart-grid span {
+    position: relative;
+    border-top: 1px dashed var(--tf-line);
+}
+
+.tf-chart-grid span::before {
+    content: attr(data-label);
+    position: absolute;
+    right: calc(100% + 0.5rem);
+    top: -0.55rem;
+    font-family: var(--tf-font-mono);
+    font-size: 0.68rem;
+    color: var(--tf-muted);
+    white-space: nowrap;
+}
+
+.tf-chart-bars {
+    position: relative;
+    height: 100%;
+    display: flex;
+    gap: 0.6rem;
+}
+
+.tf-chart-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tf-chart-bar-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.tf-chart-bar {
+    width: min(100%, 42px);
+    border-radius: 6px 6px 2px 2px;
+    background: linear-gradient(180deg, #5873b8, var(--tf-route-blue));
+    opacity: 0.55;
+    transition: opacity 0.14s ease;
+}
+
+.tf-chart-col.is-today .tf-chart-bar {
+    background: linear-gradient(180deg, #ffc061, var(--tf-accent));
+    opacity: 1;
+}
+
+.tf-chart-col:hover .tf-chart-bar {
+    opacity: 1;
+}
+
+.tf-chart-tip {
+    position: absolute;
+    bottom: calc(100% - 0.25rem);
+    left: 50%;
+    z-index: 2;
+    transform: translate(-50%, 4px);
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    background: var(--tf-navy);
+    color: #fff;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.tf-chart-col:hover .tf-chart-tip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.tf-chart-label {
+    height: 1.6rem;
+    padding-top: 0.4rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--tf-muted);
+}
+
+.tf-chart-col.is-today .tf-chart-label {
+    color: var(--tf-navy);
+    font-weight: 600;
+}
+
+/* Payment-method split */
+
+.tf-split {
+    display: flex;
+    gap: 2px;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--tf-paper);
+}
+
+.tf-split-seg {
+    display: block;
+    height: 100%;
+}
+
+.tf-split-seg.is-0, .tf-method-dot.is-0 { background: var(--tf-accent); }
+.tf-split-seg.is-1, .tf-method-dot.is-1 { background: var(--tf-route-blue); }
+.tf-split-seg.is-2, .tf-method-dot.is-2 { background: var(--tf-green); }
+.tf-split-seg.is-3, .tf-method-dot.is-3 { background: var(--tf-coral); }
+
+.tf-method-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.tf-method-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--tf-line);
+}
+
+.tf-method-list li:last-child {
+    border-bottom: 0;
+}
+
+.tf-method-dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+/* Empty state */
+
+.tf-dash-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 1.5rem 1rem;
+    color: var(--tf-muted);
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+.tf-dash-empty .bi {
+    font-size: 1.8rem;
+    opacity: 0.45;
+}
+
+/* Recent trips */
+
+.tf-recent-trips td {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+}
+
+.tf-bus-chip {
+    flex: none;
+    min-width: 2.6rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    background: var(--tf-navy);
+    color: var(--tf-accent);
+    font-family: var(--tf-font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.1;
+    text-align: center;
+}
+
+.tf-trip-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--tf-muted);
+    background: var(--tf-paper);
+    white-space: nowrap;
+}
+
+.tf-trip-status.is-departure { color: #9a6408; background: rgba(245, 166, 35, 0.16); }
+.tf-trip-status.is-ontrip { color: #2e4680; background: rgba(59, 91, 169, 0.12); }
+.tf-trip-status.is-arrived { color: #1f7a52; background: rgba(47, 158, 110, 0.12); }
+.tf-trip-status.is-cancelled { color: #b8372d; background: rgba(226, 87, 76, 0.12); }
+
+@media (max-width: 575.98px) {
+    .tf-hero {
+        padding: 1.25rem;
+    }
+
+    .tf-hero-actions {
+        width: 100%;
+    }
+
+    .tf-chart-bars {
+        gap: 0.3rem;
+    }
+}
