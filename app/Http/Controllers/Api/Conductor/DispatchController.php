@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Conductor\IssueDispatchRequest;
 use App\Http\Resources\DispatchResource;
 use App\Models\Trip;
+use App\Support\OfflineSync;
 use App\Support\TripRemittance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,22 +21,30 @@ class DispatchController extends Controller
 {
     public function store(IssueDispatchRequest $request): JsonResponse
     {
-        $trip = Trip::query()
-            ->where('conductor_id', $request->user()->id)
-            ->live()
-            ->firstOrFail();
+        // A live trip — or, for an Offline Mode replay naming trip_id, that
+        // trip even if it has ended since (App\Support\OfflineSync).
+        $trip = OfflineSync::tripForSale($request, $request->user());
+        abort_if($trip === null, 404, 'You have no trip in progress.');
 
-        $dispatch = $trip->dispatches()->create([
+        $clientUuid = trim((string) $request->input('client_uuid', '')) ?: null;
+        $existing = $clientUuid !== null
+            ? $trip->dispatches()->where('client_uuid', $clientUuid)->first()
+            : null;
+
+        $replay = OfflineSync::isReplay($request);
+        $dispatch = $existing ?? $trip->dispatches()->create([
             'company_id' => $trip->company_id,
             'barker_name' => $request->string('barker_name')->trim()->value(),
             'amount' => round((float) $request->input('amount'), 2),
-            'dispatched_at' => now(),
+            'dispatched_at' => $replay ? OfflineSync::time($request->input('dispatched_at'), $trip->started_at) : now(),
+            'client_uuid' => $clientUuid,
+            'offline_sync' => $replay,
         ]);
 
         return response()->json([
             'data' => DispatchResource::make($dispatch),
             'remittance' => TripRemittance::for($trip->fresh())->toArray(),
-        ], JsonResponse::HTTP_CREATED);
+        ], $existing !== null ? JsonResponse::HTTP_OK : JsonResponse::HTTP_CREATED);
     }
 
     public function index(Request $request, Trip $trip): JsonResponse

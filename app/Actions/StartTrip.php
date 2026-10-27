@@ -11,6 +11,7 @@ use App\Models\Terminal;
 use App\Models\Trip;
 use App\Models\User;
 use App\Support\CharterConflicts;
+use App\Support\OfflineSync;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -37,6 +38,33 @@ class StartTrip
      */
     public function handle(User $conductor, array $input): Trip
     {
+        // Offline Mode replay (the app's local "PT-…" trip id): a start whose
+        // first attempt already landed returns that trip, never a second one.
+        $clientRequestId = trim((string) ($input['client_request_id'] ?? '')) ?: null;
+        if ($clientRequestId !== null) {
+            $existing = Trip::query()
+                ->where('conductor_id', $conductor->id)
+                ->where('client_request_id', $clientRequestId)
+                ->first();
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
+
+        $trip = $this->start($conductor, $input);
+
+        if ($clientRequestId !== null) {
+            $trip->update(['client_request_id' => $clientRequestId]);
+        }
+
+        return $trip;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function start(User $conductor, array $input): Trip
+    {
         if (! Attendance::query()->forUser($conductor->id)->open()->exists()) {
             throw ValidationException::withMessages(['attendance' => 'Clock in before starting a trip.']);
         }
@@ -46,7 +74,8 @@ class StartTrip
         }
 
         if (($input['trip_type'] ?? 'Regular') === 'Special') {
-            return $this->startCharter($conductor, (int) $input['charter_booking_id'], (int) $input['driver_id']);
+            return $this->startCharter($conductor, (int) $input['charter_booking_id'], (int) $input['driver_id'],
+                OfflineSync::time($input['started_at'] ?? null));
         }
 
         $bus = $conductor->buses()->where('buses.id', $input['bus_id'])->where('status', 'Active')->first();
@@ -127,7 +156,8 @@ class StartTrip
             ]);
         }
 
-        $now = now();
+        // An offline replay starts at the phone's own time (App\Support\OfflineSync).
+        $now = OfflineSync::time($input['started_at'] ?? null);
 
         return Trip::query()->create([
             'conductor_id' => $conductor->id,
@@ -160,9 +190,9 @@ class StartTrip
      * the conductor records leaving with mark-on-trip and arriving with End
      * Trip, and the booking follows (InProgress → Completed — see Trip::booted()).
      */
-    private function startCharter(User $conductor, int $bookingId, int $driverId): Trip
+    private function startCharter(User $conductor, int $bookingId, int $driverId, \Illuminate\Support\Carbon $now): Trip
     {
-        return DB::transaction(function () use ($conductor, $bookingId, $driverId): Trip {
+        return DB::transaction(function () use ($conductor, $bookingId, $driverId, $now): Trip {
             $booking = CharterBooking::query()->whereKey($bookingId)->lockForUpdate()->first();
 
             if ($booking === null || $booking->conductor_id !== $conductor->id) {
@@ -197,7 +227,6 @@ class StartTrip
                 throw ValidationException::withMessages(['driver_id' => "This charter is assigned to driver {$driver->name} — sign out and sign in with that driver's code."]);
             }
 
-            $now = now();
             $trip = Trip::query()->create([
                 'conductor_id' => $conductor->id,
                 'bus_id' => $bus->id,

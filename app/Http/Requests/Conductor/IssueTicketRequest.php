@@ -28,6 +28,10 @@ class IssueTicketRequest extends FormRequest
             'qr_reference' => ['nullable', 'string', 'max:6'],
             'quantity' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'client_uuid' => ['nullable', 'string', 'max:64'],
+            // Offline Mode replay (App\Support\OfflineSync).
+            'offline_sync' => ['sometimes', 'nullable', 'boolean'],
+            'trip_id' => ['sometimes', 'nullable', 'integer'],
+            'issued_at' => ['sometimes', 'nullable', 'date'],
         ];
     }
 }

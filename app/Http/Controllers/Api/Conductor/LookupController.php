@@ -280,6 +280,39 @@ class LookupController extends Controller
         return ['terminal' => $map($terminal), 'pickup' => $map($pickup)];
     }
 
+    /**
+     * GET conductor/lookup/routes/{franchise}/offline-pack — everything the
+     * conductor app needs to start and sell on this route with no connection
+     * (Offline Mode, BITS faresByOrigin/routeStops parity): the route's stops
+     * in franchise order, and every priced fare on it from every stop. The
+     * app derives a trip's terminal fares, stop indices and direction from
+     * these exactly as tripFares()/stops() do for a live trip.
+     */
+    public function offlinePack(Franchise $franchise): array
+    {
+        $this->authorize('view', $franchise);
+
+        $stopNames = RouteStop::query()->where('franchise_id', $franchise->id)
+            ->orderBy('sort_order')->pluck('name')->values();
+        $order = $stopNames->flip();
+        $orderOf = fn (string $name) => $order->get($name) ?? PHP_INT_MAX;
+
+        $fares = Route::query()->where('franchise_id', $franchise->id)->priced()->with('fareMatrix')->get()
+            ->sort(fn ($a, $b) => [$orderOf($a->origin), $orderOf($a->destination)] <=> [$orderOf($b->origin), $orderOf($b->destination)])
+            ->map(fn ($r) => [
+                'route_id' => $r->id,
+                'origin' => $r->origin,
+                'destination' => $r->destination,
+                'amount' => (float) $r->fareMatrix->amount,
+            ])->values();
+
+        return [
+            'franchise_id' => $franchise->id,
+            'stops' => $stopNames->map(fn (string $name, int $i) => ['name' => $name, 'index' => $i])->all(),
+            'fares' => $fares,
+        ];
+    }
+
     public function passengerTypes(): array
     {
         return [

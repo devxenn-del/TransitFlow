@@ -19,6 +19,12 @@ class IssueDispatchRequest extends FormRequest
         return [
             'barker_name' => ['required', 'string', 'max:150'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:99999.99'],
+            // Idempotency — a replayed dispatch is never recorded twice.
+            'client_uuid' => ['sometimes', 'nullable', 'string', 'max:64'],
+            // Offline Mode replay (App\Support\OfflineSync).
+            'offline_sync' => ['sometimes', 'nullable', 'boolean'],
+            'trip_id' => ['sometimes', 'nullable', 'integer'],
+            'dispatched_at' => ['sometimes', 'nullable', 'date'],
         ];
     }
 }

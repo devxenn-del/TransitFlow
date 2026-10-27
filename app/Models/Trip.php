@@ -32,6 +32,7 @@ class Trip extends Model
         'charter_booking_id',
         'bus_number',
         'reference',
+        'client_request_id',
         'origin',
         'coverage_origin',
         'coverage_destination',

@@ -32,6 +32,7 @@ class Ticket extends Model
         'refunded_at',
         'refund_amount',
         'client_uuid',
+        'offline_sync',
     ];
 
     /**
@@ -51,6 +52,7 @@ class Ticket extends Model
             'issued_at' => 'datetime',
             'refunded_at' => 'datetime',
             'refund_amount' => 'decimal:2',
+            'offline_sync' => 'boolean',
         ];
     }
 

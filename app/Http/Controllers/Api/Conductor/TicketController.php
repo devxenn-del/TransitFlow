@@ -10,6 +10,7 @@ use App\Http\Requests\Conductor\IssueTicketRequest;
 use App\Http\Resources\TicketGroupResource;
 use App\Http\Resources\TicketResource;
 use App\Models\Trip;
+use App\Support\OfflineSync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,10 +21,8 @@ class TicketController extends Controller
 {
     public function store(IssueTicketRequest $request, IssueTicket $action): JsonResponse
     {
-        $trip = Trip::query()
-            ->where('conductor_id', $request->user()->id)
-            ->live()
-            ->firstOrFail();
+        $trip = OfflineSync::tripForSale($request, $request->user());
+        abort_if($trip === null, 404, 'You have no trip in progress.');
 
         $tickets = $action->handle($trip, $request->validated())
             ->load(['route', 'passengerType']);
@@ -41,10 +40,8 @@ class TicketController extends Controller
 
     public function storeGroup(IssueTicketGroupRequest $request, IssueTicketGroup $action): JsonResponse
     {
-        $trip = Trip::query()
-            ->where('conductor_id', $request->user()->id)
-            ->live()
-            ->firstOrFail();
+        $trip = OfflineSync::tripForSale($request, $request->user());
+        abort_if($trip === null, 404, 'You have no trip in progress.');
 
         $group = $action->handle($request->user(), $trip, $request->validated());
         $group->loadMissing('tickets.route', 'tickets.passengerType');

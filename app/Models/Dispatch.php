@@ -19,6 +19,8 @@ class Dispatch extends Model
         'barker_name',
         'amount',
         'dispatched_at',
+        'client_uuid',
+        'offline_sync',
     ];
 
     /**
@@ -29,6 +31,7 @@ class Dispatch extends Model
         return [
             'amount' => 'decimal:2',
             'dispatched_at' => 'datetime',
+            'offline_sync' => 'boolean',
         ];
     }
 

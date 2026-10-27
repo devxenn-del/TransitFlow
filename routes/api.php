@@ -427,6 +427,8 @@ Route::middleware(['auth:sanctum', EnsureAccountNotLocked::class, RequirePasswor
         Route::get('lookup/routes', [LookupController::class, 'routes'])->middleware('permission:trips.start');
         Route::get('lookup/routes/{franchise}/coverage', [LookupController::class, 'routeCoverage'])->middleware('permission:trips.start');
         Route::get('lookup/routes/{franchise}/terminals', [LookupController::class, 'routeTerminals'])->middleware('permission:trips.start');
+        // Offline Mode: a route's stops + full fare matrix, cached by the app.
+        Route::get('lookup/routes/{franchise}/offline-pack', [LookupController::class, 'offlinePack'])->middleware('permission:trips.start');
         Route::get('lookup/passenger-types', [LookupController::class, 'passengerTypes'])->middleware('permission:tickets.issue');
         Route::get('trips/{trip}/fares', [LookupController::class, 'tripFares'])->middleware('permission:tickets.issue');
         Route::get('trips/{trip}/stops', [LookupController::class, 'stops'])->middleware('permission:tickets.issue');

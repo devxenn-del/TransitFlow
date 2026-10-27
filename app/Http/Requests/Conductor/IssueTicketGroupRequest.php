@@ -23,6 +23,10 @@ class IssueTicketGroupRequest extends FormRequest
             'payment_method' => ['required', Rule::in(Ticket::PAYMENT_METHODS)],
             'qr_reference' => ['nullable', 'string', 'max:6'],
             'client_uuid' => ['nullable', 'string', 'max:64'],
+            // Offline Mode replay (App\Support\OfflineSync).
+            'offline_sync' => ['sometimes', 'nullable', 'boolean'],
+            'trip_id' => ['sometimes', 'nullable', 'integer'],
+            'issued_at' => ['sometimes', 'nullable', 'date'],
 
             'lines' => ['required', 'array', 'min:1', 'max:30'],
             'lines.*.passenger_type_id' => ['required', 'integer'],

@@ -36,6 +36,10 @@ class StartTripRequest extends FormRequest
                 : ['required', 'string', 'max:150', 'different:coverage_origin'],
             'trip_type' => ['sometimes', 'string', 'in:Regular,Special'],
             'at_terminal' => ['sometimes', 'boolean'],
+            // Offline Mode replay: the app's local trip id (idempotency) and
+            // when the trip really started on the phone (App\Support\OfflineSync).
+            'client_request_id' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'started_at' => ['sometimes', 'nullable', 'date'],
         ];
     }
 

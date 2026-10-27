@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Models\TicketGroup;
 use App\Models\Trip;
 use App\Models\User;
+use App\Support\OfflineSync;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -30,9 +31,12 @@ class IssueTicketGroup
      */
     public function handle(User $conductor, Trip $trip, array $input): TicketGroup
     {
-        if (! $trip->isLive()) {
+        // Offline Mode replay — see App\Actions\IssueTicket.
+        $replay = ! empty($input['offline_sync']);
+        if (! $trip->isLive() && ! ($replay && $trip->status === 'Arrived')) {
             throw ValidationException::withMessages(['trip' => 'This trip is not accepting tickets.']);
         }
+        $issuedAt = $replay ? OfflineSync::time($input['issued_at'] ?? null, $trip->started_at) : now();
 
         $clientUuid = trim((string) ($input['client_uuid'] ?? '')) ?: null;
         if ($clientUuid !== null) {
@@ -52,14 +56,15 @@ class IssueTicketGroup
             'payment_method' => $input['payment_method'] ?? 'Cash',
             'qr_reference' => $input['qr_reference'] ?? null,
         ];
+        $replayFields = $replay ? ['offline_sync' => true, 'issued_at' => $issuedAt->toIso8601String()] : [];
 
-        return DB::transaction(function () use ($conductor, $trip, $lines, $shared, $clientUuid): TicketGroup {
+        return DB::transaction(function () use ($conductor, $trip, $lines, $shared, $clientUuid, $issuedAt, $replayFields): TicketGroup {
             $group = TicketGroup::query()->create([
                 'company_id' => $trip->company_id,
                 'trip_id' => $trip->id,
                 ...$shared,
                 'issued_by' => $conductor->id,
-                'issued_at' => now(),
+                'issued_at' => $issuedAt,
                 'client_uuid' => $clientUuid,
             ]);
 
@@ -71,6 +76,7 @@ class IssueTicketGroup
                     $tickets = $this->issueTicket->handle($trip, [
                         ...$line,
                         ...$shared,
+                        ...$replayFields,
                         'client_uuid' => null,
                     ]);
                 } catch (ValidationException $e) {

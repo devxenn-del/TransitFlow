@@ -11,6 +11,7 @@ use App\Http\Resources\CharterBookingResource;
 use App\Http\Resources\TripResource;
 use App\Models\CharterBooking;
 use App\Models\Trip;
+use App\Support\OfflineSync;
 use App\Support\TripCancellation;
 use App\Support\TripRemittance;
 use Illuminate\Http\JsonResponse;
@@ -64,15 +65,25 @@ class TripController extends Controller
             ->setStatusCode(JsonResponse::HTTP_CREATED);
     }
 
-    public function markOnTrip(Request $request): TripResource
+    public function markOnTrip(Request $request): TripResource|JsonResponse
     {
         $trip = $this->liveTripFor($request);
+        // Offline Mode replay: the Terminal Receipt was printed on the phone at printed_at.
+        $replay = $request->filled('printed_at');
 
         if ($trip === null || $trip->status !== 'Departure') {
+            if ($replay) {
+                // Already left the terminal (an earlier replay landed, or the
+                // office moved it on) — nothing left to do; the app treats 409 as done.
+                return response()->json(['message' => 'This trip has already left the terminal.', 'code' => 'already_done'], 409);
+            }
             throw ValidationException::withMessages(['trip' => 'No trip is waiting at the terminal.']);
         }
 
-        $trip->update(['status' => 'OnTrip', 'marked_on_trip_at' => now()]);
+        $trip->update([
+            'status' => 'OnTrip',
+            'marked_on_trip_at' => $replay ? OfflineSync::time($request->input('printed_at'), $trip->started_at) : now(),
+        ]);
 
         return TripResource::make($trip->fresh()->loadCount('tickets')->load(['driver', 'bus', 'charterBooking']));
     }
@@ -89,7 +100,8 @@ class TripController extends Controller
 
         $trip->update([
             'status' => 'Arrived',
-            'ended_at' => now(),
+            // Offline Mode replay: the trip really ended on the phone at ended_at.
+            'ended_at' => OfflineSync::time($request->input('ended_at'), $trip->marked_on_trip_at ?? $trip->started_at),
             'remitted_amount' => $remitted,
         ]);
 

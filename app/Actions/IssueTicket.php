@@ -7,6 +7,7 @@ use App\Models\Route;
 use App\Models\Ticket;
 use App\Models\Trip;
 use App\Support\FareCalculator;
+use App\Support\OfflineSync;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -30,7 +31,18 @@ class IssueTicket
      */
     public function handle(Trip $trip, array $input): Collection
     {
-        if (! $trip->isLive()) {
+        // Offline Mode replay (App\Support\OfflineSync): the sale happened on
+        // the phone at issued_at, possibly before the trip ended or left the
+        // terminal on the server — judged at that time, not at sync time.
+        $replay = ! empty($input['offline_sync']);
+        $issuedAt = $replay
+            ? OfflineSync::time($input['issued_at'] ?? null, $trip->started_at)
+            : now();
+        if ($replay && $trip->ended_at !== null && $issuedAt->greaterThan($trip->ended_at)) {
+            $issuedAt = $trip->ended_at->copy();
+        }
+
+        if (! $trip->isLive() && ! ($replay && $trip->status === 'Arrived')) {
             throw ValidationException::withMessages(['trip' => 'This trip is not accepting tickets.']);
         }
 
@@ -48,7 +60,10 @@ class IssueTicket
         }
 
         $boardingType = ($input['boarding_type'] ?? 'Terminal') === 'Pickup' ? 'Pickup' : 'Terminal';
-        if ($boardingType === 'Terminal' && $trip->hasLeftTerminal()) {
+        $leftTerminal = $replay
+            ? $trip->marked_on_trip_at !== null && $issuedAt->greaterThan($trip->marked_on_trip_at)
+            : $trip->hasLeftTerminal();
+        if ($boardingType === 'Terminal' && $leftTerminal) {
             throw ValidationException::withMessages([
                 'boarding_type' => 'This trip has already left the terminal — issue as Via Pick-up.',
             ]);
@@ -81,7 +96,7 @@ class IssueTicket
 
         $quantity = max(1, min(50, (int) ($input['quantity'] ?? 1)));
 
-        return DB::transaction(function () use ($trip, $quantity, $routeId, $passengerType, $boardingType, $paymentMethod, $qrReference, $articleLabel, $fare, $clientUuid): Collection {
+        return DB::transaction(function () use ($trip, $quantity, $routeId, $passengerType, $boardingType, $paymentMethod, $qrReference, $articleLabel, $fare, $clientUuid, $issuedAt, $replay): Collection {
             $tickets = new Collection;
             for ($i = 0; $i < $quantity; $i++) {
                 $tickets->push($trip->tickets()->create([
@@ -93,8 +108,9 @@ class IssueTicket
                     'qr_reference' => $qrReference,
                     'article_label' => $articleLabel,
                     'fare' => $fare,
-                    'issued_at' => now(),
+                    'issued_at' => $issuedAt,
                     'client_uuid' => $clientUuid,
+                    'offline_sync' => $replay,
                 ]));
             }
 

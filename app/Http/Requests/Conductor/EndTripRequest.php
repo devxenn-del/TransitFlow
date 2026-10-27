@@ -19,6 +19,8 @@ class EndTripRequest extends FormRequest
         return [
             // Optional — defaults to the full amount collected.
             'remitted_amount' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:9999999.99'],
+            // Offline Mode replay: when the trip really ended on the phone.
+            'ended_at' => ['sometimes', 'nullable', 'date'],
         ];
     }
 }
